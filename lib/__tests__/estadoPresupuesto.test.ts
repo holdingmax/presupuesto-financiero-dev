@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { EMPRESAS_CON_CARGA_EN_REPORTE } from "@/lib/config";
+import { EMPRESAS_CON_CARGA_EN_REPORTE, EMPRESAS_EN_DOLARES } from "@/lib/config";
 import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { cargaEnReporteActiva, mostrarFlujoEnReporte, puedeEditarPresupuestoAhora } from "@/lib/estadoPresupuesto";
 
@@ -69,9 +69,27 @@ test("config: cada slug de EMPRESAS_CON_CARGA_EN_REPORTE tiene plantilla de Repo
   }
 });
 
-test("config: primera tanda de la Etapa 4 (Avianor, Plate Silver y Bradenton quedan fuera a propósito)", () => {
+test("config: tandas de la Etapa 4 (Avianor y Expensas quedan fuera a propósito)", () => {
   assert.deepEqual(
     [...EMPRESAS_CON_CARGA_EN_REPORTE].sort(),
-    ["brillante", "conexion-logistica", "conexion-logistica-spp", "fredy-publicidad", "havanna", "hwc", "mantenor", "radio"]
+    [
+      "bradenton",
+      "brillante",
+      "conexion-logistica",
+      "conexion-logistica-spp",
+      "fredy-publicidad",
+      "havanna",
+      "hwc",
+      "mantenor",
+      "plate-silver",
+      "radio",
+    ]
   );
+  assert.equal(EMPRESAS_CON_CARGA_EN_REPORTE.includes("avianor"), false);
+  assert.equal(EMPRESAS_CON_CARGA_EN_REPORTE.includes("expensas"), false);
+});
+
+test("config: EMPRESAS_EN_DOLARES son exactamente Bradenton y Plate Silver, y las dos cargan en el Reporte", () => {
+  assert.deepEqual([...EMPRESAS_EN_DOLARES].sort(), ["bradenton", "plate-silver"]);
+  for (const slug of EMPRESAS_EN_DOLARES) assert.ok(EMPRESAS_CON_CARGA_EN_REPORTE.includes(slug), slug);
 });

@@ -113,12 +113,14 @@ export const PLANTILLA_BRADENTON: Plantilla = {
       resta: ["bd.totalGastos"],
       requiere: ["bd.disponibleAntes"],
       soloConPresupuesto: true,
+      visibleGerente: true,
     }),
     capital,
     total("bd.excedente", "CIERRE", "Excedente / Faltante", ["bd.totalDisponibilidades"], {
       resta: ["bd.capital"],
       requiere: ["bd.totalDisponibilidades"],
       soloConPresupuesto: true,
+      visibleGerente: true,
     }),
   ],
 };

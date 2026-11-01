@@ -58,13 +58,13 @@ function reporteDelGerente(slug: string): Reporte {
 
 // Empresas cuyo gerente ve Disponibilidades hoy: Brillante y la segunda tanda. Fijada a propósito: sumar otra
 // empresa tiene que obligar a tocar este test.
-const CON_DISPONIBILIDADES_HOY = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"];
+const CON_DISPONIBILIDADES_HOY = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "havanna", "radio", "conexion-logistica", "bradenton", "plate-silver"];
 
-test("interruptores: Disponibilidades y Cierre en las mismas cinco empresas (Havanna, Radio y Conexión, fuera)", () => {
+test("interruptores: Disponibilidades y Cierre en las mismas diez empresas (el alias de testing de Conexión y Havanna Perú, fuera)", () => {
   assert.ok(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes("brillante"));
   assert.deepEqual([...EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE], CON_DISPONIBILIDADES_HOY);
   assert.deepEqual([...EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE], CON_DISPONIBILIDADES_HOY);
-  for (const slug of ["havanna", "radio", "conexion-logistica", "conexion-logistica-spp"]) {
+  for (const slug of ["conexion-logistica-spp", "havanna-peru"]) {
     assert.equal(EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE.includes(slug), false, slug);
   }
 });
@@ -73,8 +73,8 @@ test("interruptores: Disponibilidades y Cierre en las mismas cinco empresas (Hav
 
 const FUERA_DEL_INTERRUPTOR = Object.keys(PLANTILLAS_POR_SLUG).filter((s) => !EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes(s));
 
-test("las empresas que siguen fuera incluyen a Havanna, Radio, Conexión, Plate Silver y Bradenton", () => {
-  for (const slug of ["havanna", "radio", "conexion-logistica", "conexion-logistica-spp", "plate-silver", "bradenton"]) {
+test("las empresas que siguen fuera incluyen al alias de testing de Conexión y a Havanna Perú", () => {
+  for (const slug of ["conexion-logistica-spp", "havanna-peru"]) {
     assert.ok(FUERA_DEL_INTERRUPTOR.includes(slug), slug);
   }
 });

@@ -36,9 +36,9 @@ export const MOSTRAR_PENDIENTES_EN_REPORTE = false;
 //
 // Primera tanda (Etapa 4): Brillante, Havanna, Radio, Fredy Publicidad, HWC, Mantenor y Conexión
 // (los dos alias de slug: uno es el de testing; el que no exista en una base no hace nada).
-// Quedan FUERA a propósito, para una próxima tanda: Avianor, Plate Silver y Bradenton (Plate Silver
-// y Bradenton son en dólares y el Reporte no rotula la moneda; las tres tienen un bloque «Sin fila»
-// largo). Sumar una empresa es agregar su slug acá. Expensas, Gold Seguridad, Cielos y Tucson no
+// Segunda tanda: Bradenton y Plate Silver (en dólares: el texto del Reporte lo dice, ver EMPRESAS_EN_DOLARES).
+// Quedan FUERA a propósito: Avianor y Expensas (los carga Enrique Macchi con la pantalla vieja de Presupuesto).
+// Sumar una empresa es agregar su slug acá. Expensas, Gold Seguridad, Cielos y Tucson no
 // tienen Reporte por plantilla: no se pueden activar.
 export const EMPRESAS_CON_CARGA_EN_REPORTE: readonly string[] = [
   "brillante",
@@ -49,7 +49,13 @@ export const EMPRESAS_CON_CARGA_EN_REPORTE: readonly string[] = [
   "mantenor",
   "conexion-logistica",
   "conexion-logistica-spp",
+  "bradenton",
+  "plate-silver",
 ];
+
+// Empresas cuyos importes están en dólares: solo cambia el texto «en pesos» del Reporte por «en dólares»
+// (ReportePlantilla). No toca ningún cálculo ni formato de importe.
+export const EMPRESAS_EN_DOLARES: readonly string[] = ["bradenton", "plate-silver"];
 
 // Pestaña Presupuesto también oculta para ADMIN y FINANZAS (Kike: la reemplazó la carga del gerente sobre el Reporte),
 // pero solo en las empresas de EMPRESAS_CON_CARGA_EN_REPORTE que tienen plantilla de Reporte; las demás conservan la
@@ -66,16 +72,41 @@ export const OCULTAR_PRESUPUESTO_TAMBIEN_PARA_ADMIN_Y_FINANZAS = true;
 // el saldo real del banco.
 //
 // Primera tanda: Brillante. Segunda: Fredy Publicidad, HWC y Avianor (ninguna tiene filas de Ingresos que
-// espejen Disponibilidades). Conexión y Radio quedan fuera hasta que Kike confirme el efecto sobre
-// «Cheques en cartera despues del 10/15» y TOTAL INGRESOS (son espejos de Disponibilidades: hoy vacíos para el
-// gerente, al prender este interruptor pasarían a mostrarse). Sumar una empresa es agregar su slug acá.
-export const EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"];
+// espejen Disponibilidades). Mantenor. Tercera: Havanna, Radio, Conexión Logística, Bradenton y Plate Silver. En Radio
+// y Conexión las filas espejo de Ingresos («Cheques despues del 15», «Cheques en cartera despues del 10») son espejos
+// de Disponibilidades: al prender el interruptor su Presupuestado y los totales que las suman (TOTAL INGRESOS,
+// DISPONIBLE ANTES DE GASTOS que no se muestra, Saldo) pasan a mostrarse al gerente; es el efecto buscado y no cambia
+// lo que el gerente tipea. En Havanna pasa lo mismo con «Devolucion prestamo - Prestamo MS» (su P es el Disponible),
+// TOTAL EGRESOS y Saldo. Sumar una empresa es agregar su slug acá.
+export const EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE: readonly string[] = [
+  "brillante",
+  "fredy-publicidad",
+  "hwc",
+  "avianor",
+  "mantenor",
+  "havanna",
+  "radio",
+  "conexion-logistica",
+  "bradenton",
+  "plate-silver",
+];
 // Cierre: Saldo, Capital de trabajo y Disponible (NO «Disponible antes de gastos»), al pie de la tabla como en la hoja
 // «PRESUPUESTO MES A MES». Se calculan con el total de Disponibilidades: una empresa solo puede estar acá si también está
 // en la lista de arriba (lo controla un test, y el motor lo aplica igual: sin Disponibilidades, no hay Cierre).
-// El gerente las ve en solo lectura: el Capital de trabajo lo carga ADMIN en /reporte/carga. Havanna, Radio y Conexión
-// quedan fuera hasta que tengan Disponibilidades (ver arriba).
-export const EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"];
+// El gerente las ve en solo lectura: el Capital de trabajo de las empresas que lo tipean lo carga ADMIN en /reporte/carga.
+// En Plate Silver y Bradenton además se ven Posición, Capital y Excedente (marcadas con visibleGerente en su plantilla).
+export const EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE: readonly string[] = [
+  "brillante",
+  "fredy-publicidad",
+  "hwc",
+  "avianor",
+  "mantenor",
+  "havanna",
+  "radio",
+  "conexion-logistica",
+  "bradenton",
+  "plate-silver",
+];
 
 // Tipeo directo en el Reporte de los valores que en la planilla se tipean a mano (Real manual de
 // Ingresos / Egresos / de abajo y componentes de Disponibilidades), solo para ADMIN y FINANZAS. Lista de

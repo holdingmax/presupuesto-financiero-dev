@@ -43,7 +43,7 @@ export function visibilidadDeAcceso(acceso: AccesoReservados): VisibilidadReserv
 }
 
 // De las filas de Cierre, las únicas que puede ver el gerente cuando su interruptor está prendido: el
-// Saldo (rol "saldo"), el Capital de trabajo (fila de tipo capital o, en Bradenton, la línea tipeada de
+// Saldo (rol "saldo" o visibleGerente), el Capital de trabajo (fila de tipo capital o, en Bradenton, la línea tipeada de
 // Cierre) y el Disponible. «Disponible antes de gastos» y las demás NO: no se pidieron.
 export function esFilaDeCierreVisibleParaGerente(fila: Fila): boolean {
   if (fila.bloque !== "CIERRE") return false;
@@ -52,7 +52,7 @@ export function esFilaDeCierreVisibleParaGerente(fila: Fila): boolean {
     case "disponible":
       return true;
     case "total":
-      return fila.rol === "saldo";
+      return fila.rol === "saldo" || fila.visibleGerente === true;
     case "linea":
       return fila.presupuesto.tipo === "manual";
     case "titulo":
@@ -161,6 +161,9 @@ export type FilaTotal = {
   // Filas que el control de arrastre necesita encontrar.
   // Los tres últimos marcan el total de cada bloque de flujo: ahí se suman las filas extra (filasExtra.ts).
   rol?: "totalDisponibilidades" | "saldo" | "totalIngresos" | "totalEgresosOperativos" | "totalEgresos";
+  // Fila de Cierre que el gerente ve (solo lectura) cuando su empresa tiene Cierre prendido, aunque no lleve rol
+  // "saldo" (Plate Silver y Bradenton: Posición, Capital y Excedente). No toca el control de arrastre ni las filas extra.
+  visibleGerente?: true;
 };
 export type ReglaCapital = { terminos: { fila: string; factor: number }[]; fijo?: number };
 export type FilaCapital = {

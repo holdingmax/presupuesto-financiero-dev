@@ -1,5 +1,6 @@
 import { pendientesDe, type Celda, type FilaLinea, type FilaReporte, type Reporte } from "@/lib/reporte/motor";
 import { PENDIENTES } from "@/lib/reporte/pendientes";
+import { EMPRESAS_EN_DOLARES } from "@/lib/config";
 import { formatearImporte } from "@/app/ejecucion/formato";
 import Link from "next/link";
 import BloqueNoAsignado from "./BloqueNoAsignado";
@@ -139,7 +140,7 @@ export default function ReportePlantilla({
         className="mb-3 text-xs text-ink-secondary"
         title="El real suma los movimientos de las unidades de negocio de esta empresa, de cualquier extracto del período. Disponibilidades, Resultado FCI y demás valores tipeados se cargan a mano."
       >
-        Presupuestado vs. real ejecutado (semanas cerradas), en pesos.
+        Presupuestado vs. real ejecutado (semanas cerradas), en {EMPRESAS_EN_DOLARES.includes(empresaSlug) ? "dólares" : "pesos"}.
       </p>
 
       {avisoSoloLectura && (

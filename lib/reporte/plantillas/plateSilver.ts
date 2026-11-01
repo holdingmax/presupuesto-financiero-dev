@@ -100,14 +100,17 @@ export const PLANTILLA_PLATE_SILVER: Plantilla = {
       requiere: ["ps.disponibleAntes"],
       soloConPresupuesto: true,
       rol: "saldo",
+      visibleGerente: true,
     }),
     total("ps.capital", "CIERRE", "Capital de trabajo propuesto", ["ps.totalGastosOperativos"], {
       soloConPresupuesto: true,
+      visibleGerente: true,
     }),
     total("ps.excedente", "CIERRE", "Excedente(+) / Faltante (-)", ["ps.totalDisponibilidades"], {
       resta: ["ps.capital"],
       requiere: ["ps.totalDisponibilidades"],
       soloConPresupuesto: true,
+      visibleGerente: true,
     }),
   ],
 };

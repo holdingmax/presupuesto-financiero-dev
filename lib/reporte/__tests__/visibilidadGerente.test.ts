@@ -75,7 +75,7 @@ test("accesoReservadosDelReporte: ADMIN/FINANZAS todo; sin interruptores, nada",
   assert.equal(accesoReservadosDelReporte(false, "brillante", APAGADOS), false);
   const soloDisp = { disponibilidades: ["brillante"], cierre: [] };
   assert.deepEqual(accesoReservadosDelReporte(false, "brillante", soloDisp), { disponibilidades: true, cierre: false });
-  assert.equal(accesoReservadosDelReporte(false, "radio", soloDisp), false);
+  assert.equal(accesoReservadosDelReporte(false, "radio", soloDisp), false); // fuera de la lista pasada, aunque esté en la de config
   const ambos = { disponibilidades: ["brillante"], cierre: ["brillante"] };
   assert.deepEqual(accesoReservadosDelReporte(false, "brillante", ambos), { disponibilidades: true, cierre: true });
   // Un interruptor de una empresa no prende el de otra.
@@ -95,12 +95,15 @@ test("config: Cierre solo puede estar prendido donde Disponibilidades también l
   }
 });
 
-test("config real: Cierre prendido en las cinco empresas con Disponibilidades; Havanna, Radio y Conexión siguen fuera", () => {
-  assert.deepEqual([...EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE], ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"]);
+test("config real: Cierre prendido en las diez empresas con Disponibilidades; el alias de testing de Conexión y Havanna Perú siguen fuera", () => {
+  assert.deepEqual(
+    [...EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE],
+    ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "havanna", "radio", "conexion-logistica", "bradenton", "plate-silver"]
+  );
   for (const slug of EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE) {
     assert.deepEqual(accesoReservadosDelReporte(false, slug), { disponibilidades: true, cierre: true }, slug);
   }
-  for (const slug of ["havanna", "radio", "conexion-logistica", "conexion-logistica-spp"]) {
+  for (const slug of ["conexion-logistica-spp", "havanna-peru", "expensas"]) {
     assert.equal(accesoReservadosDelReporte(false, slug), false, slug);
   }
 });
@@ -115,9 +118,14 @@ test("Cierre del gerente: Capital y Disponible solo con Presupuestado (como la p
         assert.equal(c.real, null, clave);
         assert.equal(c.avance, null, clave);
         assert.equal(c.faltaEjecutar, null, clave);
-      } else {
-        assert.equal(f.fila.tipo === "total" && f.fila.rol === "saldo", true, clave);
+      } else if (f.fila.tipo === "total") {
+        // Saldo, o Posición / Capital / Excedente de Plate Silver y Bradenton (visibleGerente): con Presupuestado y Real.
+        assert.equal(f.fila.rol === "saldo" || f.fila.visibleGerente === true, true, clave);
         assert.notEqual(c.real, null, clave);
+        assert.notEqual(c.presupuestado, null, clave);
+      } else {
+        // Capital tipeado de Bradenton (línea manual de Cierre): P y R.
+        assert.equal(f.fila.tipo === "linea" && f.fila.presupuesto.tipo === "manual", true, clave);
       }
     }
   }

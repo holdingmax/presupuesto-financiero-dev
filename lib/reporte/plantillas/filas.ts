@@ -52,7 +52,7 @@ export function total(
   bloque: Bloque,
   texto: string,
   suma: string[],
-  extra: Partial<Pick<FilaTotal, "resta" | "requiere" | "soloConPresupuesto" | "rol">> = {}
+  extra: Partial<Pick<FilaTotal, "resta" | "requiere" | "soloConPresupuesto" | "rol" | "visibleGerente">> = {}
 ): FilaTotal {
   return { clave, bloque, tipo: "total", texto, suma, ...extra };
 }

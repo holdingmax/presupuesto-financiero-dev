@@ -116,7 +116,7 @@ test("las otras plantillas no cambian: foto del gerente y claves manuales idént
   const sinDisponibilidades = Object.keys(PLANTILLAS_POR_SLUG).filter(
     (s) => s !== "brillante" && !EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes(s)
   );
-  assert.ok(sinDisponibilidades.includes("havanna") && sinDisponibilidades.includes("radio"), "sanidad");
+  assert.ok(sinDisponibilidades.includes("conexion-logistica-spp") && sinDisponibilidades.includes("havanna-peru"), "sanidad");
   for (const slug of sinDisponibilidades) {
     const p = PLANTILLAS_POR_SLUG[slug];
     const r = armarReporte(p, mesesDePrueba(p), 1, { verBloquesReservados: accesoReservadosDelReporte(false, slug) });
