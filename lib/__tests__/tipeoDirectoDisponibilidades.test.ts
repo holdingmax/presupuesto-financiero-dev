@@ -7,7 +7,7 @@ import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { accesoReservadosDelReporte } from "@/lib/reporte/visibilidad";
 import { planDeCarga, vistaDeCarga } from "@/lib/reporte/cargaGerente";
 import { armarVistaTipeo, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto";
-import { CENTINELA, mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
+import { CENTINELA, clavesDeCierre, mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 
 // Segunda tanda: Fredy Publicidad, HWC y Avianor se suman a EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE. Cada
 // gerente ve en SOLO LECTURA las Disponibilidades de SU empresa (nunca las de otra) y ADMIN/FINANZAS las tipean.
@@ -17,7 +17,8 @@ const GOLDEN = JSON.parse(
   readFileSync(new URL("../reporte/__tests__/fixtures/gerenteSinReservados.json", import.meta.url), "utf-8")
 ) as Record<string, { filas: [string, unknown][] }>;
 
-const ESPERADO: Record<string, { prefijo: string; lineas: string[]; titulo: string | null; total: string | null }> = {
+// `cierre`: lo único de Cierre que ve el gerente (Saldo, Capital y Disponible; Avianor solo tiene el Saldo).
+const ESPERADO: Record<string, { prefijo: string; lineas: string[]; titulo: string | null; total: string | null; cierre: string[] }> = {
   "fredy-publicidad": {
     prefijo: "fr.",
     lineas: [
@@ -33,6 +34,7 @@ const ESPERADO: Record<string, { prefijo: string; lineas: string[]; titulo: stri
     ],
     titulo: "fr.tituloDisponibilidades",
     total: "fr.totalDisponibilidades",
+    cierre: ["fr.saldo", "fr.capital", "fr.disponible"],
   },
   hwc: {
     prefijo: "hw.",
@@ -48,19 +50,26 @@ const ESPERADO: Record<string, { prefijo: string; lineas: string[]; titulo: stri
     ],
     titulo: "hw.tituloDisponibilidades",
     total: "hw.totalDisponibilidades",
+    cierre: ["hw.saldo", "hw.capital", "hw.disponible"],
   },
   // Avianor lleva una sola fila de Disponibilidades, sin título ni total.
-  avianor: { prefijo: "av.", lineas: ["av.dEfectivo"], titulo: null, total: null },
+  avianor: { prefijo: "av.", lineas: ["av.dEfectivo"], titulo: null, total: null, cierre: ["av.saldo"] },
   // Mantenor: 4 componentes y su total, sin título (como la planilla). El gerente ve también el Efectivo (K9 pendiente).
   mantenor: {
     prefijo: "mn.",
     lineas: ["mn.dBancoFci", "mn.dEfectivo", "mn.dDolares", "mn.dChequesNegociados"],
     titulo: null,
     total: "mn.totalDisponibilidades",
+    cierre: ["mn.saldo", "mn.capital", "mn.disponible"],
   },
 };
 
 const SLUGS = Object.keys(ESPERADO);
+
+// Filas que NO son de Disponibilidades ni de Cierre pero se calculan con el Disponible: antes el gerente las veía vacías
+// (dependían de Cierre) y ahora, que ve el Disponible, las ve con valor. Mantenor: «Prestamos» (de abajo) tiene como
+// Presupuestado el Disponible, como la planilla, y TOTAL GASTOS la suma.
+const DEPENDEN_DEL_CIERRE: Record<string, string[]> = { mantenor: ["mn.prestamos", "mn.totalGastos"] };
 const ABIERTO = { abiertas: 1, cerradas: 0 };
 
 function reporteDelGerente(slug: string): Reporte {
@@ -79,16 +88,18 @@ function proyeccionDeFilas(r: Reporte) {
   );
 }
 
-test("interruptor: las tres están en la lista, y Cierre sigue apagado", () => {
-  for (const slug of SLUGS) assert.ok(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes(slug), slug);
-  assert.deepEqual([...EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE], []);
+test("interruptor: las cuatro están en la lista de Disponibilidades y en la de Cierre", () => {
+  for (const slug of SLUGS) {
+    assert.ok(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes(slug), slug);
+    assert.ok(EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE.includes(slug), slug);
+  }
 });
 
 for (const slug of SLUGS) {
   const esperado = ESPERADO[slug];
   const plantilla = PLANTILLAS_POR_SLUG[slug];
 
-  test(`${slug}: el gerente recibe exactamente sus filas de Disponibilidades, sin Cierre ni arrastre`, () => {
+  test(`${slug}: el gerente recibe exactamente sus filas de Disponibilidades y solo Saldo/Capital/Disponible de Cierre, sin arrastre`, () => {
     const r = reporteDelGerente(slug);
     const deDisp = r.filas.filter((f) => f.fila.bloque === "DISPONIBILIDADES");
     const clavesEsperadas = [
@@ -97,7 +108,7 @@ for (const slug of SLUGS) {
       ...(esperado.total ? [esperado.total] : []),
     ];
     assert.deepEqual(deDisp.map((f) => f.fila.clave).sort(), clavesEsperadas.sort());
-    assert.equal(r.filas.some((f) => f.fila.bloque === "CIERRE"), false);
+    assert.deepEqual(clavesDeCierre(r), esperado.cierre);
     assert.ok(r.arrastre.every((a) => a === null));
     assert.equal(r.sinBloquesReservados, true);
   });
@@ -120,8 +131,21 @@ for (const slug of SLUGS) {
 
   test(`${slug}: fuera de Disponibilidades el Reporte del gerente es idéntico a la foto anterior`, () => {
     const r = reporteDelGerente(slug);
-    const resto = { ...r, filas: r.filas.filter((f) => f.fila.bloque !== "DISPONIBILIDADES") };
-    assert.deepEqual(proyeccionDeFilas(resto), GOLDEN[slug].filas);
+    const derivadas = DEPENDEN_DEL_CIERRE[slug] ?? [];
+    const resto = {
+      ...r,
+      filas: r.filas.filter(
+        (f) => f.fila.bloque !== "DISPONIBILIDADES" && f.fila.bloque !== "CIERRE" && !derivadas.includes(f.fila.clave)
+      ),
+    };
+    assert.deepEqual(
+      proyeccionDeFilas(resto),
+      GOLDEN[slug].filas.filter(([clave]) => !derivadas.includes(clave))
+    );
+    // Y esas filas derivadas ahora traen su Presupuestado (el mismo Disponible que ya ve el gerente).
+    for (const clave of derivadas) {
+      assert.notEqual(r.filas.find((f) => f.fila.clave === clave)!.celdas[0].presupuestado, null, clave);
+    }
   });
 
   test(`${slug}: el gerente no recibe celdas editables ni claves de Disponibilidades, y el servidor lo rechaza`, () => {
@@ -176,7 +200,7 @@ for (const slug of SLUGS) {
 
 test("accesoReservadosDelReporte: vale solo para el slug exacto, no para otro parecido ni de otra empresa", () => {
   for (const slug of SLUGS) {
-    assert.deepEqual(accesoReservadosDelReporte(false, slug), { disponibilidades: true, cierre: false }, slug);
+    assert.deepEqual(accesoReservadosDelReporte(false, slug), { disponibilidades: true, cierre: true }, slug);
     assert.equal(accesoReservadosDelReporte(false, `${slug}-peru`), false);
   }
   for (const otra of ["havanna", "radio", "conexion-logistica", "conexion-logistica-spp", "plate-silver", "bradenton"]) {

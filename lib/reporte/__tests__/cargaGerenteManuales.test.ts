@@ -1,13 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { armarReporte, esBloqueReservado, type DatosMes, type Plantilla } from "@/lib/reporte/motor";
+import { esBloqueReservado } from "@/lib/reporte/motor";
 import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { PLANTILLA_BRILLANTE } from "@/lib/reporte/plantillas/brillante";
 import {
   BLOQUES_CARGABLES,
   cambioMientrasEditaba,
-  capitalSugerido,
-  esFilaCapital,
   esFilaManualEditable,
   idCelda,
   manualDeEntrada,
@@ -17,7 +15,8 @@ import {
   type ValorManualParaCarga,
 } from "@/lib/reporte/cargaGerente";
 
-// Etapa 3: filas de Presupuestado manual y Capital de trabajo (ValorManualReporte, PRESUPUESTADO).
+// Etapa 3: filas de Presupuestado manual (ValorManualReporte, PRESUPUESTADO). El Capital de trabajo ya no lo carga el
+// gerente: queda la fórmula de la plantilla o el valor que carga ADMIN en /reporte/carga.
 
 const manual = (filaClave: string, centavos: number, extra: Partial<ValorManualParaCarga> = {}): ValorManualParaCarga => ({
   filaClave,
@@ -27,10 +26,6 @@ const manual = (filaClave: string, centavos: number, extra: Partial<ValorManualP
   actualizadoEn: new Date("2026-10-28T15:00:00Z"),
   ...extra,
 });
-
-// Las plantillas distintas (Conexión está dos veces, por slug).
-const PLANTILLAS = Array.from(new Set(Object.values(PLANTILLAS_POR_SLUG)));
-const SLUG_DE = new Map(Object.entries(PLANTILLAS_POR_SLUG).map(([slug, p]) => [p, slug]));
 
 test("ninguna fila de datos de Ingresos/Egresos/Abajo queda sin fuente de Presupuestado (las 61 que eran «sin presupuesto» ahora son manuales)", () => {
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
@@ -109,85 +104,31 @@ test("Brillante: las filas que nombra Kike son editables (Dividendos y Inversion
   }
 });
 
-test("Capital de trabajo: qué plantilla lo abre y cómo (fórmula, tipeado o nada)", () => {
-  const esperado: Record<string, { clave: string; conFormula: boolean } | null> = {
-    avianor: null, // no tiene fila de Capital
-    "conexion-logistica": { clave: "cx.capital", conFormula: true },
-    brillante: { clave: "br.capital", conFormula: true },
-    havanna: { clave: "hv.capital", conFormula: true },
-    radio: { clave: "ra.capital", conFormula: true },
-    "fredy-publicidad": { clave: "fr.capital", conFormula: true },
-    hwc: { clave: "hw.capital", conFormula: true },
-    mantenor: { clave: "mn.capital", conFormula: false }, // tipeado, sin fórmula
-    "plate-silver": null, // su Capital es un total (fórmula pura): no editable
-    bradenton: { clave: "bd.capital", conFormula: false }, // tipeado en P y en R; solo P se abre
-    "havanna-peru": { clave: "hp.capital", conFormula: false }, // tipeado en P y en R, como Bradenton
-  };
+test("Capital de trabajo: el gerente ya no lo carga — ninguna fila de Cierre ni de Disponibilidades es editable", () => {
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
-    const capital = planDeCarga(plantilla, []).capital;
-    const e = slug === "conexion-logistica-spp" ? esperado["conexion-logistica"] : esperado[slug];
-    assert.notEqual(e, undefined, `falta el caso de ${slug}`);
-    if (e === null) assert.equal(capital, null, slug);
-    else {
-      assert.equal(capital?.clave, e!.clave, slug);
-      assert.equal(capital?.conFormula, e!.conFormula, slug);
-    }
-  }
-});
-
-test("Capital de trabajo: es la ÚNICA fila de Cierre que se abre, y nunca aparece entre las filas manuales", () => {
-  for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
-    const abiertas = plantilla.filas.filter((f) => esFilaCapital(f));
-    assert.ok(abiertas.length <= 1, `${slug}: ${abiertas.length} filas de Capital`);
+    const plan = planDeCarga(plantilla, []);
+    assert.equal(Object.hasOwn(plan, "capital"), false, slug);
     for (const f of plantilla.filas) {
-      if (f.bloque === "CIERRE" && !esFilaCapital(f)) {
+      if (f.bloque === "CIERRE" || f.bloque === "DISPONIBILIDADES") {
         assert.equal(esFilaManualEditable(f), false, `${slug}/${f.clave}`);
-      }
-      if (f.bloque === "DISPONIBILIDADES") {
-        assert.equal(esFilaManualEditable(f), false, `${slug}/${f.clave}`);
-        assert.equal(esFilaCapital(f), false, `${slug}/${f.clave}`);
+        assert.equal(Object.hasOwn(plan.manuales, f.clave), false, `${slug}/${f.clave}`);
+        assert.equal(Object.hasOwn(plan.filas, f.clave), false, `${slug}/${f.clave}`);
       }
     }
-    const plan = planDeCarga(plantilla, []);
-    if (plan.capital) assert.equal(Object.hasOwn(plan.manuales, plan.capital.clave), false, slug);
+    const vista = vistaDeCarga(plan);
+    assert.equal(Object.hasOwn(vista, "capital"), false, slug);
+    assert.equal(vista.celdas.some((c) => c.id.startsWith("capital|")), false, slug);
   }
 });
 
-test("Capital con fórmula: la sugerencia calculada coincide con el motor en todas las plantillas con fórmula", () => {
-  for (const plantilla of PLANTILLAS) {
+test("Capital de trabajo: un cliente armado a mano que mande destino «capital» es rechazado por el servidor", () => {
+  for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     const plan = planDeCarga(plantilla, []);
-    if (!plan.capital?.regla) continue;
-    const slug = SLUG_DE.get(plantilla);
-    // Un mes con un Presupuestado distinto en cada categoría y en cada fila manual.
-    const presupuesto = new Map<string, number>();
-    const manualesP = new Map<string, number>();
-    let n = 1;
-    for (const f of plantilla.filas) {
-      if (f.tipo !== "linea" || esBloqueReservado(f.bloque)) continue;
-      if (f.presupuesto.tipo === "categorias") presupuesto.set(f.presupuesto.categorias[0], 100_000 * n++);
-      if (f.presupuesto.tipo === "manual") manualesP.set(f.clave, 100_000 * n++);
+    for (const f of plantilla.filas.filter((x) => x.tipo === "capital")) {
+      assert.equal(manualDeEntrada(plan, { destino: "capital" as never, clave: f.clave }), null, `${slug}/${f.clave}`);
+      assert.equal(manualDeEntrada(plan, { destino: "manual", clave: f.clave }), null, `${slug}/${f.clave}`);
     }
-    const mes: DatosMes = {
-      periodo: "2026-11",
-      real: new Map(),
-      presupuesto,
-      manuales: { presupuesto: manualesP, real: new Map() },
-    };
-    const reporte = armarReporte(plantilla, [mes], 0);
-    const delMotor = reporte.filas.find((f) => f.fila.clave === plan.capital!.clave)!.celdas[0].presupuestado;
-    const mia = capitalSugerido(
-      plan.capital.regla,
-      (clave) => reporte.filas.find((f) => f.fila.clave === clave)?.celdas[0].presupuestado ?? null
-    );
-    assert.equal(mia, delMotor, `${slug}: ${plan.capital.clave}`);
-    assert.notEqual(mia, null, `${slug}`);
   }
-});
-
-test("Capital con fórmula: sin ningún término con valor no hay sugerencia", () => {
-  const regla = { terminos: [{ fila: "a", factor: 1 }, { fila: "b", factor: 0.5 }], fijo: 500 };
-  assert.equal(capitalSugerido(regla, () => null), null);
-  assert.equal(capitalSugerido(regla, (c) => (c === "a" ? 1000 : null)), 1500);
 });
 
 test("cambioMientrasEditaba: vacío contra vacío NO es un cambio (sin falso positivo)", () => {
@@ -224,31 +165,31 @@ test("planDeCarga: los valores manuales cargados aparecen con quién y cuándo, 
   assert.match(plan.manuales["br.ajusteCaja"].leyenda!, /^Cargó Prueba FINANZAS · \d{1,2}\/\d{1,2}\/2026$/);
   assert.equal(plan.manuales["br.recuperoGastos"].valorCentavos, null);
   assert.equal(plan.manuales["br.recuperoGastos"].leyenda, null);
-  assert.equal(plan.capital?.valorCentavos, 3100000000);
+  // Un valor de Capital guardado antes no se abre para el gerente (el motor lo sigue usando; lo edita ADMIN).
+  assert.equal(Object.hasOwn(plan.manuales, "br.capital"), false);
   assert.equal(Object.hasOwn(plan.manuales, "br.dBancoFci"), false);
 });
 
-test("manualDeEntrada: encuentra manuales y Capital; todo lo demás (Disponibilidades, otras de Cierre, claves raras) es null", () => {
+test("manualDeEntrada: encuentra manuales; todo lo demás (Disponibilidades, Cierre, Capital, claves raras) es null", () => {
   const plan = planDeCarga(PLANTILLA_BRILLANTE, []);
   assert.ok(manualDeEntrada(plan, { destino: "manual", clave: "br.ajusteCaja" }));
-  assert.ok(manualDeEntrada(plan, { destino: "capital", clave: "br.capital" }));
   for (const clave of ["br.dBancoFci", "br.disponible", "br.saldo", "br.totalIngresos", "__proto__", "constructor", "nada"]) {
     assert.equal(manualDeEntrada(plan, { destino: "manual", clave }), null, clave);
   }
-  // "capital" solo acepta la clave del Capital, no otra de Cierre.
-  assert.equal(manualDeEntrada(plan, { destino: "capital", clave: "br.disponible" }), null);
+  // El destino "capital" ya no existe: ni la clave del Capital ni otra de Cierre.
+  assert.equal(manualDeEntrada(plan, { destino: "capital" as never, clave: "br.capital" }), null);
+  assert.equal(manualDeEntrada(plan, { destino: "capital" as never, clave: "br.disponible" }), null);
   // Una clave de categoría no sirve como manual, ni al revés.
   assert.equal(manualDeEntrada(plan, { destino: "manual", clave: "br.sueldos" }), null);
 });
 
-test("nombreDeEntrada: manual y capital usan el texto de la fila", () => {
+test("nombreDeEntrada: manual usa el texto de la fila", () => {
   assert.equal(nombreDeEntrada(PLANTILLA_BRILLANTE, { destino: "manual", clave: "br.ajusteCaja" }).startsWith("Ajuste Caja"), true);
-  assert.equal(nombreDeEntrada(PLANTILLA_BRILLANTE, { destino: "capital", clave: "br.capital" }), "CAPITAL DE TRABAJO PROPUESTO (SUELDOS)");
 });
 
-test("vistaDeCarga: celdas manuales y Capital con su valor formateado, leyenda y sugerencia", () => {
+test("vistaDeCarga: celdas manuales con su valor formateado y leyenda", () => {
   const plan = planDeCarga(PLANTILLA_BRILLANTE, [], [manual("br.ajusteCaja", 123456)]);
-  const vista = vistaDeCarga(plan, 4_500_000_000);
+  const vista = vistaDeCarga(plan);
   const aj = vista.celdas.find((c) => c.id === idCelda("manual", "br.ajusteCaja"))!;
   assert.equal(aj.destino, "manual");
   assert.equal(aj.importeInicial, "1.234,56");
@@ -257,20 +198,7 @@ test("vistaDeCarga: celdas manuales y Capital con su valor formateado, leyenda y
   assert.equal(vacia.importeInicial, "");
   assert.equal(vacia.leyenda, null);
   assert.equal(vista.celdas.some((c) => c.id === idCelda("manual", "br.dBancoFci")), false);
-  const capital = vista.celdas.find((c) => c.id === idCelda("capital", "br.capital"))!;
-  assert.equal(capital.importeInicial, "");
-  assert.equal(vista.capital?.id, idCelda("capital", "br.capital"));
-  assert.equal(vista.capital?.conFormula, true);
-  assert.equal(vista.capital?.sugerido, "45.000.000,00");
   // La huella cambia si cambia un valor manual (la pantalla repone lo guardado).
-  const otra = vistaDeCarga(planDeCarga(PLANTILLA_BRILLANTE, [], [manual("br.ajusteCaja", 999)]), 4_500_000_000);
+  const otra = vistaDeCarga(planDeCarga(PLANTILLA_BRILLANTE, [], [manual("br.ajusteCaja", 999)]));
   assert.notEqual(vista.huella, otra.huella);
-});
-
-test("vistaDeCarga: una plantilla sin Capital editable (Plate Silver, Avianor) no trae bloque de Capital", () => {
-  for (const slug of ["plate-silver", "avianor"]) {
-    const vista = vistaDeCarga(planDeCarga(PLANTILLAS_POR_SLUG[slug] as Plantilla, []));
-    assert.equal(vista.capital, null, slug);
-    assert.equal(vista.celdas.some((c) => c.destino === "capital"), false, slug);
-  }
 });

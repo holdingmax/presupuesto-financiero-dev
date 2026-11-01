@@ -316,14 +316,16 @@ for (const slug of SLUGS) {
     for (const f of dispo) assert.deepEqual(celda(conExtras, f.clave), celda(antesR, f.clave), f.clave);
   });
 
-  test(`${slug}: el gerente ve las filas extra en solo lectura, con sus totales y sin Cierre`, () => {
+  test(`${slug}: el gerente ve las filas extra en solo lectura, con sus totales y con el Cierre en solo lectura`, () => {
     const p = conFilasExtra(plantilla, TRES);
     const acceso = accesoReservadosDelReporte(false, slug);
     for (const k of ["extra.i1", "extra.e1", "extra.a1"]) assert.equal(clavesCalculables(p, acceso).has(k), true, k);
     const r = armarReporte(p, conImportesExtra(mesesDePrueba(plantilla), ["extra.i1", "extra.e1", "extra.a1"]), 1, { verBloquesReservados: acceso });
     assert.equal(celda(r, "extra.i1").real, 5000);
     assert.equal(celda(r, "extra.i1").presupuestado, 3000);
-    assert.equal(r.filas.some((f) => f.fila.bloque === "CIERRE"), false);
+    // Del Cierre trae al menos el Saldo y nunca «Disponible antes de gastos».
+    const cierre = r.filas.filter((f) => f.fila.bloque === "CIERRE").map((f) => f.fila.clave);
+    assert.ok(cierre.length > 0 && cierre.every((k) => !k.endsWith("disponibleAntes")), cierre.join());
     assert.ok(r.arrastre.every((a) => a === null));
     // La vista de pantalla de las filas extra es solo para ADMIN y FINANZAS.
     const vista = (esAdminOFinanzas: boolean) =>

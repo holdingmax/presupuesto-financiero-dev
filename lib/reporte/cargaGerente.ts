@@ -10,7 +10,6 @@ import {
   type Fila,
   type FilaLinea,
   type Plantilla,
-  type ReglaCapital,
 } from "@/lib/reporte/motor";
 
 // Reglas puras (sin Prisma ni next/*) de la carga del Presupuestado directo en el Reporte
@@ -181,7 +180,7 @@ export function categoriasSinFila(plantilla: Plantilla): OpcionClasificacionPres
 }
 
 // ---------------------------------------------------------------------------------------------
-// Etapa 3: filas de Presupuestado manual (ValorManualReporte) y Capital de trabajo.
+// Etapa 3: filas de Presupuestado manual (ValorManualReporte).
 // ---------------------------------------------------------------------------------------------
 
 // Fila de datos de Ingresos / Egresos / "de abajo" cuyo Presupuestado se tipea: el gerente la
@@ -189,13 +188,6 @@ export function categoriasSinFila(plantilla: Plantilla): OpcionClasificacionPres
 // "igual al Real" (Disponibilidades, que además es un bloque reservado).
 export function esFilaManualEditable(fila: Fila): fila is FilaLinea {
   return fila.tipo === "linea" && BLOQUES_CARGABLES.includes(fila.bloque) && fila.presupuesto.tipo === "manual";
-}
-
-// Capital de trabajo propuesto: la única fila de Cierre que se abre. Es la fila de tipo `capital`
-// (fórmula que un valor tipeado reemplaza, o tipeada a mano) o, en Bradenton, la fila de Cierre
-// cuyo Presupuestado se tipea. Plate Silver NO tiene: su Capital es un total (fórmula pura).
-export function esFilaCapital(fila: Fila): boolean {
-  return fila.tipo === "capital" || (fila.tipo === "linea" && fila.bloque === "CIERRE" && fila.presupuesto.tipo === "manual");
 }
 
 // Un ValorManualReporte PRESUPUESTADO existente, con quién y cuándo lo cargó.
@@ -214,29 +206,9 @@ export type CeldaManualCarga = {
   leyenda: string | null;
 };
 
-export type CapitalCarga = CeldaManualCarga & {
-  clave: string;
-  texto: string;
-  // true = la fila tiene fórmula (un valor tipeado la reemplaza; vacío vuelve a la fórmula).
-  conFormula: boolean;
-  // Términos de la fórmula, para calcular la sugerencia sin pasar por el motor.
-  regla: ReglaCapital | null;
-};
-
 export function leyendaDeValor(v: Pick<ValorManualParaCarga, "cargadoPor" | "actualizadoEn">): string {
   const fecha = v.actualizadoEn.toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
   return v.cargadoPor ? `Cargó ${v.cargadoPor} · ${fecha}` : `Cargado el ${fecha}`;
-}
-
-// Sugerencia del Capital cuando tiene fórmula: la misma cuenta que arma el motor (armarReporte,
-// caso "capital"), sobre los Presupuestados YA visibles en pantalla. null si ningún término
-// tiene valor. Un test compara esto contra el motor para que no se desvíen.
-export function capitalSugerido(regla: ReglaCapital, valorDeFila: (clave: string) => number | null): number | null {
-  const terminos = regla.terminos.map((t) => ({ t, v: valorDeFila(t.fila) }));
-  if (terminos.every((x) => x.v === null)) return null;
-  const suma = terminos.reduce((acc, x) => acc + x.t.factor * (x.v ?? 0), 0) + (regla.fijo ?? 0);
-  const redondeado = Math.round(suma);
-  return redondeado === 0 ? 0 : redondeado;
 }
 
 export type PlanCarga = {
@@ -244,8 +216,6 @@ export type PlanCarga = {
   filas: Record<string, CeldaCarga>;
   // filaClave → valor actual, solo de las filas de Presupuestado manual (todas son editables).
   manuales: Record<string, CeldaManualCarga>;
-  // Capital de trabajo propuesto (null si la plantilla no tiene una fila de Capital editable).
-  capital: CapitalCarga | null;
   sinFila: { categoria: string; texto: string; celda: CeldaCarga }[];
   // Líneas con una clasificación que no es de la lista ni de ninguna fila (datos viejos):
   // se muestran en solo lectura para que nada quede invisible.
@@ -259,7 +229,6 @@ export function planDeCarga(
 ): PlanCarga {
   const filas: Record<string, CeldaCarga> = {};
   const manuales: Record<string, CeldaManualCarga> = {};
-  let capital: CapitalCarga | null = null;
   const valorDe = (clave: string): CeldaManualCarga => {
     const v = valoresManuales.find((x) => x.filaClave === clave);
     return v
@@ -273,10 +242,6 @@ export function planDeCarga(
     }
     if (esFilaDeCategoria(f)) filas[f.clave] = planCelda(f.presupuesto.categorias, f.texto.trim(), lineas);
     if (esFilaManualEditable(f)) manuales[f.clave] = valorDe(f.clave);
-    if (esFilaCapital(f) && capital === null) {
-      const regla = f.tipo === "capital" && f.regla !== "manual" ? f.regla : null;
-      capital = { clave: f.clave, texto: f.texto.trim(), conFormula: regla !== null, regla, ...valorDe(f.clave) };
-    }
   }
   const sinFila = categoriasSinFila(plantilla).map((o) => {
     conocidas.add(claveEquivalencia(o.valorPersistido));
@@ -286,7 +251,6 @@ export function planDeCarga(
   return {
     filas,
     manuales,
-    capital,
     sinFila,
     fueraDeLista:
       sueltas.length === 0
@@ -298,14 +262,14 @@ export function planDeCarga(
 // Lo que el cliente manda por cada celda que cambió. `clave` = filaClave (destino "fila") o la
 // categoría (destino "sinFila"). Nunca se manda un id de línea: el servidor la busca.
 export type EntradaCarga = {
-  // "fila" y "sinFila": clasificaciones (LineaPresupuesto). "manual" y "capital": Presupuestado
-  // manual y Capital de trabajo (ValorManualReporte, columna PRESUPUESTADO).
-  destino: "fila" | "sinFila" | "manual" | "capital";
+  // "fila" y "sinFila": clasificaciones (LineaPresupuesto). "manual": Presupuestado manual
+  // (ValorManualReporte, columna PRESUPUESTADO).
+  destino: "fila" | "sinFila" | "manual";
   clave: string;
   // Lo tipeado en la celda, tal cual ("1.234,56", "100+50", "" para vaciar).
   importe: string;
   aclaracion?: string;
-  // Solo "manual" y "capital": el valor que la pantalla mostraba al cargarse ("" = vacío). El
+  // Solo "manual": el valor que la pantalla mostraba al cargarse ("" = vacío). El
   // servidor lo compara con el actual para no pisar lo que otra persona cargó mientras tanto.
   base?: string;
 };
@@ -339,10 +303,9 @@ export function celdaDeEntrada(plan: PlanCarga, entrada: Pick<EntradaCarga, "des
   return null;
 }
 
-// El valor manual al que apunta una entrada "manual" o "capital" (null = no existe o no es cargable).
+// El valor manual al que apunta una entrada "manual" (null = no existe o no es cargable).
 export function manualDeEntrada(plan: PlanCarga, entrada: Pick<EntradaCarga, "destino" | "clave">): CeldaManualCarga | null {
   if (entrada.destino === "manual") return Object.hasOwn(plan.manuales, entrada.clave) ? plan.manuales[entrada.clave] : null;
-  if (entrada.destino === "capital") return plan.capital && plan.capital.clave === entrada.clave ? plan.capital : null;
   return null;
 }
 
@@ -353,23 +316,15 @@ export function manualDeEntrada(plan: PlanCarga, entrada: Pick<EntradaCarga, "de
 // Una celda editable (la pantalla guarda y compara contra los valores iniciales).
 export type CeldaVistaCarga = {
   id: string; // "<destino>|<clave>"
-  destino: "fila" | "sinFila" | "manual" | "capital";
+  destino: "fila" | "sinFila" | "manual";
   clave: string;
   requiereAclaracion: boolean;
-  // Lo que mostraba la pantalla al cargarse; en "manual" y "capital" también es la `base` del
+  // Lo que mostraba la pantalla al cargarse; en "manual" también es la `base` del
   // chequeo de cambios concurrentes.
   importeInicial: string;
   aclaracionInicial: string;
-  // "Cargó Fulano · 28/10/2026" (manual y capital con valor).
+  // "Cargó Fulano · 28/10/2026" (manual con valor).
   leyenda: string | null;
-};
-
-export type CapitalVista = {
-  id: string;
-  texto: string;
-  conFormula: boolean;
-  // Fórmula calculada (texto formateado) para mostrar como sugerencia; null si no hay.
-  sugerido: string | null;
 };
 
 export type FilaSinFilaVista = {
@@ -385,8 +340,6 @@ export type VistaCarga = {
   motivosFilas: Record<string, string>;
   sinFila: FilaSinFilaVista[];
   fueraDeLista: { valor: string; lineas: number } | null;
-  // Capital de trabajo propuesto: bloque aparte debajo de la tabla (null = la plantilla no tiene).
-  capital: CapitalVista | null;
   // Cambia cuando cambia algún valor guardado: la pantalla repone lo tipeado con lo guardado.
   huella: string;
 };
@@ -395,8 +348,7 @@ export function idCelda(destino: CeldaVistaCarga["destino"], clave: string): str
   return `${destino}|${clave}`;
 }
 
-// `sugeridoCapital`: la fórmula del Capital ya calculada (capitalSugerido) con lo que se ve en pantalla.
-export function vistaDeCarga(plan: PlanCarga, sugeridoCapital: number | null = null): VistaCarga {
+export function vistaDeCarga(plan: PlanCarga): VistaCarga {
   const celdas: CeldaVistaCarga[] = [];
   const motivosFilas: Record<string, string> = {};
   const agregar = (destino: "fila" | "sinFila", clave: string, celda: CeldaCarga) => {
@@ -411,10 +363,10 @@ export function vistaDeCarga(plan: PlanCarga, sugeridoCapital: number | null = n
       leyenda: null,
     });
   };
-  const agregarManual = (destino: "manual" | "capital", clave: string, celda: CeldaManualCarga) => {
+  const agregarManual = (clave: string, celda: CeldaManualCarga) => {
     celdas.push({
-      id: idCelda(destino, clave),
-      destino,
+      id: idCelda("manual", clave),
+      destino: "manual",
       clave,
       requiereAclaracion: false,
       importeInicial: celda.valorCentavos === null ? "" : formatearCentavos(celda.valorCentavos),
@@ -440,23 +392,12 @@ export function vistaDeCarga(plan: PlanCarga, sugeridoCapital: number | null = n
   const fueraDeLista = plan.fueraDeLista
     ? { valor: formatearCentavos(plan.fueraDeLista.centavos), lineas: plan.fueraDeLista.lineas }
     : null;
-  for (const [clave, celda] of Object.entries(plan.manuales)) agregarManual("manual", clave, celda);
-  let capital: CapitalVista | null = null;
-  if (plan.capital) {
-    agregarManual("capital", plan.capital.clave, plan.capital);
-    capital = {
-      id: idCelda("capital", plan.capital.clave),
-      texto: plan.capital.texto,
-      conFormula: plan.capital.conFormula,
-      sugerido: plan.capital.conFormula && sugeridoCapital !== null ? formatearCentavos(sugeridoCapital) : null,
-    };
-  }
+  for (const [clave, celda] of Object.entries(plan.manuales)) agregarManual(clave, celda);
   const huella = JSON.stringify([
     celdas.map((c) => [c.id, c.importeInicial, c.aclaracionInicial, c.leyenda]),
     motivosFilas,
     sinFila.map((s) => s.soloLectura),
     fueraDeLista,
-    capital,
   ]);
-  return { celdas, motivosFilas, sinFila, fueraDeLista, capital, huella };
+  return { celdas, motivosFilas, sinFila, fueraDeLista, huella };
 }

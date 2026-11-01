@@ -25,7 +25,7 @@ import {
   motivoRechazoTipeo,
   type InterruptoresTipeo,
 } from "@/lib/reporte/tipeoDirecto";
-import { CENTINELA, mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
+import { CENTINELA, clavesDeCierre, mesesDePrueba, sinCierre } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 import { CON_FILAS_EXTRA_HOY } from "./filasExtraEmpresasLista";
 
 // Tanda 2 de las filas extra: crear y borrar (reglas puras de las acciones), tipeo directo de Presupuestado y Real
@@ -331,9 +331,10 @@ test("centinela: el gerente no recibe NADA del armado de filas extra — ni vist
 });
 
 test("gerente: la carga del Presupuestado (planDeCarga) sigue sin saber de las filas extra: ninguna celda editable nueva", () => {
-  const vista = vistaDeCarga(planDeCarga(BRILLANTE, [], []), null);
+  const vista = vistaDeCarga(planDeCarga(BRILLANTE, [], []));
   assert.equal(JSON.stringify(vista).includes("extra."), false);
-  assert.equal(vista.celdas.length, 40);
+  // 39: las 40 de antes menos el Capital de trabajo, que el gerente ya no carga (lo carga ADMIN en /reporte/carga).
+  assert.equal(vista.celdas.length, 39);
 });
 
 test("gerente: ve las filas extra en solo lectura, con sus valores; los centinelas reservados siguen sin aparecer fuera de Disponibilidades", () => {
@@ -344,8 +345,9 @@ test("gerente: ve las filas extra en solo lectura, con sus valores; los centinel
     assert.equal(celda(k).real, 5_000, k);
     assert.equal(celda(k).presupuestado, 5_000, k);
   }
-  assert.equal(r.filas.some((f) => f.fila.bloque === "CIERRE"), false);
-  const sinDisponibilidades = JSON.stringify(r.filas.filter((f) => f.fila.bloque !== "DISPONIBILIDADES"));
+  assert.deepEqual(clavesDeCierre(r), ["br.saldo", "br.capital", "br.disponible"]);
+  // Fuera de Disponibilidades y del Cierre (que se calcula con ellas) no se cuela ningún centinela.
+  const sinDisponibilidades = JSON.stringify(r.filas.filter((f) => f.fila.bloque !== "DISPONIBILIDADES" && f.fila.bloque !== "CIERRE"));
   assert.equal(/7000000000\d{3}/.test(sinDisponibilidades), false);
   // Y con el centinela en los valores reservados de Disponibilidades, tampoco se cuela en las filas extra.
   const r2 = armarReporte(CON_EXTRAS, datosConExtras(5_000), 1, { verBloquesReservados: false });
@@ -413,7 +415,7 @@ test("interruptor VACÍO: nadie recibe vistas, el resolver no cambia la plantill
   // Foto del gerente de Brillante con el interruptor vacío: idéntica a la anterior a las filas extra.
   const resuelta = (await plantillaDeEmpresaConExtras("e", "brillante", "2026-10", { interruptores: [] }))!;
   const gerente = armarReporte(resuelta, datosDeLaFoto(), 1, { verBloquesReservados: accesoReservadosDelReporte(false, "brillante") });
-  assert.deepEqual(proyeccion(gerente), foto);
+  assert.deepEqual(proyeccion(sinCierre(gerente)), foto);
 });
 
 test("la foto del gerente de Brillante tampoco cambia con el interruptor prendido y la tabla vacía", async () => {
@@ -424,7 +426,7 @@ test("la foto del gerente de Brillante tampoco cambia con el interruptor prendid
   }))!;
   assert.equal(resuelta, BRILLANTE);
   const gerente = armarReporte(resuelta, datosDeLaFoto(), 1, { verBloquesReservados: accesoReservadosDelReporte(false, "brillante") });
-  assert.deepEqual(proyeccion(gerente), foto);
+  assert.deepEqual(proyeccion(sinCierre(gerente)), foto);
 });
 
 // ---- Las acciones y la pantalla, leídas del código --------------------------------------------------

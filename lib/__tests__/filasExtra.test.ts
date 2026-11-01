@@ -212,7 +212,8 @@ test("gerente: ve las filas extra en solo lectura (Real y Presupuestado) y la le
   const r = armarReporte(p, con, 1, { verBloquesReservados: acceso });
   assert.equal(celda(r, "extra.i1").real, 5000);
   assert.equal(celda(r, "extra.i1").presupuestado, 3000);
-  assert.equal(r.filas.some((f) => f.fila.bloque === "CIERRE"), false);
+  // Del Cierre, el gerente ve solo Saldo, Capital y Disponible (nunca «Disponible antes de gastos»).
+  assert.deepEqual(r.filas.filter((f) => f.fila.bloque === "CIERRE").map((f) => f.fila.clave), ["br.saldo", "br.capital", "br.disponible"]);
   // Y ADMIN las lee todas (sin filtro de claves).
   assert.equal(celda(armarReporte(p, con, 1), "extra.a1").presupuestado, -400);
 });
@@ -231,7 +232,7 @@ test("por eso la carga del gerente usa la plantilla estática: con la otra, la f
   const fila = p.filas.find((f) => f.clave === "extra.i1")!;
   assert.equal(esFilaManualEditable(fila), true, "esFilaManualEditable la tomaría como editable del gerente");
   // La plan de carga con la estática no tiene ninguna.
-  const vista = vistaDeCarga(planDeCarga(BRILLANTE, [], []), null);
+  const vista = vistaDeCarga(planDeCarga(BRILLANTE, [], []));
   assert.equal(vista.celdas.some((c) => c.id.includes("extra.")), false);
   assert.equal(JSON.stringify(vista).includes("extra."), false);
 });

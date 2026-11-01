@@ -70,10 +70,12 @@ export const OCULTAR_PRESUPUESTO_TAMBIEN_PARA_ADMIN_Y_FINANZAS = true;
 // «Cheques en cartera despues del 10/15» y TOTAL INGRESOS (son espejos de Disponibilidades: hoy vacíos para el
 // gerente, al prender este interruptor pasarían a mostrarse). Sumar una empresa es agregar su slug acá.
 export const EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"];
-// Cierre: Saldo, Capital de trabajo y Disponible (NO «Disponible antes de gastos»). Se calculan con el total de
-// Disponibilidades: una empresa solo puede estar acá si también está en la lista de arriba (lo controla un
-// test, y el motor lo aplica igual: sin Disponibilidades, no hay Cierre).
-export const EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE: readonly string[] = [];
+// Cierre: Saldo, Capital de trabajo y Disponible (NO «Disponible antes de gastos»), al pie de la tabla como en la hoja
+// «PRESUPUESTO MES A MES». Se calculan con el total de Disponibilidades: una empresa solo puede estar acá si también está
+// en la lista de arriba (lo controla un test, y el motor lo aplica igual: sin Disponibilidades, no hay Cierre).
+// El gerente las ve en solo lectura: el Capital de trabajo lo carga ADMIN en /reporte/carga. Havanna, Radio y Conexión
+// quedan fuera hasta que tengan Disponibilidades (ver arriba).
+export const EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"];
 
 // Tipeo directo en el Reporte de los valores que en la planilla se tipean a mano (Real manual de
 // Ingresos / Egresos / de abajo y componentes de Disponibilidades), solo para ADMIN y FINANZAS. Lista de

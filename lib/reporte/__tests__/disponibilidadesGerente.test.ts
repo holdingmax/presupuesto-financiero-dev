@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { armarReporte, camposManuales, esBloqueReservado, type Reporte } from "@/lib/reporte/motor";
+import { armarReporte, camposManuales, esBloqueReservado, esFilaDeCierreVisibleParaGerente, type Reporte } from "@/lib/reporte/motor";
 import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { accesoReservadosDelReporte } from "@/lib/reporte/visibilidad";
 import {
@@ -10,7 +10,6 @@ import {
 } from "@/lib/config";
 import {
   BLOQUES_CARGABLES,
-  capitalSugerido,
   celdaDeEntrada,
   manualDeEntrada,
   planDeCarga,
@@ -18,7 +17,7 @@ import {
   type ValorManualParaCarga,
 } from "@/lib/reporte/cargaGerente";
 import { veBloquesReservadosDelReporte } from "@/lib/permisosEjecucion";
-import { CENTINELA, mesesDePrueba } from "./fixtures/datosGerente";
+import { CENTINELA, clavesDeCierre, mesesDePrueba } from "./fixtures/datosGerente";
 
 // Etapa 5 B, commit 4: Disponibilidades en SOLO LECTURA para el gerente, prendido solo en Brillante.
 // Cada fila reservada de las plantillas lleva el centinela 7.000.000.000.000 (fixtures/datosGerente.ts):
@@ -61,10 +60,13 @@ function reporteDelGerente(slug: string): Reporte {
 // empresa tiene que obligar a tocar este test.
 const CON_DISPONIBILIDADES_HOY = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"];
 
-test("interruptores: Disponibilidades en Brillante y la segunda tanda; Cierre todavía apagado", () => {
+test("interruptores: Disponibilidades y Cierre en las mismas cinco empresas (Havanna, Radio y Conexión, fuera)", () => {
   assert.ok(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes("brillante"));
   assert.deepEqual([...EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE], CON_DISPONIBILIDADES_HOY);
-  assert.deepEqual([...EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE], []);
+  assert.deepEqual([...EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE], CON_DISPONIBILIDADES_HOY);
+  for (const slug of ["havanna", "radio", "conexion-logistica", "conexion-logistica-spp"]) {
+    assert.equal(EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE.includes(slug), false, slug);
+  }
 });
 
 // ---- Las empresas que siguen fuera no cambian ----------------------------------------------------
@@ -86,7 +88,7 @@ for (const slug of FUERA_DEL_INTERRUPTOR) {
 
 // ---- Brillante: solo Disponibilidades ------------------------------------------------------------
 
-test("Brillante: el gerente recibe las filas de Disponibilidades (11 + título + total) y nada más reservado", () => {
+test("Brillante: el gerente recibe las filas de Disponibilidades (11 + título + total) y, de Cierre, solo Saldo, Capital y Disponible", () => {
   const plantilla = PLANTILLAS_POR_SLUG["brillante"];
   const r = reporteDelGerente("brillante");
   const deDisp = r.filas.filter((f) => f.fila.bloque === "DISPONIBILIDADES");
@@ -97,26 +99,34 @@ test("Brillante: el gerente recibe las filas de Disponibilidades (11 + título +
   assert.equal(deDisp.filter((f) => f.fila.tipo === "linea").length, 11);
   assert.equal(deDisp.filter((f) => f.fila.tipo === "total").length, 1); // TOTAL DISPONIBILIDADES
   assert.equal(deDisp.some((f) => f.fila.clave === "br.dRecuperoBlanqueo"), true);
-  // Ni Cierre (Saldo, Capital, Disponible, Disponible antes de gastos) ni arrastre.
-  assert.equal(r.filas.some((f) => f.fila.bloque === "CIERRE"), false);
-  for (const k of ["br.saldo", "br.capital", "br.disponible", "br.disponibleAntes"]) {
-    assert.equal(r.filas.some((f) => f.fila.clave === k), false, k);
-  }
+  // De Cierre, las tres filas de la planilla; nunca «Disponible antes de gastos», ni arrastre.
+  assert.deepEqual(clavesDeCierre(r), ["br.saldo", "br.capital", "br.disponible"]);
+  assert.equal(r.filas.some((f) => f.fila.clave === "br.disponibleAntes"), false);
   assert.ok(r.arrastre.every((a) => a === null));
+  // Capital y Disponible solo tienen Presupuestado (como en el Excel): sin Real, % ni falta.
+  for (const k of ["br.capital", "br.disponible"]) {
+    const c = r.filas.find((f) => f.fila.clave === k)!.celdas[0];
+    assert.notEqual(c.presupuestado, null, k);
+    assert.equal(c.real, null, k);
+    assert.equal(c.avance, null, k);
+    assert.equal(c.faltaEjecutar, null, k);
+  }
 });
 
-test("Brillante: los centinelas de Disponibilidades aparecen SOLO en las filas de Disponibilidades", () => {
+test("Brillante: los centinelas de Disponibilidades aparecen SOLO en Disponibilidades y en las tres filas de Cierre que se calculan con ellas", () => {
   const r = reporteDelGerente("brillante");
   const aparece = (valor: number | null) => valor !== null && Math.abs(valor) >= UMBRAL;
   const conCentinela = r.filas.filter((f) => f.celdas.some((c) => aparece(c.presupuestado) || aparece(c.real)));
   assert.ok(conCentinela.length > 0, "las filas de Disponibilidades sí traen su valor");
-  for (const f of conCentinela) assert.equal(f.fila.bloque, "DISPONIBILIDADES", `${f.fila.clave} no debería traer un centinela`);
-  // Y en lo que no es Disponibilidades, ni rastro en lo serializado.
-  const resto = JSON.stringify(r.filas.filter((f) => f.fila.bloque !== "DISPONIBILIDADES"));
+  for (const f of conCentinela) {
+    const permitida = f.fila.bloque === "DISPONIBILIDADES" || (f.fila.bloque === "CIERRE" && esFilaDeCierreVisibleParaGerente(f.fila));
+    assert.equal(permitida, true, `${f.fila.clave} no debería traer un centinela`);
+  }
+  // Y en lo que no es Disponibilidades ni Cierre, ni rastro en lo serializado.
+  const resto = JSON.stringify(r.filas.filter((f) => f.fila.bloque !== "DISPONIBILIDADES" && f.fila.bloque !== "CIERRE"));
   assert.equal(PATRON_CENTINELA.test(resto), false);
-  // Los centinelas del Cierre (Saldo, Capital…) no están en ninguna parte del reporte.
-  const claveCierre = new Set(PLANTILLAS_POR_SLUG["brillante"].filas.filter((f) => f.bloque === "CIERRE").map((f) => f.clave));
-  assert.equal(r.filas.some((f) => claveCierre.has(f.fila.clave)), false);
+  // «Disponible antes de gastos» (la suma cruda de Disponibilidades + Ingresos) no está en ninguna parte del reporte.
+  assert.equal(r.filas.some((f) => f.fila.clave === "br.disponibleAntes"), false);
 });
 
 test("Brillante: Disponibilidades no tiene % de avance ni «falta ejecutar» que mostrar, y el total suma las de la planilla", () => {
@@ -153,13 +163,8 @@ for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
       cargadoPor: "Finanzas",
       actualizadoEn: new Date("2026-10-01T12:00:00Z"),
     }));
-    const reporte = reporteDelGerente(slug);
     const plan = planDeCarga(plantilla, [], valores);
-    const ultimo = reporte.periodos.length - 1;
-    const sugerido = plan.capital?.regla
-      ? capitalSugerido(plan.capital.regla, (k) => reporte.filas.find((f) => f.fila.clave === k)?.celdas[ultimo]?.presupuestado ?? null)
-      : null;
-    const json = JSON.stringify(vistaDeCarga(plan, sugerido));
+    const json = JSON.stringify(vistaDeCarga(plan));
     assert.equal(PATRON_CENTINELA.test(json), false, "viaja un valor de Disponibilidades");
     for (const k of claves) assert.equal(json.includes(k), false, `viaja la fila ${k}`);
   });
@@ -190,21 +195,22 @@ for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     for (const k of claves) {
       assert.equal(Object.hasOwn(plan.filas, k), false, `plan.filas ${k}`);
       assert.equal(Object.hasOwn(plan.manuales, k), false, `plan.manuales ${k}`);
-      assert.notEqual(plan.capital?.clave, k);
       // Lo que usa el servidor (aplicarCargaPresupuesto) para aceptar o rechazar una entrada: null = rechaza
       // («no es un campo que se pueda cargar»), sea cual sea el destino que mande un cliente armado a mano.
       for (const destino of ["fila", "sinFila", "manual", "capital"] as const) {
-        assert.equal(celdaDeEntrada(plan, { destino, clave: k }), null, `${destino}|${k}`);
-        assert.equal(manualDeEntrada(plan, { destino, clave: k }), null, `${destino}|${k}`);
+        // «capital» ya no existe como destino (el gerente no carga el Capital): también se rechaza.
+        const entrada = { destino: destino as "fila", clave: k };
+        assert.equal(celdaDeEntrada(plan, entrada), null, `${destino}|${k}`);
+        assert.equal(manualDeEntrada(plan, entrada), null, `${destino}|${k}`);
       }
     }
-    // Ninguna celda editable de la vista de carga es de un bloque reservado, salvo el Capital de trabajo.
+    // Ninguna celda editable de la vista de carga es de un bloque reservado (ni de Cierre: el Capital lo carga ADMIN).
     const vista = vistaDeCarga(plan);
     const porClave = new Map(plantilla.filas.map((f) => [f.clave, f]));
     for (const c of vista.celdas) {
       const fila = porClave.get(c.clave);
       if (!fila) continue; // categorías sin fila
-      assert.equal(esBloqueReservado(fila.bloque) && c.destino !== "capital", false, `${c.id}`);
+      assert.equal(esBloqueReservado(fila.bloque), false, `${c.id}`);
     }
   });
 }

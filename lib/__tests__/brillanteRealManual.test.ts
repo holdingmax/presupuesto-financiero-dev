@@ -8,7 +8,7 @@ import { accesoReservadosDelReporte } from "@/lib/reporte/visibilidad";
 import { armarVistaTipeo, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto";
 import { leerCuenta } from "@/lib/importes";
 import { CLAVES_MANUALES } from "@/lib/reporte/__tests__/fixtures/clavesManuales";
-import { CENTINELA, mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
+import { CENTINELA, clavesDeCierre, mesesDePrueba, sinCierre } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 
 // «Otras operaciones (MANTENOR JUJUY)» y «Recupero Gastos» de Brillante pasan de «Sin Real» a Real manual
 // (se tipean en la columna Real, como «Otro (MSNT…)»). Expensas queda como estaba. Solo Brillante cambia.
@@ -102,8 +102,8 @@ test("Expensas queda fuera: sigue sin Real y no se puede tipear", () => {
 
 // ---- Foto del gerente -----------------------------------------------------------------------------
 
-test("gerente de Brillante: con las dos filas vacías el Reporte es idéntico a la foto de antes del cambio", () => {
-  assert.deepEqual(proyeccion(gerente(datos(false))), fotoBrillante);
+test("gerente de Brillante: con las dos filas vacías el Reporte (sin el Cierre, que ahora ve) es idéntico a la foto de antes del cambio", () => {
+  assert.deepEqual(proyeccion(sinCierre(gerente(datos(false)))), fotoBrillante);
   // La foto tiene las dos filas con Real vacío: es el «antes».
   const filas = new Map(fotoBrillante.filas as [string, unknown[][]][]);
   assert.equal(filas.get(JUJUY)![0][1], null);
@@ -156,7 +156,7 @@ test("importes: «-1.313.615» y «27.776.193» se leen bien (formato argentino,
 
 // ---- Gerente: ve el Real, sin inputs --------------------------------------------------------------
 
-test("gerente con valores: ve el Real de las dos filas y los totales, igual que con Otro (MSNT…), sin Cierre", () => {
+test("gerente con valores: ve el Real de las dos filas y los totales, igual que con Otro (MSNT…); del Cierre, solo Saldo, Capital y Disponible", () => {
   const sin = gerente(datos(false));
   const con = gerente(datos(true));
   assert.equal(real(con, JUJUY), VALOR_JUJUY);
@@ -165,8 +165,7 @@ test("gerente con valores: ve el Real de las dos filas y los totales, igual que 
   assert.equal(real(con, "br.totalEgresos")! - real(sin, "br.totalEgresos")!, VALOR_RECUPERO);
   // Mismo criterio que una manual que ya existía.
   assert.notEqual(real(con, "br.otroMsnt"), null);
-  const cierre = new Set(BRILLANTE.filas.filter((f) => f.bloque === "CIERRE").map((f) => f.clave));
-  assert.equal(con.filas.some((f) => cierre.has(f.fila.clave)), false);
+  assert.deepEqual(clavesDeCierre(con), ["br.saldo", "br.capital", "br.disponible"]);
 });
 
 test("gerente: ni celdas, ni claves, ni la acción — con valores cargados y el interruptor prendido", () => {

@@ -6,12 +6,7 @@ import BloqueNoAsignado from "./BloqueNoAsignado";
 import { AccionesFlujo, AvisosFlujo, EstadoBadge } from "../FlujoPresupuesto";
 import type { EstadoFlujo } from "@/lib/presupuestoAcceso";
 import type { VistaCarga } from "@/lib/reporte/cargaGerente";
-import {
-  BarraGuardarPresupuesto,
-  BloqueCapital,
-  CeldaPresupuestoEditable,
-  ProveedorCarga,
-} from "./CargaPresupuesto";
+import { BarraGuardarPresupuesto, CeldaPresupuestoEditable, ProveedorCarga } from "./CargaPresupuesto";
 import { BarraGuardarTipeo, CeldaTipeoEditable, ConTipeo } from "./TipeoDirecto";
 import { AgregarFila, BorrarFila } from "./FilasExtra";
 import type { VistaTipeo } from "@/lib/reporte/tipeoDirecto";
@@ -247,8 +242,6 @@ export default function ReportePlantilla({
         </div>
       </section>
 
-      {carga?.capital && <BloqueCapital capital={carga.capital} />}
-
       {flujo && (
         <AccionesFlujo
           estado={flujo.estado}
@@ -482,8 +475,8 @@ function FilaTabla({
   const soloP = fila.tipo === "capital" || fila.tipo === "disponible";
   // Carga del Presupuestado (Etapa 2): solo la columna P del ÚLTIMO mes (el de la URL). Una fila
   // de categoría es un input, o muestra por qué no se puede editar desde acá.
-  // El id es "fila|…" (categoría) o "manual|…" (Presupuestado manual, Etapa 3); el Capital de
-  // trabajo (Cierre) no va en la tabla: tiene su propio bloque.
+  // El id es "fila|…" (categoría) o "manual|…" (Presupuestado manual, Etapa 3). El Capital de
+  // trabajo (Cierre) no se edita acá: lo carga ADMIN en /reporte/carga.
   const idCelda =
     fila.tipo !== "linea"
       ? null

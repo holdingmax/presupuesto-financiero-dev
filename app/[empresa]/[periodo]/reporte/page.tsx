@@ -12,7 +12,7 @@ import {
 import { obtenerOCrearPresupuesto } from "@/lib/presupuesto";
 import { avisoPeriodoSoloLectura, esPeriodoHabilitado } from "@/lib/periodosHabilitados";
 import { cargaEnReporteActiva, mostrarFlujoEnReporte, puedeEditarPresupuestoAhora } from "@/lib/estadoPresupuesto";
-import { capitalSugerido, planDeCarga, vistaDeCarga, type VistaCarga } from "@/lib/reporte/cargaGerente";
+import { planDeCarga, vistaDeCarga, type VistaCarga } from "@/lib/reporte/cargaGerente";
 import { leerLineasParaCarga, leerValoresManualesParaCarga } from "@/lib/reporte/aplicarCarga";
 import { obtenerEstadoFlujo, type EstadoFlujo } from "@/lib/presupuestoAcceso";
 import {
@@ -257,13 +257,13 @@ async function ReportePorPlantilla({
   const periodos = periodosHasta(periodo, cantidadDeMeses(vista, periodo, esAdminOFinanzas(usuario)) + 1);
   const clasificaciones = clasificacionesDePlantilla(plantilla);
   // Plantilla del REPORTE: la de siempre más las filas extra del mes (sin el interruptor de la empresa, o sin
-  // filas, es la MISMA plantilla). La carga del Presupuestado del gerente (planDeCarga, Capital) sigue con la
+  // filas, es la MISMA plantilla). La carga del Presupuestado del gerente (planDeCarga) sigue con la
   // estática: con la otra, la fila extra le abriría una celda editable.
   const plantillaReporte = (await plantillaDeEmpresaConExtras(empresaId, empresaSlug, periodo)) ?? plantilla;
 
   const unidadesConEmpresa = await obtenerUnidadesConEmpresa();
   // Qué bloques reservados llegan a este usuario: todo (ADMIN/FINANZAS), nada, o lo que prendan los
-  // interruptores de su empresa (hoy ninguno: lib/config.ts).
+  // interruptores de su empresa (lib/config.ts).
   const acceso = accesoReservadosDelReporte(verBloquesReservados, empresaSlug);
   const [meses, noAsignado] = await Promise.all([
     cargarDatosMeses(empresaId, unidadesEmpresa, plantillaReporte, periodos, acceso),
@@ -291,17 +291,7 @@ async function ReportePorPlantilla({
       leerValoresManualesParaCarga(empresaId, periodo),
     ]);
     const plan = planDeCarga(plantilla, lineas, valoresManuales);
-    // Sugerencia del Capital de trabajo (cuando tiene fórmula): la misma cuenta del motor sobre los
-    // Presupuestados de las filas visibles del último mes. Esas filas no son de bloques reservados.
-    const ultimo = reporte.periodos.length - 1;
-    const sugerido =
-      plan.capital?.regla && !reporte.sinPresupuesto[ultimo]
-        ? capitalSugerido(
-            plan.capital.regla,
-            (clave) => reporte.filas.find((f) => f.fila.clave === clave)?.celdas[ultimo]?.presupuestado ?? null
-          )
-        : null;
-    carga = vistaDeCarga(plan, sugerido);
+    carga = vistaDeCarga(plan);
   }
 
   // Tipeo directo (Real manual y, en las filas extra, Presupuestado) y botones de filas extra: solo ADMIN y FINANZAS

@@ -1,10 +1,30 @@
-import { camposManuales, clasificacionesDePlantilla, esBloqueReservado, type DatosMes, type Plantilla } from "@/lib/reporte/motor";
+import {
+  camposManuales,
+  clasificacionesDePlantilla,
+  esBloqueReservado,
+  pendientesDe,
+  type DatosMes,
+  type Plantilla,
+  type Reporte,
+} from "@/lib/reporte/motor";
 
 // Datos de prueba deterministas para comparar el Reporte del gerente: dos meses (el primero es el de
 // contexto) con Real por clasificación, Presupuesto por categoría y valores manuales en TODAS las
 // filas. Los de bloques reservados llevan un valor "centinela" enorme, para que se note si algo se filtra.
 
 export const CENTINELA = 7_000_000_000_000;
+
+// El Reporte sin las filas de Cierre (y con los pendientes que salen de las demás): para comparar lo que NO es
+// Cierre contra las fotos de antes de que el gerente viera Saldo, Capital y Disponible.
+export function sinCierre(r: Reporte): Reporte {
+  const filas = r.filas.filter((f) => f.fila.bloque !== "CIERRE");
+  const pendientes: Reporte["pendientes"] = [];
+  for (const f of filas) for (const k of pendientesDe(f.fila)) if (!pendientes.includes(k)) pendientes.push(k);
+  return { ...r, filas, pendientes };
+}
+
+// Claves de Cierre que trae un Reporte, en orden.
+export const clavesDeCierre = (r: Reporte) => r.filas.filter((f) => f.fila.bloque === "CIERRE").map((f) => f.fila.clave);
 
 export function mesesDePrueba(plantilla: Plantilla): DatosMes[] {
   const real = new Map<string, number>();

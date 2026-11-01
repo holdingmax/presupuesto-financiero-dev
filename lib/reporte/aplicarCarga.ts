@@ -53,7 +53,7 @@ async function leerLineas(db: Prisma.TransactionClient | typeof prisma, presupue
   }));
 }
 
-// Los ValorManualReporte PRESUPUESTADO del mes (filas manuales y Capital de trabajo), con quién
+// Los ValorManualReporte PRESUPUESTADO del mes (filas manuales), con quién
 // los cargó. Se leen para TODA la empresa y mes: el plan se queda solo con las claves editables.
 // Es independiente del PresupuestoMensual (el valor puede existir sin que el presupuesto exista).
 export async function leerValoresManualesParaCarga(
@@ -82,7 +82,7 @@ function esClaveUnicaDuplicada(error: unknown): boolean {
 //   - sin línea y valor → la crea (concepto = texto de la fila, detalle "Carga desde el Reporte");
 //   - con línea y valor → actualiza su importe (respeta concepto y detalle);
 //   - vacío o 0 → borra la línea.
-// Las filas manuales y el Capital de trabajo (destinos "manual" y "capital") van a
+// Las filas manuales (destino "manual") van a
 // ValorManualReporte, columna PRESUPUESTADO: upsert con el valor, o se borra si queda vacío o 0.
 // Esas entradas traen la `base` (lo que la pantalla mostraba): si el valor guardado cambió desde
 // entonces —lo cargó otra persona— se rechaza TODO el guardado en vez de pisarlo.
@@ -121,11 +121,11 @@ export async function aplicarCargaPresupuesto(p: {
   const notas: (string | null)[] = [];
   for (const e of entradas) {
     if (!e || typeof e !== "object" || typeof e.clave !== "string") return { ok: false, error: "Entrada inválida." };
-    if (e.destino !== "fila" && e.destino !== "sinFila" && e.destino !== "manual" && e.destino !== "capital") {
+    if (e.destino !== "fila" && e.destino !== "sinFila" && e.destino !== "manual") {
       return { ok: false, error: "Entrada inválida." };
     }
     // Sin `base` no se puede saber si el valor cambió mientras se editaba.
-    if ((e.destino === "manual" || e.destino === "capital") && typeof e.base !== "string") {
+    if (e.destino === "manual" && typeof e.base !== "string") {
       return { ok: false, error: "Entrada inválida." };
     }
     const k = `${e.destino}|${e.clave}`;
@@ -146,7 +146,7 @@ export async function aplicarCargaPresupuesto(p: {
   if (!presupuesto) {
     // Sin presupuesto no hay líneas que borrar: todo vacío en categorías es no hacer nada. Los
     // valores manuales sí pueden existir sin presupuesto, así que con ellos se sigue.
-    const hayManuales = entradas.some((e) => e.destino === "manual" || e.destino === "capital");
+    const hayManuales = entradas.some((e) => e.destino === "manual");
     if (!hayManuales && importes.every((c) => c === null)) return { ok: true, creadas: 0, actualizadas: 0, borradas: 0 };
     try {
       presupuesto = await prisma.presupuestoMensual.create({
@@ -201,7 +201,7 @@ export async function aplicarCargaPresupuesto(p: {
       const operaciones: Operacion[] = [];
       for (let i = 0; i < entradas.length; i++) {
         const e = entradas[i];
-        if (e.destino === "manual" || e.destino === "capital") {
+        if (e.destino === "manual") {
           const m = manualDeEntrada(plan, e);
           if (!m) return { ok: false, error: `${nombreDeEntrada(p.plantilla, e)}: no es un campo que se pueda cargar.` };
           const nuevo = importes[i];

@@ -6,7 +6,6 @@ import { guardarPresupuestoDelReporte } from "./actionsCarga";
 import { HayCambiosSinGuardarContext } from "../CargaPresupuestoContexto";
 import {
   MAX_ACLARACION,
-  type CapitalVista,
   type CeldaVistaCarga as CeldaVista,
   type EntradaCarga,
 } from "@/lib/reporte/cargaGerente";
@@ -91,9 +90,9 @@ export function ProveedorCarga({
       clave: c.clave,
       importe: valores[c.id].importe,
       ...(c.requiereAclaracion ? { aclaracion: valores[c.id].aclaracion } : {}),
-      // Filas manuales y Capital: lo que la pantalla mostraba, para que el servidor detecte si
+      // Filas manuales: lo que la pantalla mostraba, para que el servidor detecte si
       // otra persona lo cambió mientras tanto.
-      ...(c.destino === "manual" || c.destino === "capital" ? { base: c.importeInicial } : {}),
+      ...(c.destino === "manual" ? { base: c.importeInicial } : {}),
     }));
     try {
       const r = await guardarPresupuestoDelReporte(empresaSlug, periodo, entradas);
@@ -202,29 +201,6 @@ export function CeldaPresupuestoEditable({
           className={`w-44 text-left ${claseInput}`}
         />
       )}
-    </div>
-  );
-}
-
-// "Capital de trabajo propuesto": la única fila de Cierre que carga el gerente. Va aparte de la
-// tabla (Cierre sigue reservado). Si la plantilla tiene fórmula, un valor tipeado la reemplaza y
-// vacío vuelve a la fórmula; en las demás se tipea a mano.
-export function BloqueCapital({ capital }: { capital: CapitalVista }) {
-  return (
-    <div className="mt-3 rounded-md border border-line-strong bg-paper-raised px-4 py-2">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="max-w-xl">
-          <p className="text-sm font-medium">{capital.texto}</p>
-          <p className="mt-1 text-xs text-ink-secondary">
-            {capital.conFormula
-              ? capital.sugerido !== null
-                ? `Si lo dejás vacío se usa la fórmula del reporte: ${capital.sugerido}. Si cargás un valor, reemplaza a la fórmula.`
-                : "Si lo dejás vacío se usa la fórmula del reporte. Si cargás un valor, reemplaza a la fórmula."
-              : "Se carga a mano."}
-          </p>
-        </div>
-        <CeldaPresupuestoEditable id={capital.id} nombre={capital.texto} />
-      </div>
     </div>
   );
 }

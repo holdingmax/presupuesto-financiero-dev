@@ -95,6 +95,34 @@ test("config: Cierre solo puede estar prendido donde Disponibilidades también l
   }
 });
 
+test("config real: Cierre prendido en las cinco empresas con Disponibilidades; Havanna, Radio y Conexión siguen fuera", () => {
+  assert.deepEqual([...EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE], ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"]);
+  for (const slug of EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE) {
+    assert.deepEqual(accesoReservadosDelReporte(false, slug), { disponibilidades: true, cierre: true }, slug);
+  }
+  for (const slug of ["havanna", "radio", "conexion-logistica", "conexion-logistica-spp"]) {
+    assert.equal(accesoReservadosDelReporte(false, slug), false, slug);
+  }
+});
+
+test("Cierre del gerente: Capital y Disponible solo con Presupuestado (como la planilla); el Saldo, con su Real", () => {
+  for (const slug of EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE) {
+    const r = reporteParcial(slug, { disponibilidades: true, cierre: true });
+    for (const f of r.filas.filter((x) => x.fila.bloque === "CIERRE")) {
+      const c = f.celdas[0];
+      const clave = `${slug}/${f.fila.clave}`;
+      if (f.fila.tipo === "capital" || f.fila.tipo === "disponible") {
+        assert.equal(c.real, null, clave);
+        assert.equal(c.avance, null, clave);
+        assert.equal(c.faltaEjecutar, null, clave);
+      } else {
+        assert.equal(f.fila.tipo === "total" && f.fila.rol === "saldo", true, clave);
+        assert.notEqual(c.real, null, clave);
+      }
+    }
+  }
+});
+
 test("config: todos los slugs de los interruptores tienen plantilla de Reporte", () => {
   for (const slug of [...EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE, ...EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE]) {
     assert.ok(PLANTILLAS_POR_SLUG[slug], `${slug} no tiene plantilla de Reporte`);

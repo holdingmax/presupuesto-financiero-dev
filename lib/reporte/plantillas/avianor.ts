@@ -26,8 +26,9 @@ import {
 // ningún total con rol "totalDisponibilidades" (el motor deja el arrastre en null).
 // Sin Capital de trabajo ni Disponible, como la planilla.
 //
-// Los tres totales de flujo llevan rol para admitir filas extra del Reporte (lib/reporte/filasExtra.ts). Sin rol
-// "saldo": con él el gerente pasaría a ver el Saldo, y no se pidió.
+// Los tres totales de flujo llevan rol para admitir filas extra del Reporte (lib/reporte/filasExtra.ts). El Saldo lleva
+// rol "saldo" (desde que el gerente ve el Cierre, config EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE): es lo único de Cierre
+// que tiene Avianor.
 
 const ingresos = [
   ingreso("av.cobranzaClientes", "Cobranza clientes", clasif("COBRANZAS"), cat("COBRANZAS")),
@@ -89,6 +90,7 @@ export const PLANTILLA_AVIANOR: Plantilla = {
       resta: ["av.totalEgresos"],
       requiere: ["av.disponibleAntes"],
       soloConPresupuesto: true,
+      rol: "saldo",
     }),
   ],
 };
