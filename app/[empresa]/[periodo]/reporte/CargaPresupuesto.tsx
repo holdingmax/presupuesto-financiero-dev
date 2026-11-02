@@ -137,7 +137,7 @@ export function BarraGuardarPresupuesto() {
       <span className="text-xs text-ink-secondary">
         {cantidadCambios > 0
           ? `${cantidadCambios} ${cantidadCambios === 1 ? "cambio" : "cambios"} sin guardar`
-          : "Tipeá tu presupuesto en la última columna (Presupuestado) y guardá."}
+          : "Tipeá tu presupuesto en la columna Presupuestado y guardá."}
       </span>
       {mensaje && (
         <span className={`text-sm ${mensaje.tipo === "error" ? "text-terracota" : "text-verde"}`} role="status">
