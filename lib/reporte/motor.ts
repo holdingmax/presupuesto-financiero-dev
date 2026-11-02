@@ -165,7 +165,12 @@ export type FilaTotal = {
   // "saldo" (Plate Silver y Bradenton: Posición, Capital y Excedente). No toca el control de arrastre ni las filas extra.
   visibleGerente?: true;
 };
-export type ReglaCapital = { terminos: { fila: string; factor: number }[]; fijo?: number };
+export type ReglaCapital = {
+  terminos: { fila: string; factor: number }[];
+  fijo?: number;
+  // El fijo solo se suma si algún término tiene valor distinto de 0 (con todos en 0 o vacíos, la fila queda vacía).
+  fijoSoloConTerminos?: boolean;
+};
 export type FilaCapital = {
   clave: string;
   bloque: "CIERRE";
@@ -481,6 +486,7 @@ export function armarReporte(
         if (manual !== undefined) return { v: manual, inc: false };
         if (regla === "manual" || sinPresupuesto[i]) return { v: null, inc: false };
         if (terminos.every((x) => x.x.v === null)) return { v: null, inc: false };
+        if (regla.fijoSoloConTerminos && terminos.every((x) => !x.x.v)) return { v: null, inc: false };
         const suma = terminos.reduce((a, x) => a + x.t.factor * (x.x.v ?? 0), 0) + (regla.fijo ?? 0);
         return { v: sinMenosCero(Math.round(suma)), inc: terminos.some((x) => x.x.inc) };
       }

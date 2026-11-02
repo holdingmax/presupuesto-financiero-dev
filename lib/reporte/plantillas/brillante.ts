@@ -184,6 +184,7 @@ export const PLANTILLA_BRILLANTE: Plantilla = {
           { fila: "br.sac", factor: 1 },
         ],
         fijo: 3100000000, // 31.000.000 en centavos (K11: qué son)
+        fijoSoloConTerminos: true,
       },
       { pendiente: "K11", nota: "Planilla (agosto): Sueldos + SAC + 31.000.000." }
     ),
