@@ -30,8 +30,14 @@ import ReportePresupuestoMesAMes from "./ReportePresupuestoMesAMes";
 import { cargarDatosMeses } from "@/lib/reporte/cargarMeses";
 import ReportePlantilla from "./ReportePlantilla";
 import PeriodoSelector from "../presupuesto/PeriodoSelector";
-import { ocultaPestanaPresupuesto } from "@/lib/navegacionEmpresa";
-import { cantidadDeMeses, resolverVista, type VistaReporte } from "@/lib/reporte/vistaReporte";
+import {
+  cantidadDeMeses,
+  mesesAnteriores,
+  modoDePeriodo,
+  resolverVista,
+  vistaEfectiva,
+  type VistaReporte,
+} from "@/lib/reporte/vistaReporte";
 import { accesoReservadosDelReporte } from "@/lib/reporte/visibilidad";
 import { armarVistaTipeo, tipeoDirectoActivo, type VistaTipeo } from "@/lib/reporte/tipeoDirecto";
 import { armarVistaFilasExtra, type VistaFilasExtra } from "@/lib/reporte/accionesFilasExtra";
@@ -114,7 +120,7 @@ export default async function ReportePage({ params, searchParams }: Props) {
         empresaNombre={empresaNombre}
         empresaSlug={empresaSlug}
         periodo={periodo}
-        vista={resolverVista(vistaPedida, esAdminOFinanzas(usuario))}
+        vista={vistaEfectiva(resolverVista(vistaPedida, esAdminOFinanzas(usuario)), periodo)}
         unidadesEmpresa={unidadesEmpresa}
         verPendientes={esAdminOFinanzas(usuario) && MOSTRAR_PENDIENTES_EN_REPORTE}
         verControl={esAdminOFinanzas(usuario)}
@@ -343,9 +349,16 @@ async function ReportePorPlantilla({
 
   return (
     <>
-      {/* Sin la pestaña Presupuesto el gerente no tiene otro selector de mes (ver lib/navegacionEmpresa.ts). */}
-      {ocultaPestanaPresupuesto(esAdminOFinanzas(usuario), empresaSlug) && (
-        <PeriodoSelector empresaSlug={empresaSlug} periodo={periodo} segmento="reporte" vista={vista} compacto />
+      {/* Botones de mes solo en «Meses anteriores»; en «Mes en curso» no hay ningún otro mes (lib/reporte/vistaReporte.ts). */}
+      {modoDePeriodo(periodo) === "anteriores" && (
+        <PeriodoSelector
+          empresaSlug={empresaSlug}
+          periodo={periodo}
+          segmento="reporte"
+          vista={vista}
+          periodos={mesesAnteriores()}
+          compacto
+        />
       )}
     <ReportePlantilla
       empresaNombre={empresaNombre}

@@ -5,17 +5,17 @@ import { enlacesDePeriodos } from "@/lib/periodosHabilitados";
 
 const HABILITADOS = ["2026-09", "2026-10", "2026-11"];
 
-test("vistaPorDefecto: el gerente ve el período actual; ADMIN y FINANZAS, todo", () => {
+test("vistaPorDefecto: todos los roles ven el período actual (un solo mes)", () => {
   assert.equal(vistaPorDefecto(false), "actual");
-  assert.equal(vistaPorDefecto(true), "todo");
+  assert.equal(vistaPorDefecto(true), "actual");
 });
 
-test("resolverVista: solo «actual» y «todo» valen; cualquier otra cosa vuelve al default del rol", () => {
+test("resolverVista: solo «actual» y «todo» valen; cualquier otra cosa vuelve al default («actual») para todos los roles", () => {
   assert.equal(resolverVista("actual", true), "actual");
   assert.equal(resolverVista("todo", false), "todo");
   for (const raro of [undefined, "", "TODO", "Actual", "todos", " todo", ["todo", "actual"], "todo;actual"]) {
     assert.equal(resolverVista(raro, false), "actual");
-    assert.equal(resolverVista(raro, true), "todo");
+    assert.equal(resolverVista(raro, true), "actual");
   }
 });
 
