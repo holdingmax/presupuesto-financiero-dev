@@ -91,7 +91,7 @@ const egresos = [
     parcial: true,
     nota: "Planilla: IMP Y PREVISIONALES + PRORRATEO IMPUESTOS (F931/SP).",
   }),
-  egreso("cx.expensas", "Expensas", SIN_REAL, cat("EXPENSAS"), {
+  egreso("cx.expensas", "Expensas", REAL_MANUAL, cat("EXPENSAS"), {
     pendiente: "K2",
     nota: "Planilla: reparto de la unidad EXPENSAS.",
   }),
@@ -148,19 +148,24 @@ export const PLANTILLA_CONEXION: Plantilla = {
     }),
     titulo("cx.tituloIngresos", "INGRESOS", "INGRESOS"),
     ...ingresos,
-    total("cx.totalIngresos", "INGRESOS", "TOTAL INGRESOS", ingresos.map((f) => f.clave)),
+    total("cx.totalIngresos", "INGRESOS", "TOTAL INGRESOS", ingresos.map((f) => f.clave), { rol: "totalIngresos" }),
     total("cx.disponibleAntes", "CIERRE", "DISPONIBLE ANTES DE GASTOS", ["cx.totalDisponibilidades", "cx.totalIngresos"], {
       requiere: ["cx.totalDisponibilidades"],
       soloConPresupuesto: true,
     }),
     titulo("cx.tituloEgresos", "EGRESOS", "EGRESOS"),
     ...egresos,
-    total("cx.totalEgresosOperativos", "EGRESOS", "TOTAL EGRESOS OPERATIVOS", egresos.map((f) => f.clave)),
+    total("cx.totalEgresosOperativos", "EGRESOS", "TOTAL EGRESOS OPERATIVOS", egresos.map((f) => f.clave), {
+      rol: "totalEgresosOperativos",
+    }),
     ...deAbajo,
-    total("cx.totalEgresos", "ABAJO", "TOTAL DE EGRESOS", [
-      "cx.totalEgresosOperativos",
-      ...deAbajo.map((f) => f.clave),
-    ]),
+    total(
+      "cx.totalEgresos",
+      "ABAJO",
+      "TOTAL DE EGRESOS",
+      ["cx.totalEgresosOperativos", ...deAbajo.map((f) => f.clave)],
+      { rol: "totalEgresos" }
+    ),
     total("cx.saldo", "CIERRE", "SALDO INICIAL + INGRESOS - TOTAL EGRESOS", ["cx.disponibleAntes"], {
       resta: ["cx.totalEgresos"],
       requiere: ["cx.disponibleAntes"],

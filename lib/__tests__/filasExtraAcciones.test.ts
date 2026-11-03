@@ -34,7 +34,8 @@ import { CON_FILAS_EXTRA_HOY } from "./filasExtraEmpresasLista";
 
 const SLUGS = Object.keys(PLANTILLAS_POR_SLUG);
 const BRILLANTE = PLANTILLAS_POR_SLUG["brillante"];
-const HAVANNA = PLANTILLAS_POR_SLUG["havanna"];
+// Una plantilla que NO marca los totales de flujo (Plate Silver): no admite filas extra.
+const SIN_ROLES = PLANTILLAS_POR_SLUG["plate-silver"];
 
 const ING: FilaExtra = { id: "i1", bloque: "INGRESOS", nombre: "PRÉSTAMO COCOS", desdePeriodo: "2026-10", hastaPeriodo: null };
 const EGR: FilaExtra = { id: "e1", bloque: "EGRESOS", nombre: "PAGOS ESPECIALES", desdePeriodo: "2026-10", hastaPeriodo: null };
@@ -91,7 +92,7 @@ test("crear: empresa fuera del interruptor, sin tipeo directo o sin totales marc
   assert.deepEqual(crear({ interruptores: APAGADO }), { ok: false, error: ERROR_NO_HABILITADO });
   assert.deepEqual(crear({ interruptores: { filasExtra: ["brillante"], tipeo: [] } }), { ok: false, error: ERROR_NO_HABILITADO });
   assert.deepEqual(
-    crear({ empresaSlug: "havanna", plantilla: HAVANNA, interruptores: { filasExtra: ["havanna"], tipeo: ["havanna"] } }),
+    crear({ empresaSlug: "plate-silver", plantilla: SIN_ROLES, interruptores: { filasExtra: ["plate-silver"], tipeo: ["plate-silver"] } }),
     { ok: false, error: ERROR_NO_HABILITADO }
   );
 });
@@ -185,7 +186,7 @@ test("pantalla: el gerente recibe null SIEMPRE; también si el interruptor está
   assert.equal(vistaFilas({ esAdminOFinanzas: false }), null);
   assert.equal(vistaFilas({ interruptores: APAGADO }), null);
   assert.equal(vistaFilas({ interruptores: { filasExtra: [], tipeo: [] } }), null);
-  assert.equal(vistaFilas({ empresaSlug: "havanna", plantillaEstatica: HAVANNA, plantillaReporte: HAVANNA }), null);
+  assert.equal(vistaFilas({ empresaSlug: "plate-silver", plantillaEstatica: SIN_ROLES, plantillaReporte: SIN_ROLES }), null);
 });
 
 // ---- Tipeo directo de Presupuestado y Real en las filas extra ---------------------------------------
@@ -195,8 +196,8 @@ test("tipeo: las filas extra aceptan Presupuestado y Real; las demás filas de l
   for (const k of ["extra.i1", "extra.e1", "extra.a1"]) {
     assert.ok(campos.includes(`${k}|REAL`) && campos.includes(`${k}|PRESUPUESTADO`), k);
   }
-  // 11 de Disponibilidades + 5 de flujo (Real) + 6 de las filas extra.
-  assert.equal(campos.length, 11 + 5 + 6);
+  // 11 de Disponibilidades + 6 de flujo (Real) + 6 de las filas extra.
+  assert.equal(campos.length, 11 + 6 + 6);
   // El Presupuestado de las filas de la plantilla no se tipea desde acá.
   assert.equal(campos.some((k) => !k.startsWith("extra.") && k.endsWith("|PRESUPUESTADO")), false);
 });
@@ -204,7 +205,7 @@ test("tipeo: las filas extra aceptan Presupuestado y Real; las demás filas de l
 test("tipeo: sin el interruptor de filas extra, ni una celda de ellas; sin tipeo directo, ninguna", () => {
   const sin = camposTipeables(CON_EXTRAS, "brillante", TIPEO_SIN_EXTRAS);
   assert.equal(sin.some((c) => c.clave.startsWith("extra.")), false);
-  assert.equal(sin.length, 16);
+  assert.equal(sin.length, 17);
   assert.deepEqual(camposTipeables(CON_EXTRAS, "brillante", { ...TIPEO, tipeo: [] }), []);
 });
 
@@ -356,6 +357,17 @@ test("gerente: ve las filas extra en solo lectura, con sus valores; los centinel
 
 // ---- Interruptor vacío: nada cambia para nadie ------------------------------------------------------
 
+// Excepción explícita: Expensas pasó de «Sin Real» a Real manual, y una celda de Real manual vacía ya no se marca como
+// incompleta (realIncompleto) como la de una fila «Sin Real». Es la ÚNICA diferencia con la foto gerenteBrillante.json (ver brillanteRealManual.test.ts)
+// (tomada antes del cambio, que no se toca): se pone en la foto ese único campo de esa única fila y se compara el resto.
+function conExpensasManual(foto: { filas: [string, unknown[][]][] }) {
+  const copia = JSON.parse(JSON.stringify(foto)) as typeof foto;
+  const celda = copia.filas.find(([clave]) => clave === "br.expensas")![1][0];
+  assert.equal(celda[5], true, "la foto de antes tiene Expensas con el Real incompleto");
+  celda[5] = false;
+  return copia;
+}
+
 function proyeccion(r: Reporte) {
   return JSON.parse(
     JSON.stringify({
@@ -373,7 +385,7 @@ function proyeccion(r: Reporte) {
   );
 }
 
-// Datos de Brillante numerados como cuando se tomó la foto (sin contar las dos celdas de Real que se sumaron después):
+// Datos de Brillante numerados como cuando se tomó la foto (sin contar las tres celdas de Real que se sumaron después: Jujuy, Recupero Gastos y Expensas):
 // el mismo armado que brillanteRealManual.test.ts.
 function datosDeLaFoto(): DatosMes[] {
   const meses = mesesDePrueba(BRILLANTE);
@@ -381,7 +393,7 @@ function datosDeLaFoto(): DatosMes[] {
   const presupuesto = new Map<string, number>();
   let n = 0;
   for (const c of camposManuales(BRILLANTE)) {
-    if (c.columna === "REAL" && (c.clave === "br.otrasOperacionesJujuy" || c.clave === "br.recuperoGastos")) continue;
+    if (c.columna === "REAL" && (c.clave === "br.otrasOperacionesJujuy" || c.clave === "br.recuperoGastos" || c.clave === "br.expensas")) continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;
     (c.columna === "REAL" ? real : presupuesto).set(c.clave, valor);
   }
@@ -415,7 +427,7 @@ test("interruptor VACÍO: nadie recibe vistas, el resolver no cambia la plantill
   // Foto del gerente de Brillante con el interruptor vacío: idéntica a la anterior a las filas extra.
   const resuelta = (await plantillaDeEmpresaConExtras("e", "brillante", "2026-10", { interruptores: [] }))!;
   const gerente = armarReporte(resuelta, datosDeLaFoto(), 1, { verBloquesReservados: accesoReservadosDelReporte(false, "brillante") });
-  assert.deepEqual(proyeccion(sinCierre(gerente)), foto);
+  assert.deepEqual(proyeccion(sinCierre(gerente)), conExpensasManual(foto));
 });
 
 test("la foto del gerente de Brillante tampoco cambia con el interruptor prendido y la tabla vacía", async () => {
@@ -426,7 +438,7 @@ test("la foto del gerente de Brillante tampoco cambia con el interruptor prendid
   }))!;
   assert.equal(resuelta, BRILLANTE);
   const gerente = armarReporte(resuelta, datosDeLaFoto(), 1, { verBloquesReservados: accesoReservadosDelReporte(false, "brillante") });
-  assert.deepEqual(proyeccion(sinCierre(gerente)), foto);
+  assert.deepEqual(proyeccion(sinCierre(gerente)), conExpensasManual(foto));
 });
 
 // ---- Las acciones y la pantalla, leídas del código --------------------------------------------------

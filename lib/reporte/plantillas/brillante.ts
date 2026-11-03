@@ -106,7 +106,7 @@ const egresos = [
     parcial: true,
     nota: "Planilla: IMP Y PREVISIONALES + PRORRATEO IMPUESTOS (F931/SP).",
   }),
-  egreso("br.expensas", "Expensas", SIN_REAL, cat("EXPENSAS"), {
+  egreso("br.expensas", "Expensas", REAL_MANUAL, cat("EXPENSAS"), {
     pendiente: "K2",
     nota: "Planilla: reparto de la unidad EXPENSAS.",
   }),

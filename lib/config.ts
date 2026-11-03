@@ -121,7 +121,7 @@ export const EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE: readonly string[] = [
 // Ver lib/reporte/tipeoDirecto.ts.
 //
 // Tanda 1: solo flujo (Real manual de Ingresos/Egresos/de abajo). Sin filas extra y sin Disponibilidades.
-export const EMPRESAS_CON_TIPEO_DIRECTO: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio"];
+export const EMPRESAS_CON_TIPEO_DIRECTO: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio", "havanna", "conexion-logistica", "conexion-logistica-spp"];
 
 // Filas extra del Reporte (las que agrega ADMIN/FINANZAS mientras revisa, lib/reporte/filasExtra.ts). Lista de
 // SLUGS de empresa; vacía = el Reporte no consulta ni muestra ninguna (ni siquiera lee la tabla) y no hay botón
@@ -138,7 +138,21 @@ export const EMPRESAS_CON_TIPEO_DIRECTO: readonly string[] = ["brillante", "fred
 // lo tocan. Sí mueven los totales, Disponible antes de gastos y Posición de efectivo.
 // Radio: el Capital de trabajo sale del 50% de TOTAL EGRESOS OPERATIVOS, así que una fila extra de Egresos lo mueve (igual
 // que en Fredy y HWC); un Capital tipeado a mano lo reemplaza.
-export const EMPRESAS_CON_FILAS_EXTRA: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio"];
+// Havanna: el Capital de trabajo suma Sueldos, Expensas, Proveedores/4 e Inversiones/3 (no un total de Egresos), así que una fila
+// extra no lo mueve; sí mueve los totales, Disponible antes de gastos y Saldo.
+// Conexión Logística (y su alias de testing): el Capital de trabajo sale del 50% de TOTAL EGRESOS OPERATIVOS, así que una fila extra
+// de Egresos lo mueve (igual que en Radio); un Capital tipeado a mano lo reemplaza.
+export const EMPRESAS_CON_FILAS_EXTRA: readonly string[] = [
+  "brillante",
+  "fredy-publicidad",
+  "hwc",
+  "avianor",
+  "mantenor",
+  "radio",
+  "havanna",
+  "conexion-logistica",
+  "conexion-logistica-spp",
+];
 
 // Etiqueta del ciclo fiscal que se muestra en la portada de login (app/login/page.tsx).
 //

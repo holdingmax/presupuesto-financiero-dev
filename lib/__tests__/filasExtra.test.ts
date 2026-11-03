@@ -158,9 +158,10 @@ test("varias filas del mismo bloque entran en el orden dado", () => {
 
 test("una plantilla sin los totales marcados no admite filas extra y falla fuerte, no suma a medias", () => {
   assert.equal(admiteFilasExtra(BRILLANTE), true);
-  const havanna = PLANTILLAS_POR_SLUG["havanna"];
-  assert.equal(admiteFilasExtra(havanna), false);
-  assert.throws(() => conFilasExtra(havanna, [ING]), /no admite filas extra/);
+  // Plate Silver no marca los totales de flujo (Havanna y Conexión sí, desde que tienen filas extra).
+  const sinRoles = PLANTILLAS_POR_SLUG["plate-silver"];
+  assert.equal(admiteFilasExtra(sinRoles), false);
+  assert.throws(() => conFilasExtra(sinRoles, [ING]), /no admite filas extra/);
 });
 
 test("una fila repetida falla fuerte", () => {
@@ -259,7 +260,7 @@ test("interruptor VACÍO: NO consulta la base y devuelve la plantilla de siempre
 });
 
 test("con la configuración real, solo las empresas del interruptor consultan la base; las demás no", async () => {
-  assert.ok(SLUGS.filter((s) => !EMPRESAS_CON_FILAS_EXTRA.includes(s)).includes("havanna"), "sanidad: el recorrido no está vacío");
+  assert.ok(SLUGS.filter((s) => !EMPRESAS_CON_FILAS_EXTRA.includes(s)).includes("plate-silver"), "sanidad: el recorrido no está vacío");
   for (const slug of SLUGS.filter((s) => !EMPRESAS_CON_FILAS_EXTRA.includes(s))) {
     assert.equal(await plantillaDeEmpresaConExtras("e", slug, "2026-10", { leer: noDebeLeer }), PLANTILLAS_POR_SLUG[slug], slug);
   }

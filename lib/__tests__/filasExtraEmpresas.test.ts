@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { EMPRESAS_CON_FILAS_EXTRA, EMPRESAS_CON_TIPEO_DIRECTO } from "@/lib/config";
+import { EMPRESAS_CON_FILAS_EXTRA, EMPRESAS_CON_TIPEO_DIRECTO, EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE } from "@/lib/config";
 import {
   armarReporte,
   clavesCalculables,
@@ -20,7 +20,7 @@ import { camposTipeables, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto"
 import { mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 import { CON_FILAS_EXTRA_HOY } from "./filasExtraEmpresasLista";
 
-// Filas extra del Reporte, parametrizado por empresa: Fredy Publicidad, HWC, Avianor, Mantenor y Radio (Brillante tiene sus tests en
+// Filas extra del Reporte, parametrizado por empresa: Fredy Publicidad, HWC, Avianor, Mantenor, Radio, Havanna y Conexión Logística (Brillante tiene sus tests en
 // filasExtra.test.ts y filasExtraAcciones.test.ts). Sumar una empresa es una entrada más en ESPERADO. Las claves y los
 // importes están escritos a mano, a propósito. Usan la configuración REAL de lib/config.ts y la lista fijada de
 // filasExtraEmpresasLista.ts.
@@ -45,11 +45,42 @@ type Esperado = {
   } | null;
   // Capital de trabajo MANUAL (Mantenor): no depende de ningún total, las filas extra no lo tocan.
   capitalManual?: { capital: string; disponible: string };
+  // Capital de trabajo por FÓRMULA que NO sale de un total de Egresos (Havanna: Sueldos + Expensas + Proveedores/4 +
+  // Inversiones/3): las filas extra no lo mueven ni mueven el Disponible.
+  capitalIndependiente?: { capital: string; disponible: string };
   // Una fila de la plantilla con ese texto: un nombre así tiene que rechazarse.
   textoExistente: string;
 };
 
 const ESPERADO: Record<string, Esperado> = {
+  havanna: {
+    ingresos: "hv.totalIngresos",
+    operativos: "hv.totalEgresosOperativos",
+    egresos: "hv.totalEgresos",
+    saldo: "hv.saldo",
+    disponibleAntes: "hv.disponibleAntes",
+    capital: null,
+    capitalIndependiente: { capital: "hv.capital", disponible: "hv.disponible" },
+    textoExistente: "Proveedores",
+  },
+  "conexion-logistica": {
+    ingresos: "cx.totalIngresos",
+    operativos: "cx.totalEgresosOperativos",
+    egresos: "cx.totalEgresos",
+    saldo: "cx.saldo",
+    disponibleAntes: "cx.disponibleAntes",
+    capital: { capital: "cx.capital", disponible: "cx.disponible", porcentaje: 50 },
+    textoExistente: "Proveedores",
+  },
+  "conexion-logistica-spp": {
+    ingresos: "cx.totalIngresos",
+    operativos: "cx.totalEgresosOperativos",
+    egresos: "cx.totalEgresos",
+    saldo: "cx.saldo",
+    disponibleAntes: "cx.disponibleAntes",
+    capital: { capital: "cx.capital", disponible: "cx.disponible", porcentaje: 50 },
+    textoExistente: "Proveedores",
+  },
   "fredy-publicidad": {
     ingresos: "fr.totalIngresos",
     operativos: "fr.totalEgresosOperativos",
@@ -138,7 +169,7 @@ function proyeccion(r: Reporte) {
 // Capital en la empresa (Avianor), los datos de prueba tal cual.
 function mesesSinCapitalManual(slug: string): DatosMes[] {
   const meses = mesesDePrueba(PLANTILLAS_POR_SLUG[slug]);
-  const cap = ESPERADO[slug].capital;
+  const cap = ESPERADO[slug].capital ?? ESPERADO[slug].capitalIndependiente;
   if (!cap) return meses;
   const presupuesto = new Map(meses[1].manuales!.presupuesto);
   presupuesto.delete(cap.capital);
@@ -284,6 +315,17 @@ for (const slug of SLUGS) {
     assert.equal(celda(r, cap.capital).presupuestado, valorManual);
   });
 
+  if (esperado.capitalIndependiente) test(`${slug}: Capital por fórmula que no sale de un total de Egresos: las filas extra no lo mueven ni mueven el Disponible`, () => {
+    const ci = esperado.capitalIndependiente!;
+    const sin = mesesSinCapitalManual(slug);
+    const antesR = armarReporte(plantilla, sin, 1);
+    assert.ok(celda(antesR, ci.capital).presupuestado !== null, "sanidad: el Capital por fórmula tiene valor");
+    const conExtras = armarReporte(conFilasExtra(plantilla, TRES), conImportesExtra(sin, ["extra.i1", "extra.e1", "extra.a1"]), 1);
+    assert.deepEqual(celda(conExtras, ci.capital), celda(antesR, ci.capital), "capital");
+    assert.deepEqual(celda(conExtras, ci.disponible), celda(antesR, ci.disponible), "disponible");
+    assert.equal(celda(conExtras, esperado.ingresos).real! - celda(antesR, esperado.ingresos).real!, 5000);
+  });
+
   // Sin Capital ni Disponible: las filas extra no los crean ni mueven las Disponibilidades.
   if (esperado.capitalManual) test(`${slug}: Capital manual: las filas extra no mueven ni el Capital ni el Disponible, con o sin Capital tipeado`, () => {
     const cm = esperado.capitalManual!;
@@ -312,7 +354,7 @@ for (const slug of SLUGS) {
     assert.equal(celda(conExtras, esperado.ingresos).real! - celda(antesR, esperado.ingresos).real!, 5000);
   });
 
-  if (!cap && !esperado.capitalManual) test(`${slug}: sin Capital ni Disponible: las filas extra no los crean y las Disponibilidades no se mueven`, () => {
+  if (!cap && !esperado.capitalManual && !esperado.capitalIndependiente) test(`${slug}: sin Capital ni Disponible: las filas extra no los crean y las Disponibilidades no se mueven`, () => {
     const sin = mesesSinCapitalManual(slug);
     const antesR = armarReporte(plantilla, sin, 1);
     const conExtras = armarReporte(conFilasExtra(plantilla, TRES), conImportesExtra(sin, ["extra.i1", "extra.e1", "extra.a1"]), 1);
@@ -334,7 +376,9 @@ for (const slug of SLUGS) {
     assert.equal(celda(r, "extra.i1").presupuestado, 3000);
     // Del Cierre trae al menos el Saldo y nunca «Disponible antes de gastos».
     const cierre = r.filas.filter((f) => f.fila.bloque === "CIERRE").map((f) => f.fila.clave);
-    assert.ok(cierre.length > 0 && cierre.every((k) => !k.endsWith("disponibleAntes")), cierre.join());
+    // (El alias de testing «conexion-logistica-spp» no está en los interruptores de Cierre: su gerente no ve ninguna fila de Cierre.)
+    assert.ok(EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE.includes(slug) ? cierre.length > 0 : cierre.length === 0, cierre.join());
+    assert.ok(cierre.every((k) => !k.endsWith("disponibleAntes")), cierre.join());
     assert.ok(r.arrastre.every((a) => a === null));
     // La vista de pantalla de las filas extra es solo para ADMIN y FINANZAS.
     const vista = (esAdminOFinanzas: boolean) =>

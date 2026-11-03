@@ -27,6 +27,17 @@ const fotoDeLasOtras = JSON.parse(
   readFileSync(new URL("../reporte/__tests__/fixtures/gerenteSinReservados.json", import.meta.url), "utf-8")
 ) as Record<string, unknown>;
 
+// Excepción explícita: Expensas pasó de «Sin Real» a Real manual, y una celda de Real manual vacía ya no se marca como
+// incompleta (realIncompleto) como la de una fila «Sin Real». Es la ÚNICA diferencia con la foto gerenteBrillante.json
+// (tomada antes del cambio, que no se toca): se pone en la foto ese único campo de esa única fila y se compara el resto.
+function conExpensasManual(foto: { filas: [string, unknown[][]][] }) {
+  const copia = JSON.parse(JSON.stringify(foto)) as typeof foto;
+  const celda = copia.filas.find(([clave]) => clave === "br.expensas")![1][0];
+  assert.equal(celda[5], true, "la foto de antes tiene Expensas con el Real incompleto");
+  celda[5] = false;
+  return copia;
+}
+
 function proyeccion(r: Reporte) {
   return JSON.parse(
     JSON.stringify({
@@ -54,7 +65,7 @@ function datos(conValores: boolean): DatosMes[] {
   const presupuesto = new Map<string, number>();
   let n = 0;
   for (const c of camposManuales(BRILLANTE)) {
-    if (c.columna === "REAL" && (c.clave === JUJUY || c.clave === RECUPERO)) continue;
+    if (c.columna === "REAL" && (c.clave === JUJUY || c.clave === RECUPERO || c.clave === "br.expensas")) continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;
     (c.columna === "REAL" ? real : presupuesto).set(c.clave, valor);
   }
@@ -85,17 +96,25 @@ test("las dos filas son de Real manual y conservan su Presupuestado manual", () 
   assert.ok(campos.includes(`${JUJUY}|PRESUPUESTADO`) && campos.includes(`${RECUPERO}|PRESUPUESTADO`));
 });
 
-test("Expensas queda fuera: sigue sin Real y no se puede tipear", () => {
+test("Expensas pasó a Real manual (Kike la carga sobre el Reporte); Gastos Gold sigue sin Real y no se puede tipear", () => {
   const fila = BRILLANTE.filas.find((f) => f.clave === "br.expensas")!;
-  assert.ok(fila.tipo === "linea" && fila.real.tipo === "ninguna");
-  assert.equal(camposManuales(BRILLANTE).some((c) => c.clave === "br.expensas" && c.columna === "REAL"), false);
-  assert.equal(real(admin(datos(true)), "br.expensas"), null);
-  assert.ok(
+  assert.ok(fila.tipo === "linea" && fila.real.tipo === "manual");
+  assert.equal(camposManuales(BRILLANTE).some((c) => c.clave === "br.expensas" && c.columna === "REAL"), true);
+  assert.equal(
     motivoRechazoTipeo({
       empresaSlug: "brillante",
       plantilla: BRILLANTE,
       esAdminOFinanzas: true,
       entradas: [{ filaClave: "br.expensas", columna: "REAL", texto: "12.959.207" }],
+    }),
+    null
+  );
+  assert.ok(
+    motivoRechazoTipeo({
+      empresaSlug: "brillante",
+      plantilla: BRILLANTE,
+      esAdminOFinanzas: true,
+      entradas: [{ filaClave: "br.gastosGold", columna: "REAL", texto: "12.959.207" }],
     })
   );
 });
@@ -103,7 +122,7 @@ test("Expensas queda fuera: sigue sin Real y no se puede tipear", () => {
 // ---- Foto del gerente -----------------------------------------------------------------------------
 
 test("gerente de Brillante: con las dos filas vacías el Reporte (sin el Cierre, que ahora ve) es idéntico a la foto de antes del cambio", () => {
-  assert.deepEqual(proyeccion(sinCierre(gerente(datos(false)))), fotoBrillante);
+  assert.deepEqual(proyeccion(sinCierre(gerente(datos(false)))), conExpensasManual(fotoBrillante));
   // La foto tiene las dos filas con Real vacío: es el «antes».
   const filas = new Map(fotoBrillante.filas as [string, unknown[][]][]);
   assert.equal(filas.get(JUJUY)![0][1], null);

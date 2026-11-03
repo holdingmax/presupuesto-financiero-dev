@@ -78,10 +78,66 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
       "ra.dChequesDespuesDel15",
     ],
   },
+  // Brillante: 3 Real manual de Ingresos + 1 de Egresos (Expensas) + 2 de abajo + 11 de Disponibilidades.
+  brillante: {
+    ingresos: ["br.otrasOperacionesJujuy", "br.resultadoFci", "br.otroMsnt"],
+    egresos: ["br.expensas"],
+    abajo: ["br.traspasoSaldoInicial", "br.recuperoGastos"],
+    disponibilidades: [
+      "br.dBancoFci",
+      "br.dEfectivo",
+      "br.dDolares",
+      "br.dReservaIvaAvianor",
+      "br.dChequesEnCartera",
+      "br.dChequesNegociados",
+      "br.dCobranzaMacro",
+      "br.dReservaAguinaldo",
+      "br.dAdicionalesComisiones",
+      "br.dReservaAporteMs",
+      "br.dRecuperoBlanqueo",
+    ],
+  },
+  // Havanna: 2 Real manual de Ingresos + 2 de Egresos (Tarjetas y Comisiones, Expensas) + 6 de Disponibilidades.
+  havanna: {
+    ingresos: ["hv.resultadoFci", "hv.tarjetaNoIngresada"],
+    egresos: ["hv.tarjetasComisiones", "hv.expensas"],
+    abajo: [],
+    disponibilidades: ["hv.dBancoFci", "hv.dEfectivo", "hv.dDolares", "hv.dReservaAguinaldo", "hv.dChequesNegociados", "hv.dIngresoBancoMacro"],
+  },
+  // Conexión Logística: 1 Real manual de Ingresos + 2 de Egresos (Expensas, Proveedores IVA) + 1 de abajo + 11 de Disponibilidades.
+  // (El alias de testing «conexion-logistica-spp» tiene el tipeo de flujo pero no ve Disponibilidades: 4 celdas, ver tipeoDirecto.test.ts.)
+  "conexion-logistica": {
+    ingresos: ["cx.resultadoFci"],
+    egresos: ["cx.expensas", "cx.proveedoresIva"],
+    abajo: ["cx.dividendosExpensas"],
+    disponibilidades: [
+      "cx.dBanco",
+      "cx.dEfectivo",
+      "cx.dDolares",
+      "cx.dChequesEnCartera",
+      "cx.dChequesNegociados",
+      "cx.dCobranzaTechPack",
+      "cx.dReservaAguinaldo",
+      "cx.dChequesDespuesDel10",
+      "cx.dAdicionalesPendientes",
+      "cx.dRecuperoBlanqueo",
+      "cx.dGastosJps",
+    ],
+  },
 };
 
-// Flujo + Disponibilidades: Fredy 3 + 9, HWC 2 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7.
-const CANTIDAD: Record<string, number> = { "fredy-publicidad": 12, hwc: 10, avianor: 15, mantenor: 9, radio: 10 };
+// Flujo + Disponibilidades: Fredy 3 + 9, HWC 2 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7, Brillante 6 + 11,
+// Havanna 4 + 6, Conexión 4 + 11.
+const CANTIDAD: Record<string, number> = {
+  "fredy-publicidad": 12,
+  hwc: 10,
+  avianor: 15,
+  mantenor: 9,
+  radio: 10,
+  brillante: 17,
+  havanna: 10,
+  "conexion-logistica": 15,
+};
 
 const ABIERTO = { abiertas: 1, cerradas: 0 };
 

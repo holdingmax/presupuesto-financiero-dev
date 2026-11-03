@@ -82,7 +82,7 @@ const egresos = [
   }),
   egreso("hv.inversiones", "Inversiones", clasif("INVERSIONES"), cat("INVERSIONES")),
   egreso("hv.impuestos", "Impuestos", clasif("IMP Y PREVISIONALES"), cat("IMP Y PREVISIONALES")),
-  egreso("hv.expensas", "Expensas", SIN_REAL, cat("EXPENSAS"), {
+  egreso("hv.expensas", "Expensas", REAL_MANUAL, cat("EXPENSAS"), {
     pendiente: "K2",
     nota: "Planilla: reparto de la unidad EXPENSAS.",
   }),
@@ -124,16 +124,20 @@ export const PLANTILLA_HAVANNA: Plantilla = {
     }),
     titulo("hv.tituloIngresos", "INGRESOS", "INGRESOS"),
     ...ingresos,
-    total("hv.totalIngresos", "INGRESOS", "TOTAL INGRESOS", ingresos.map((f) => f.clave)),
+    total("hv.totalIngresos", "INGRESOS", "TOTAL INGRESOS", ingresos.map((f) => f.clave), { rol: "totalIngresos" }),
     total("hv.disponibleAntes", "CIERRE", "DISPONIBLE ANTES DE GASTOS", ["hv.totalDisponibilidades", "hv.totalIngresos"], {
       requiere: ["hv.totalDisponibilidades"],
       soloConPresupuesto: true,
     }),
     titulo("hv.tituloEgresos", "EGRESOS", "EGRESOS"),
     ...egresos,
-    total("hv.totalEgresosOperativos", "EGRESOS", "TOTAL EGRESOS OPERATIVOS", egresos.map((f) => f.clave)),
+    total("hv.totalEgresosOperativos", "EGRESOS", "TOTAL EGRESOS OPERATIVOS", egresos.map((f) => f.clave), {
+      rol: "totalEgresosOperativos",
+    }),
     ...deAbajo,
-    total("hv.totalEgresos", "ABAJO", "TOTAL EGRESOS", ["hv.totalEgresosOperativos", ...deAbajo.map((f) => f.clave)]),
+    total("hv.totalEgresos", "ABAJO", "TOTAL EGRESOS", ["hv.totalEgresosOperativos", ...deAbajo.map((f) => f.clave)], {
+      rol: "totalEgresos",
+    }),
     total("hv.saldo", "CIERRE", "SALDO INICIAL + INGRESOS - TOTAL EGRESOS", ["hv.disponibleAntes"], {
       resta: ["hv.totalEgresos"],
       requiere: ["hv.disponibleAntes"],
