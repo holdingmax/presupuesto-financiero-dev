@@ -68,11 +68,12 @@ test("Gold Salta es un campo manual de Real y la plantilla es válida", () => {
   assert.deepEqual(validarPlantilla(BRILLANTE), []);
 });
 
-test("solo Brillante usa restarManuales", () => {
+test("solo Brillante y Havanna usan restarManuales", () => {
+  const esperado: Record<string, string[]> = { brillante: [COBRANZA], havanna: ["hv.cobranzaBancos"] };
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     const usan = plantilla.filas.filter(
       (f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.restarManuales !== undefined
     );
-    assert.deepEqual(usan.map((f) => f.clave), slug === "brillante" ? [COBRANZA] : [], slug);
+    assert.deepEqual(usan.map((f) => f.clave), esperado[slug] ?? [], slug);
   }
 });

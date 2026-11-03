@@ -99,9 +99,10 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
       "br.dRecuperoBlanqueo",
     ],
   },
-  // Havanna: 2 Real manual de Ingresos + 2 de Egresos (Tarjetas y Comisiones, Expensas) + 6 de Disponibilidades.
+  // Havanna: 4 Real manual de Ingresos (Cobranzas locales y Acreditación tarjetas, por el neteo de cobranzas) + 2 de Egresos
+  // (Tarjetas y Comisiones, Expensas) + 6 de Disponibilidades.
   havanna: {
-    ingresos: ["hv.resultadoFci", "hv.tarjetaNoIngresada"],
+    ingresos: ["hv.cobranzasLocales", "hv.acreditacionTarjetas", "hv.resultadoFci", "hv.tarjetaNoIngresada"],
     egresos: ["hv.tarjetasComisiones", "hv.expensas"],
     abajo: [],
     disponibilidades: ["hv.dBancoFci", "hv.dEfectivo", "hv.dDolares", "hv.dReservaAguinaldo", "hv.dChequesNegociados", "hv.dIngresoBancoMacro"],
@@ -129,7 +130,7 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
 };
 
 // Flujo + Disponibilidades: Fredy 3 + 9, HWC 5 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7, Brillante 7 + 11,
-// Havanna 4 + 6, Conexión 4 + 11.
+// Havanna 6 + 6, Conexión 4 + 11.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 12,
   hwc: 13,
@@ -137,7 +138,7 @@ const CANTIDAD: Record<string, number> = {
   mantenor: 9,
   radio: 10,
   brillante: 18,
-  havanna: 10,
+  havanna: 12,
   "conexion-logistica": 15,
 };
 
@@ -164,7 +165,7 @@ for (const slug of Object.keys(ESPERADO)) {
     for (const f of plantilla.filas) {
       if (f.tipo !== "linea") continue;
       assert.equal(tipeables.has(`${f.clave}|PRESUPUESTADO`), false, `${f.clave} Presupuestado`);
-      if (f.real.tipo !== "manual") {
+      if (f.real.tipo !== "manual" && f.real.tipo !== "manualDesde") {
         assert.equal(tipeables.has(`${f.clave}|REAL`), false, `${f.clave} Real`);
       }
     }

@@ -14,6 +14,8 @@ import {
 
 export const CENTINELA = 7_000_000_000_000;
 
+const CELDAS_SIN_NUMERAR_HAVANNA = ["hv.cobranzasLocales|REAL", "hv.acreditacionTarjetas|REAL", "hv.acreditacionTarjetas|PRESUPUESTADO"];
+
 // El Reporte sin las filas de Cierre (y con los pendientes que salen de las demás): para comparar lo que NO es
 // Cierre contra las fotos de antes de que el gerente viera Saldo, Capital y Disponible.
 export function sinCierre(r: Reporte): Reporte {
@@ -42,6 +44,9 @@ export function mesesDePrueba(plantilla: Plantilla): DatosMes[] {
     // «Gold Salta» de Brillante pasó a Real manual (neteo de cobranzas): su celda no se numera, para que los valores de las
     // demás sigan siendo los de las fotos JSON (que no se regeneran). Queda vacía, como en la foto.
     if (c.clave === "br.goldSalta" && c.columna === "REAL") continue;
+    // Lo mismo con las tres celdas que Havanna sumó con el neteo de cobranzas (Cobranzas locales y Acreditación tarjetas):
+    // sin numerarlas, el resto conserva los valores de las fotos JSON.
+    if (CELDAS_SIN_NUMERAR_HAVANNA.includes(`${c.clave}|${c.columna}`)) continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;
     (c.columna === "REAL" ? manualesReal : manualesPresupuesto).set(c.clave, valor);
   }

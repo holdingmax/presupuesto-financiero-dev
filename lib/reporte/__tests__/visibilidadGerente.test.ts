@@ -49,6 +49,15 @@ const GOLDEN = JSON.parse(
 // Real manual vacía ya no se marca como incompleta (realIncompleto). Es la ÚNICA diferencia con la foto de Brillante
 // (tomada antes del cambio, que no se regenera): se pone en una copia ese único campo de esa única fila.
 function esperado(slug: string): unknown {
+  // Misma excepción para Havanna: «Cobranzas locales» pasó de «Sin Real» a Real manual (neteo de cobranzas) y su celda de Real
+  // vacía ya no se marca como incompleta. Es la única diferencia con la foto de Havanna (que no se regenera).
+  if (slug === "havanna") {
+    const copia = JSON.parse(JSON.stringify(GOLDEN[slug])) as { filas: [string, unknown[][]][] };
+    const locales = copia.filas.find(([clave]) => clave === "hv.cobranzasLocales")![1][0];
+    assert.equal(locales[5], true, "la foto de antes tiene Cobranzas locales con el Real incompleto");
+    locales[5] = false;
+    return copia;
+  }
   if (slug !== "brillante") return GOLDEN[slug];
   const copia = JSON.parse(JSON.stringify(GOLDEN[slug])) as { filas: [string, unknown[][]][] };
   const gold = copia.filas.find(([clave]) => clave === "br.goldSalta")![1][0];

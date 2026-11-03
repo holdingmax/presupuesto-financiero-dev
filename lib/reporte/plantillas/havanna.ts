@@ -4,6 +4,7 @@ import {
   capital,
   cat,
   clasif,
+  clasifNeteando,
   clasifSentido,
   disp,
   disponible,
@@ -32,21 +33,30 @@ const disponibilidades = [
 ];
 
 const ingresos = [
-  ingreso("hv.cobranzaBancos", "Cobranza Bancos Ingreso Neto", clasif("COBRANZAS"), cat("COBRANZAS"), {
+  ingreso(
+    "hv.cobranzaBancos",
+    "Cobranza Bancos Ingreso Neto",
+    clasifNeteando("2026-10", ["hv.cobranzasLocales", "hv.acreditacionTarjetas"], "COBRANZAS"),
+    cat("COBRANZAS"),
+    {
+      pendiente: "K4",
+      parcial: true,
+      nota: "COBRANZAS de la unidad. Desde 2026-10 se les resta el Real manual de «Cobranzas locales» y de «Acreditacion Tarjetas pendientes», que ya están adentro y se tipean aparte; antes de esa fecha lleva toda la cobranza (K4). Planilla: cobranza bancaria + comisiones y tarjetas a cobrar.",
+    }
+  ),
+  ingreso("hv.cobranzasLocales", "Cobranzas locales", REAL_MANUAL, PRESUPUESTO_MANUAL, {
     pendiente: "K4",
-    parcial: true,
-    nota: "Hasta resolver K4 lleva toda la cobranza de la unidad. Planilla: cobranza bancaria + comisiones y tarjetas a cobrar.",
-  }),
-  ingreso("hv.cobranzasLocales", "Cobranzas locales", SIN_REAL, PRESUPUESTO_MANUAL, {
-    pendiente: "K4",
-    nota: "Planilla: efectivo de los locales + sueldos y gastos pagados en los locales.",
+    nota: "Planilla: efectivo de los locales + sueldos y gastos pagados en los locales. Real tipeado a mano; desde 2026-10 se resta de Cobranza Bancos.",
   }),
   ingreso(
     "hv.acreditacionTarjetas",
     "Acreditacion Tarjetas pendientes",
-    REAL_IGUAL_PRESUPUESTO,
-    { tipo: "espejo", fila: "hv.tarjetaNoIngresada", columna: "real", mes: "anterior", factor: -1 },
-    { pendiente: "K9", nota: "P = menos el Real de Otro tarjeta no ingresada del mes anterior; R = P." }
+    { tipo: "manualDesde", desde: "2026-10" },
+    { tipo: "espejo", fila: "hv.tarjetaNoIngresada", columna: "real", mes: "anterior", factor: -1, pisableConManual: true },
+    {
+      pendiente: "K9",
+      nota: "P = menos el Real de Otro tarjeta no ingresada del mes anterior (un valor tipeado en la carga lo pisa). R: hasta 2026-09 = P en mes cerrado; desde 2026-10 se tipea y se resta de Cobranza Bancos.",
+    }
   ),
   ingreso("hv.resultadoFci", "Resultado FCI", REAL_MANUAL, cat("Intereses FCI")),
   ingreso("hv.reservaAguinaldo", "Reserva Aguinaldo", REAL_IGUAL_PRESUPUESTO, PRESUPUESTO_MANUAL, {

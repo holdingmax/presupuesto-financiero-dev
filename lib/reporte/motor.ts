@@ -98,6 +98,9 @@ export type FuenteReal =
   // Valor que en la planilla se tipea (Disponibilidades, Resultado FCI…): sale de
   // ValorManualReporte (columna REAL). Sin cargar = null ("—").
   | { tipo: "manual" }
+  // Desde `desde` ("AAAA-MM") es manual (como `manual`); antes conserva R = P en mes cerrado (como
+  // `igualPresupuesto`), así los meses cerrados anteriores no se desarman.
+  | { tipo: "manualDesde"; desde: string }
   // R = P de la misma fila (el `=+P` de la planilla).
   | { tipo: "igualPresupuesto" }
   | { tipo: "ninguna" };
@@ -117,6 +120,8 @@ export type FuentePresupuesto =
       columna: "presupuestado" | "real";
       mes: "actual" | "anterior";
       factor: 1 | -1;
+      // Un Presupuestado manual del mes (ValorManualReporte) pisa el espejo; sin valor sigue el espejo.
+      pisableConManual?: boolean;
     }
   // = DISPONIBLE SI − CAPITAL DE TRABAJO del mismo mes.
   | { tipo: "disponible" }
@@ -423,6 +428,8 @@ export function armarReporte(
         return { v: r.v, inc, oculto: r.oculto };
       }
       case "espejo": {
+        const manual = p.pisableConManual ? meses[i].manuales?.presupuesto.get(fila.clave) : undefined;
+        if (manual !== undefined) return { v: manual, inc };
         const columna: Columna = p.columna === "presupuestado" ? "P" : "R";
         const j = p.mes === "actual" ? i : i - 1;
         // Sin mes anterior no hay valor.
@@ -456,6 +463,11 @@ export function armarReporte(
       }
       case "manual":
         return { v: meses[i].manuales?.real.get(fila.clave) ?? null, inc };
+      case "manualDesde": {
+        if (meses[i].periodo >= r.desde) return { v: meses[i].manuales?.real.get(fila.clave) ?? null, inc };
+        const p = valor(fila.clave, i, "P");
+        return { v: meses[i].mesCerrado ? p.v : null, inc, oculto: p.oculto };
+      }
       case "igualPresupuesto": {
         // Se resuelve igual (ciclos); en un mes en curso el R queda vacío.
         const p = valor(fila.clave, i, "P");
@@ -615,8 +627,10 @@ export function camposManuales(plantilla: Plantilla): CampoManual[] {
   const campos: CampoManual[] = [];
   for (const f of plantilla.filas) {
     if (f.tipo === "linea") {
-      if (f.real.tipo === "manual") campos.push({ clave: f.clave, texto: f.texto, bloque: f.bloque, columna: "REAL" });
-      if (f.presupuesto.tipo === "manual") {
+      if (f.real.tipo === "manual" || f.real.tipo === "manualDesde") {
+        campos.push({ clave: f.clave, texto: f.texto, bloque: f.bloque, columna: "REAL" });
+      }
+      if (f.presupuesto.tipo === "manual" || (f.presupuesto.tipo === "espejo" && f.presupuesto.pisableConManual)) {
         campos.push({ clave: f.clave, texto: f.texto, bloque: f.bloque, columna: "PRESUPUESTADO" });
       }
     } else if (f.tipo === "capital") {
@@ -667,7 +681,7 @@ export function validarPlantilla(plantilla: Plantilla): string[] {
     if (fila.real.tipo === "clasificaciones") {
       for (const c of fila.real.restarManuales?.filas ?? []) {
         const o = plantilla.filas.find((f) => f.clave === c);
-        if (!o || o.tipo !== "linea" || o.real.tipo !== "manual") {
+        if (!o || o.tipo !== "linea" || (o.real.tipo !== "manual" && o.real.tipo !== "manualDesde")) {
           errores.push(`${fila.clave}: restarManuales apunta a "${c}", que no es una fila con Real manual`);
         }
       }
