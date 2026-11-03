@@ -5,7 +5,7 @@ import {
   PERIODO_EN_CARGA_GERENTE,
   PERIODO_POR_DEFECTO,
 } from "@/lib/config";
-import { enlaceDeEmpresa, ocultaPestanaPresupuesto } from "@/lib/navegacionEmpresa";
+import { elegirUltimoPeriodoCargado, enlaceDeEmpresa, ocultaPestanaPresupuesto } from "@/lib/navegacionEmpresa";
 
 const si = () => true;
 const no = () => false;
@@ -75,4 +75,40 @@ test("enlaceDeEmpresa: el gerente va al mes en curso, al Reporte si carga ahí y
   assert.equal(enlaceDeEmpresa(false, "havanna"), `/havanna/${PERIODO_EN_CARGA_GERENTE}/reporte`);
   assert.equal(enlaceDeEmpresa(false, "expensas"), `/expensas/${PERIODO_EN_CARGA_GERENTE}/presupuesto`);
   assert.equal(enlaceDeEmpresa(false, "avianor"), `/avianor/${PERIODO_EN_CARGA_GERENTE}/presupuesto`);
+});
+
+test("enlaceDeEmpresa: ADMIN y FINANZAS van al período pasado (periodoAdmin) en las empresas con plantilla", () => {
+  assert.equal(enlaceDeEmpresa(true, "havanna", undefined, undefined, "2026-10"), "/havanna/2026-10/reporte");
+  assert.equal(enlaceDeEmpresa(true, "avianor", undefined, undefined, "2026-10"), "/avianor/2026-10/reporte");
+  assert.equal(enlaceDeEmpresa(true, "plate-silver", undefined, undefined, "2026-10"), "/plate-silver/2026-10/reporte");
+});
+
+test("enlaceDeEmpresa: sin plantilla (Expensas, Gold, Cielos, Tucson) ADMIN y FINANZAS siguen con el período por defecto", () => {
+  for (const slug of ["expensas", "gold-seguridad", "cielos", "tucson"]) {
+    assert.equal(enlaceDeEmpresa(true, slug, undefined, undefined, "2026-10"), `/${slug}/${PERIODO_POR_DEFECTO}/presupuesto`, slug);
+  }
+});
+
+test("enlaceDeEmpresa: el gerente ignora periodoAdmin", () => {
+  assert.equal(enlaceDeEmpresa(false, "havanna", undefined, undefined, "2026-10"), `/havanna/${PERIODO_EN_CARGA_GERENTE}/reporte`);
+  assert.equal(enlaceDeEmpresa(false, "expensas", undefined, undefined, "2026-10"), `/expensas/${PERIODO_EN_CARGA_GERENTE}/presupuesto`);
+});
+
+test("elegirUltimoPeriodoCargado: elige el máximo menor o igual al mes actual, sin importar el orden ni los repetidos", () => {
+  assert.equal(elegirUltimoPeriodoCargado(["2026-09", "2026-10", "2026-09"], "2026-11"), "2026-10");
+  assert.equal(elegirUltimoPeriodoCargado(["2026-10", "2026-09"], "2026-11"), "2026-10");
+  assert.equal(elegirUltimoPeriodoCargado(["2026-09", "2026-11"], "2026-11"), "2026-11");
+});
+
+test("elegirUltimoPeriodoCargado: ignora los meses futuros y los textos que no son AAAA-MM", () => {
+  assert.equal(elegirUltimoPeriodoCargado(["2026-09", "2026-12", "2027-01"], "2026-11"), "2026-09");
+  assert.equal(elegirUltimoPeriodoCargado(["2026-9", "2026-13", "basura", ""], "2026-11"), PERIODO_POR_DEFECTO);
+  // Comparación entre años.
+  assert.equal(elegirUltimoPeriodoCargado(["2025-12", "2026-01"], "2026-02"), "2026-01");
+});
+
+test("elegirUltimoPeriodoCargado: sin ningún cierre usa el respaldo (por defecto PERIODO_POR_DEFECTO)", () => {
+  assert.equal(elegirUltimoPeriodoCargado([], "2026-11"), PERIODO_POR_DEFECTO);
+  assert.equal(elegirUltimoPeriodoCargado([], "2026-11", "2026-08"), "2026-08");
+  assert.equal(elegirUltimoPeriodoCargado(["2026-12"], "2026-11", "2026-08"), "2026-08");
 });

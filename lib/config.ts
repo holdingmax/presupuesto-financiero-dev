@@ -20,7 +20,9 @@ export const PERIODO_EN_CARGA_GERENTE = "2026-11";
 // no habilita nada (los permisos salen de PERIODOS_HABILITADOS). Ver lib/reporte/vistaReporte.ts.
 export const PERIODO_INICIO_HISTORIAL = "2026-09";
 
-// Período al que llevan los links de "Mis empresas" (y el aviso de período no habilitado).
+// Período de respaldo de los links de "Mis empresas" (y del aviso de período no habilitado). ADMIN y FINANZAS entran
+// al Reporte del último mes con alguna semana cerrada (lib/ultimoPeriodoCargado.ts) y caen acá si no hay ninguno;
+// las empresas sin Reporte por plantilla (Expensas, Gold, Cielos, Tucson) van siempre a este período.
 // Tiene que estar en PERIODOS_HABILITADOS (lo controla un test).
 export const PERIODO_POR_DEFECTO = "2026-09";
 

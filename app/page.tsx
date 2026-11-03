@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { listarEmpresas, slugDeEmpresa } from "@/lib/slug";
 import { PERIODO_POR_DEFECTO } from "@/lib/config";
 import { enlaceDeEmpresa } from "@/lib/navegacionEmpresa";
+import { ultimoPeriodoCargado } from "@/lib/ultimoPeriodoCargado";
 import { iniciales } from "@/lib/iniciales";
 
 // Foco visible: outline marino sobre fondo claro, blanco sobre la banda marino.
@@ -38,6 +39,9 @@ export default async function MisEmpresasPage() {
           where: { activo: true, usuarios: { some: { usuarioId: usuario.id } } },
           orderBy: { nombre: "asc" },
         });
+
+  // Una sola consulta de lectura, solo para ADMIN y FINANZAS: el gerente no la paga y su enlace no cambia.
+  const periodoAdmin = esAdminOFinanzas(usuario) ? await ultimoPeriodoCargado() : PERIODO_POR_DEFECTO;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -150,7 +154,13 @@ export default async function MisEmpresasPage() {
             {empresas.map((empresa) => (
               <li key={empresa.id}>
                 <Link
-                  href={enlaceDeEmpresa(esAdminOFinanzas(usuario), slugDeEmpresa(empresa.nombre))}
+                  href={enlaceDeEmpresa(
+                    esAdminOFinanzas(usuario),
+                    slugDeEmpresa(empresa.nombre),
+                    undefined,
+                    undefined,
+                    periodoAdmin
+                  )}
                   className={`group flex min-h-16 items-center gap-4 rounded-lg border border-line bg-paper-raised px-4 py-3 shadow-sm shadow-ink/5 transition hover:border-marino hover:shadow-md hover:shadow-ink/10 focus-visible:border-marino focus-visible:shadow-md focus-visible:shadow-ink/10 motion-safe:hover:-translate-y-0.5 motion-safe:focus-visible:-translate-y-0.5 ${FOCO}`}
                 >
                   <span
