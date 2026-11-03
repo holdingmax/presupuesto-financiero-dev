@@ -255,7 +255,7 @@ test("nombreDeEntrada: texto de la fila de la plantilla o de la categoría", () 
 test("vistaDeCarga: formatea los valores, informa los motivos y la huella cambia con los valores", () => {
   const a = vistaDeCarga(planDeCarga(PLANTILLA_BRILLANTE, [linea("SUELDOS", 123456), linea("Juicios", 5)]));
   const sueldos = a.celdas.find((c) => c.id === idCelda("fila", "br.sueldos"))!;
-  assert.equal(sueldos.importeInicial, "1.234,56");
+  assert.equal(sueldos.importeInicial, "1.235");
   assert.equal(sueldos.destino, "fila");
   assert.ok(a.motivosFilas["br.liquidacionesJuicios"].includes(MOTIVO_SE_AJUSTA_EN_PRESUPUESTO));
   assert.equal(a.celdas.some((c) => c.id === idCelda("fila", "br.liquidacionesJuicios")), false);

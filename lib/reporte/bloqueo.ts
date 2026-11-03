@@ -79,6 +79,11 @@ export function formatearPesos(centavos: number): string {
   return centavos < 0 && pesos !== "0" ? `-${pesos}` : pesos;
 }
 
+// Texto con centavos ("1.234,56") para el tooltip de una celda cuyo valor guardado los tiene; null si no los tiene o no hay valor.
+export function valorExactoConCentavos(centavos: number | null): string | null {
+  return centavos !== null && centavos % 100 !== 0 ? formatearCentavos(centavos) : null;
+}
+
 // Filas de Ingresos que reflejan un componente de Disponibilidades en el mes de pago:
 // la pantalla de carga ofrece "usar −reserva de Disponibilidades" (no se guarda sola).
 export const SUGERENCIA_ESPEJO: Record<string, string> = {

@@ -6,8 +6,8 @@ import {
 import { camposManuales, type Bloque, type CampoManual, type Plantilla } from "@/lib/reporte/motor";
 import {
   AVISO_UNA_VEZ,
-  formatearCentavos,
   formatearPesos,
+  valorExactoConCentavos,
   motivoBloqueo,
   motivoRechazoCambio,
   type EstadoSemanas,
@@ -156,7 +156,7 @@ export function armarVistaTipeo(e: EntradaVistaTipeo): VistaTipeo | null {
       texto: c.texto.trim(),
       importeInicial: existente === undefined ? "" : formatearPesos(existente),
       centavos: existente ?? null,
-      valorExacto: existente !== undefined && existente % 100 !== 0 ? formatearCentavos(existente) : null,
+      valorExacto: valorExactoConCentavos(existente ?? null),
       avisoUnaVez: bloqueo !== null,
       aviso: bloqueo === null ? null : c.columna === "REAL" ? AVISO_UNA_VEZ : AVISO_PRESUPUESTO_VALIDADO,
     });

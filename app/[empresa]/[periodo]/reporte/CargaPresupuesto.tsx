@@ -3,6 +3,7 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { guardarPresupuestoDelReporte } from "./actionsCarga";
+import { celdaModificada } from "@/lib/reporte/tipeoDirecto";
 import { HayCambiosSinGuardarContext } from "../CargaPresupuestoContexto";
 import {
   MAX_ACLARACION,
@@ -32,10 +33,10 @@ function valoresIniciales(celdas: CeldaVista[]): Record<string, Valor> {
   return Object.fromEntries(celdas.map((c) => [c.id, { importe: c.importeInicial, aclaracion: c.aclaracionInicial }]));
 }
 
-// Cambió si el importe es distinto del que se cargó la pantalla; la aclaración solo cuenta si hay
+// Cambió si el importe es distinto del valor guardado (centavos exactos: el texto va en pesos enteros); la aclaración solo cuenta si hay
 // un importe (con importe vacío la celda se borra y la aclaración no se usa).
 function cambio(celda: CeldaVista, valor: Valor): boolean {
-  if (valor.importe.trim() !== celda.importeInicial.trim()) return true;
+  if (celdaModificada(celda, valor.importe)) return true;
   return (
     celda.requiereAclaracion &&
     valor.importe.trim() !== "" &&
@@ -90,9 +91,9 @@ export function ProveedorCarga({
       clave: c.clave,
       importe: valores[c.id].importe,
       ...(c.requiereAclaracion ? { aclaracion: valores[c.id].aclaracion } : {}),
-      // Filas manuales: lo que la pantalla mostraba, para que el servidor detecte si
-      // otra persona lo cambió mientras tanto.
-      ...(c.destino === "manual" ? { base: c.importeInicial } : {}),
+      // Filas manuales: el valor que la pantalla mostraba (con sus centavos exactos), para que el servidor
+      // detecte si otra persona lo cambió mientras tanto.
+      ...(c.destino === "manual" ? { base: c.valorExacto ?? c.importeInicial } : {}),
     }));
     try {
       const r = await guardarPresupuestoDelReporte(empresaSlug, periodo, entradas);
@@ -177,6 +178,10 @@ export function CeldaPresupuestoEditable({
   const valor = valores[id];
   if (!celda || !valor) return null;
   const claseInput = compacta ? CLASE_INPUT_COMPACTO : CLASE_INPUT;
+  const titulo =
+    [compacta ? celda.leyenda : null, celda.valorExacto !== null ? `Valor exacto: ${celda.valorExacto}` : null]
+      .filter((x) => x !== null)
+      .join(" · ") || undefined;
   return (
     <div className={`flex flex-col items-end ${compacta ? "gap-0.5" : "gap-1"}`}>
       <input
@@ -186,7 +191,7 @@ export function CeldaPresupuestoEditable({
         placeholder="0"
         disabled={guardando}
         aria-label={`Presupuestado: ${nombre}`}
-        title={compacta ? (celda.leyenda ?? undefined) : undefined}
+        title={titulo}
         className={`${compacta ? "w-28" : "w-32"} ${claseInput}`}
       />
       {!compacta && celda.leyenda && <span className="text-[10px] font-normal text-ink-muted">{celda.leyenda}</span>}

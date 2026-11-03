@@ -2,7 +2,7 @@ import {
   CLASIFICACIONES_PRESUPUESTO_UNICAS,
   type OpcionClasificacionPresupuesto,
 } from "@/app/[empresa]/[periodo]/presupuesto/clasificacionesPresupuesto";
-import { formatearCentavos, parsearCuenta } from "@/lib/reporte/bloqueo";
+import { formatearCentavos, formatearPesos, parsearCuenta, valorExactoConCentavos } from "@/lib/reporte/bloqueo";
 import { leerCuenta } from "@/lib/importes";
 import {
   claveEquivalencia,
@@ -319,9 +319,12 @@ export type CeldaVistaCarga = {
   destino: "fila" | "sinFila" | "manual";
   clave: string;
   requiereAclaracion: boolean;
-  // Lo que mostraba la pantalla al cargarse; en "manual" también es la `base` del
-  // chequeo de cambios concurrentes.
+  // Lo que mostraba la pantalla al cargarse, en pesos enteros ("" = vacío).
   importeInicial: string;
+  // Valor guardado en centavos exactos (null = sin valor): la huella y la comparación de cambios usan este, no el texto.
+  centavos: number | null;
+  // "1.234,56" si el valor guardado tiene centavos (tooltip y `base` del chequeo de cambios concurrentes); null si no.
+  valorExacto: string | null;
   aclaracionInicial: string;
   // "Cargó Fulano · 28/10/2026" (manual con valor).
   leyenda: string | null;
@@ -358,7 +361,9 @@ export function vistaDeCarga(plan: PlanCarga): VistaCarga {
       destino,
       clave,
       requiereAclaracion: celda.requiereAclaracion,
-      importeInicial: celda.valorCentavos === null ? "" : formatearCentavos(celda.valorCentavos),
+      importeInicial: celda.valorCentavos === null ? "" : formatearPesos(celda.valorCentavos),
+      centavos: celda.valorCentavos,
+      valorExacto: valorExactoConCentavos(celda.valorCentavos),
       aclaracionInicial: celda.aclaracionInicial,
       leyenda: null,
     });
@@ -369,7 +374,9 @@ export function vistaDeCarga(plan: PlanCarga): VistaCarga {
       destino: "manual",
       clave,
       requiereAclaracion: false,
-      importeInicial: celda.valorCentavos === null ? "" : formatearCentavos(celda.valorCentavos),
+      importeInicial: celda.valorCentavos === null ? "" : formatearPesos(celda.valorCentavos),
+      centavos: celda.valorCentavos,
+      valorExacto: valorExactoConCentavos(celda.valorCentavos),
       aclaracionInicial: "",
       leyenda: celda.leyenda,
     });
@@ -394,7 +401,7 @@ export function vistaDeCarga(plan: PlanCarga): VistaCarga {
     : null;
   for (const [clave, celda] of Object.entries(plan.manuales)) agregarManual(clave, celda);
   const huella = JSON.stringify([
-    celdas.map((c) => [c.id, c.importeInicial, c.aclaracionInicial, c.leyenda]),
+    celdas.map((c) => [c.id, c.centavos, c.aclaracionInicial, c.leyenda]),
     motivosFilas,
     sinFila.map((s) => s.soloLectura),
     fueraDeLista,

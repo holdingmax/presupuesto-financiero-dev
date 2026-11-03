@@ -192,7 +192,7 @@ test("vistaDeCarga: celdas manuales con su valor formateado y leyenda", () => {
   const vista = vistaDeCarga(plan);
   const aj = vista.celdas.find((c) => c.id === idCelda("manual", "br.ajusteCaja"))!;
   assert.equal(aj.destino, "manual");
-  assert.equal(aj.importeInicial, "1.234,56");
+  assert.equal(aj.importeInicial, "1.235");
   assert.ok(aj.leyenda?.startsWith("Cargó Prueba FINANZAS"));
   const vacia = vista.celdas.find((c) => c.id === idCelda("manual", "br.recuperoGastos"))!;
   assert.equal(vacia.importeInicial, "");
