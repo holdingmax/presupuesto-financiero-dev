@@ -48,15 +48,24 @@ test("ocultaPestanaPresupuesto (config real): se oculta en las empresas activas 
   }
 });
 
-test("enlaceDeEmpresa: ADMIN y FINANZAS van al Reporte donde la pestaña está oculta y a Presupuesto en las demás", () => {
+test("enlaceDeEmpresa: ADMIN y FINANZAS van al Reporte en toda empresa con plantilla y a Presupuesto en las que no la tienen", () => {
   assert.equal(enlaceDeEmpresa(true, "havanna"), `/havanna/${PERIODO_POR_DEFECTO}/reporte`);
-  assert.equal(enlaceDeEmpresa(true, "expensas"), `/expensas/${PERIODO_POR_DEFECTO}/presupuesto`);
-  assert.equal(enlaceDeEmpresa(true, "avianor"), `/avianor/${PERIODO_POR_DEFECTO}/presupuesto`);
+  assert.equal(enlaceDeEmpresa(true, "avianor"), `/avianor/${PERIODO_POR_DEFECTO}/reporte`);
+  assert.equal(enlaceDeEmpresa(true, "havanna-peru"), `/havanna-peru/${PERIODO_POR_DEFECTO}/reporte`);
+  for (const slug of ["expensas", "gold-seguridad", "cielos", "tucson"]) {
+    assert.equal(enlaceDeEmpresa(true, slug), `/${slug}/${PERIODO_POR_DEFECTO}/presupuesto`, slug);
+  }
 });
 
-test("enlaceDeEmpresa, interruptor APAGADO: ADMIN y FINANZAS conservan el link de siempre (a Presupuesto)", () => {
+test("enlaceDeEmpresa: el gerente de Avianor y de las empresas sin plantilla sigue yendo a Presupuesto", () => {
+  assert.equal(enlaceDeEmpresa(false, "avianor"), `/avianor/${PERIODO_EN_CARGA_GERENTE}/presupuesto`);
+  assert.equal(enlaceDeEmpresa(false, "expensas"), `/expensas/${PERIODO_EN_CARGA_GERENTE}/presupuesto`);
+});
+
+test("enlaceDeEmpresa, interruptor APAGADO: ADMIN y FINANZAS van al Reporte con plantilla (Avianor) y a Presupuesto sin ella", () => {
   const oculta = (admin: boolean, slug: string) => ocultaPestanaPresupuesto(admin, slug, undefined, undefined, false);
-  assert.equal(enlaceDeEmpresa(true, "havanna", oculta(true, "havanna")), `/havanna/${PERIODO_POR_DEFECTO}/presupuesto`);
+  assert.equal(enlaceDeEmpresa(true, "havanna", oculta(true, "havanna")), `/havanna/${PERIODO_POR_DEFECTO}/reporte`);
+  assert.equal(enlaceDeEmpresa(true, "avianor", oculta(true, "avianor")), `/avianor/${PERIODO_POR_DEFECTO}/reporte`);
   assert.equal(enlaceDeEmpresa(true, "expensas", oculta(true, "expensas")), `/expensas/${PERIODO_POR_DEFECTO}/presupuesto`);
   // El gerente no cambia con el interruptor.
   assert.equal(enlaceDeEmpresa(false, "havanna", oculta(false, "havanna")), `/havanna/${PERIODO_EN_CARGA_GERENTE}/reporte`);

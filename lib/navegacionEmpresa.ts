@@ -27,15 +27,19 @@ export function ocultaPestanaPresupuesto(
   return cargaActiva(empresaSlug) && tienePlantilla(empresaSlug);
 }
 
-// A dónde lleva el link de una empresa en "Mis empresas". Con la pestaña oculta, al Reporte para todos los
-// roles. Si no: ADMIN y FINANZAS, a Presupuesto del período por defecto; el gerente, a Presupuesto del mes en
-// curso de carga. Con la pestaña oculta, ADMIN y FINANZAS van al período por defecto y el gerente al mes en curso.
+// A dónde lleva el link de una empresa en "Mis empresas". ADMIN y FINANZAS entran al Reporte del período por
+// defecto en toda empresa con Reporte por plantilla (la pestaña Presupuesto sigue visible donde no está oculta);
+// sin plantilla (Expensas, Gold, Cielos, Tucson) van a Presupuesto. El gerente va al mes en curso de carga: al
+// Reporte si la pestaña está oculta y a Presupuesto si no.
 export function enlaceDeEmpresa(
   esAdminOFinanzas: boolean,
   empresaSlug: string,
-  oculta: boolean = ocultaPestanaPresupuesto(esAdminOFinanzas, empresaSlug)
+  oculta: boolean = ocultaPestanaPresupuesto(esAdminOFinanzas, empresaSlug),
+  tienePlantilla: (slug: string) => boolean = (slug) => plantillaDeEmpresa(slug) !== null
 ): string {
-  const segmento = oculta ? "reporte" : "presupuesto";
-  if (esAdminOFinanzas) return `/${empresaSlug}/${PERIODO_POR_DEFECTO}/${segmento}`;
-  return `/${empresaSlug}/${PERIODO_EN_CARGA_GERENTE}/${segmento}`;
+  if (esAdminOFinanzas) {
+    const segmento = oculta || tienePlantilla(empresaSlug) ? "reporte" : "presupuesto";
+    return `/${empresaSlug}/${PERIODO_POR_DEFECTO}/${segmento}`;
+  }
+  return `/${empresaSlug}/${PERIODO_EN_CARGA_GERENTE}/${oculta ? "reporte" : "presupuesto"}`;
 }
