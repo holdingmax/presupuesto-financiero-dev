@@ -70,7 +70,7 @@ const egresos = [
   egreso("fr.compraIva", "Compra de IVA", REAL_MANUAL, cat("IVA"), { pendiente: "K3" }),
   egreso("fr.pagosEspeciales", "Pagos especiales", clasif("PAGOS ESPECIALES"), cat("PAGOS ESPECIALES")),
   egreso("fr.impuestos", "Impuestos", clasif("IMP Y PREVISIONALES"), cat("IMP Y PREVISIONALES")),
-  egreso("fr.expensas", "Expensas", SIN_REAL, cat("EXPENSAS"), {
+  egreso("fr.expensas", "Expensas", REAL_MANUAL, cat("EXPENSAS"), {
     pendiente: "K2",
     nota: "Planilla: reparto de la unidad EXPENSAS.",
   }),

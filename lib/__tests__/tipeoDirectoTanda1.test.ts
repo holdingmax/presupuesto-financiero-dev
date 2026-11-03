@@ -14,7 +14,7 @@ import { mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: string[]; disponibilidades: string[] }> = {
   "fredy-publicidad": {
     ingresos: ["fr.resultadoFci"],
-    egresos: ["fr.compraIva"],
+    egresos: ["fr.compraIva", "fr.expensas"],
     abajo: [],
     disponibilidades: [
       "fr.dBancosFci",
@@ -65,8 +65,8 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
   },
 };
 
-// Flujo + Disponibilidades: Fredy 2 + 9, HWC 2 + 8, Avianor 14 + 1, Mantenor 3 + 4.
-const CANTIDAD: Record<string, number> = { "fredy-publicidad": 11, hwc: 10, avianor: 15, mantenor: 7 };
+// Flujo + Disponibilidades: Fredy 3 + 9, HWC 2 + 8, Avianor 14 + 1, Mantenor 3 + 4.
+const CANTIDAD: Record<string, number> = { "fredy-publicidad": 12, hwc: 10, avianor: 15, mantenor: 7 };
 
 const ABIERTO = { abiertas: 1, cerradas: 0 };
 

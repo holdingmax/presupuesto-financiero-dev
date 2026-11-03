@@ -144,6 +144,7 @@ export const CLAVES_MANUALES: Record<string, string[]> = {
     "fr.chequesNegociadosIva|PRESUPUESTADO",
     "fr.otroIngreso|PRESUPUESTADO",
     "fr.compraIva|REAL",
+    "fr.expensas|REAL",
     "fr.expensasNoSocios|PRESUPUESTADO",
     "fr.blanqueoPropios|PRESUPUESTADO",
     "fr.blanqueoTerceros|PRESUPUESTADO",
