@@ -4,6 +4,7 @@ import {
   capital,
   cat,
   clasif,
+  clasifNeteando,
   clasifSentido,
   disp,
   disponible,
@@ -32,10 +33,28 @@ const disponibilidades = [
 ];
 
 const ingresos = [
-  ingreso("mn.cobranzaJujuy", "Cobranza Mantenor Jujuy", clasif("COBRANZAS"), cat("COBRANZAS"), {
-    pendiente: "K4",
-    parcial: true,
-    nota: "Hasta resolver K4 lleva toda la cobranza de la unidad (Jujuy + MSNT).",
+  ingreso(
+    "mn.cobranzaJujuy",
+    "Cobranza Mantenor Jujuy",
+    clasifNeteando("2026-10", ["mn.otrosClientesJujuy", "mn.otrosClientesTucuman", "mn.msmColumnas", "mn.msmPinturaVial"], "COBRANZAS"),
+    cat("COBRANZAS"),
+    {
+      pendiente: "K4",
+      parcial: true,
+      nota: "COBRANZAS de la unidad. Desde 2026-10 se les resta el Real manual de «Otros Clientes Jujuy», «Otros Clientes Tucuman», «MSM COLUMNAS» y «MSM PINTURA VIAL», que ya están adentro y se tipean aparte; antes de esa fecha lleva toda la cobranza de la unidad (Jujuy + MSNT, K4).",
+    }
+  ),
+  ingreso("mn.otrosClientesJujuy", "Otros Clientes Jujuy", REAL_MANUAL, PRESUPUESTO_MANUAL, {
+    nota: "Real tipeado a mano; desde 2026-10 se resta de Cobranza Mantenor Jujuy.",
+  }),
+  ingreso("mn.otrosClientesTucuman", "Otros Clientes Tucuman", REAL_MANUAL, PRESUPUESTO_MANUAL, {
+    nota: "Real tipeado a mano; desde 2026-10 se resta de Cobranza Mantenor Jujuy.",
+  }),
+  ingreso("mn.msmColumnas", "MSM COLUMNAS", REAL_MANUAL, PRESUPUESTO_MANUAL, {
+    nota: "Real tipeado a mano; desde 2026-10 se resta de Cobranza Mantenor Jujuy.",
+  }),
+  ingreso("mn.msmPinturaVial", "MSM PINTURA VIAL", REAL_MANUAL, PRESUPUESTO_MANUAL, {
+    nota: "Real tipeado a mano; desde 2026-10 se resta de Cobranza Mantenor Jujuy.",
   }),
   ingreso("mn.cobranzaMsnt", "Cobranza MSNT Av Papa F./Av Siria / Av Sarmiento", SIN_REAL, PRESUPUESTO_MANUAL, {
     pendiente: "K4",

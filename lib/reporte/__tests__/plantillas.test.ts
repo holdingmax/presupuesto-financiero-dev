@@ -47,9 +47,11 @@ for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
   });
 
   test(`${slug}: los textos coinciden con la planilla de Macchi, en el mismo orden`, () => {
-    // Desviación aceptada: la fila RESERVA SAC de Mantenor no está en la planilla de agosto (fixture sin tocar);
-    // viene de la hoja VALORES A MANO del PF de octubre.
-    const desviaciones = new Set(slug === "mantenor" ? ["RESERVA SAC"] : []);
+    // Desviación aceptada: las filas de Mantenor RESERVA SAC y las cuatro de cobranza (Otros Clientes, MSM) no están en la
+    // planilla de agosto (fixture sin tocar); vienen del PF de octubre.
+    const desviaciones = new Set(
+      slug === "mantenor" ? ["RESERVA SAC", "Otros Clientes Jujuy", "Otros Clientes Tucuman", "MSM COLUMNAS", "MSM PINTURA VIAL"] : []
+    );
     assert.deepEqual(
       plantilla.filas.map((f) => f.texto).filter((t) => !desviaciones.has(t)),
       TEXTOS_MACCHI[slug]

@@ -16,6 +16,26 @@ export const CENTINELA = 7_000_000_000_000;
 
 const CELDAS_SIN_NUMERAR_HAVANNA = ["hv.cobranzasLocales|REAL", "hv.acreditacionTarjetas|REAL", "hv.acreditacionTarjetas|PRESUPUESTADO"];
 
+// Las ocho celdas que Mantenor sumó con el neteo de cobranzas (Otros Clientes Jujuy / Tucuman, MSM COLUMNAS / PINTURA VIAL, Real y
+// Presupuestado): sin numerarlas, el resto conserva los valores de las fotos JSON.
+const FILAS_SIN_INDICE_MANTENOR = ["mn.otrosClientesJujuy", "mn.otrosClientesTucuman", "mn.msmColumnas", "mn.msmPinturaVial"];
+
+const CELDAS_SIN_NUMERAR_MANTENOR = FILAS_SIN_INDICE_MANTENOR.flatMap((k) => [
+  `${k}|REAL`,
+  `${k}|PRESUPUESTADO`,
+]);
+
+// La foto JSON del gerente (gerenteSinReservados.json) no se regenera: para Mantenor se le agregan, en su lugar (entre «Cobranza
+// Mantenor Jujuy» y «Cobranza MSNT»), las cuatro filas de cobranza neteada, sin valor porque mesesDePrueba no numera sus celdas.
+// Devuelve una copia; para otra empresa, la foto tal cual.
+export function fotoConFilasNuevas<T extends { filas: [string, unknown][] }>(slug: string, foto: T): T {
+  if (slug !== "mantenor") return foto;
+  const copia = JSON.parse(JSON.stringify(foto)) as T;
+  const i = copia.filas.findIndex(([clave]) => clave === "mn.cobranzaMsnt");
+  copia.filas.splice(i, 0, ...FILAS_SIN_INDICE_MANTENOR.map((clave): [string, unknown] => [clave, [[null, null, null, null, false, false]]]));
+  return copia;
+}
+
 // El Reporte sin las filas de Cierre (y con los pendientes que salen de las demás): para comparar lo que NO es
 // Cierre contra las fotos de antes de que el gerente viera Saldo, Capital y Disponible.
 export function sinCierre(r: Reporte): Reporte {
@@ -32,11 +52,15 @@ export function mesesDePrueba(plantilla: Plantilla): DatosMes[] {
   const real = new Map<string, number>();
   clasificacionesDePlantilla(plantilla).forEach((c, i) => real.set(c, 10_000 + i * 137));
   const presupuesto = new Map<string, number>();
-  plantilla.filas.forEach((f, i) => {
+  // El índice no cuenta las cuatro filas que Mantenor sumó con el neteo de cobranzas: así las demás conservan los valores de la foto.
+  let i = -1;
+  for (const f of plantilla.filas) {
+    if (FILAS_SIN_INDICE_MANTENOR.includes(f.clave)) continue;
+    i++;
     if (f.tipo === "linea" && f.presupuesto.tipo === "categorias") {
       for (const c of f.presupuesto.categorias) presupuesto.set(c, 20_000 + i * 11);
     }
-  });
+  }
   const manualesReal = new Map<string, number>();
   const manualesPresupuesto = new Map<string, number>();
   let n = 0;
@@ -47,6 +71,8 @@ export function mesesDePrueba(plantilla: Plantilla): DatosMes[] {
     // Lo mismo con las tres celdas que Havanna sumó con el neteo de cobranzas (Cobranzas locales y Acreditación tarjetas):
     // sin numerarlas, el resto conserva los valores de las fotos JSON.
     if (CELDAS_SIN_NUMERAR_HAVANNA.includes(`${c.clave}|${c.columna}`)) continue;
+    // Y con las ocho de Mantenor (cobranza neteada): quedan vacías, como las filas que agrega esperado() a la foto.
+    if (CELDAS_SIN_NUMERAR_MANTENOR.includes(`${c.clave}|${c.columna}`)) continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;
     (c.columna === "REAL" ? manualesReal : manualesPresupuesto).set(c.clave, valor);
   }

@@ -68,8 +68,8 @@ test("Gold Salta es un campo manual de Real y la plantilla es válida", () => {
   assert.deepEqual(validarPlantilla(BRILLANTE), []);
 });
 
-test("solo Brillante y Havanna usan restarManuales", () => {
-  const esperado: Record<string, string[]> = { brillante: [COBRANZA], havanna: ["hv.cobranzaBancos"] };
+test("solo Brillante, Havanna y Mantenor usan restarManuales", () => {
+  const esperado: Record<string, string[]> = { brillante: [COBRANZA], havanna: ["hv.cobranzaBancos"], mantenor: ["mn.cobranzaJujuy"] };
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     const usan = plantilla.filas.filter(
       (f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.restarManuales !== undefined

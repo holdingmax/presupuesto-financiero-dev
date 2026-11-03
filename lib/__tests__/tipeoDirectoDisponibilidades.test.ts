@@ -7,7 +7,7 @@ import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { accesoReservadosDelReporte } from "@/lib/reporte/visibilidad";
 import { planDeCarga, vistaDeCarga } from "@/lib/reporte/cargaGerente";
 import { armarVistaTipeo, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto";
-import { CENTINELA, clavesDeCierre, mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
+import { CENTINELA, clavesDeCierre, fotoConFilasNuevas, mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 
 // Segunda tanda: Fredy Publicidad, HWC y Avianor se suman a EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE. Cada
 // gerente ve en SOLO LECTURA las Disponibilidades de SU empresa (nunca las de otra) y ADMIN/FINANZAS las tipean.
@@ -140,7 +140,7 @@ for (const slug of SLUGS) {
     };
     assert.deepEqual(
       proyeccionDeFilas(resto),
-      GOLDEN[slug].filas.filter(([clave]) => !derivadas.includes(clave))
+      fotoConFilasNuevas(slug, GOLDEN[slug]).filas.filter(([clave]) => !derivadas.includes(clave))
     );
     // Y esas filas derivadas ahora traen su Presupuestado (el mismo Disponible que ya ve el gerente).
     for (const clave of derivadas) {

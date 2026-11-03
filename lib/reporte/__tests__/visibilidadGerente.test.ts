@@ -15,7 +15,7 @@ import {
   EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE,
   EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE,
 } from "@/lib/config";
-import { mesesDePrueba } from "./fixtures/datosGerente";
+import { fotoConFilasNuevas, mesesDePrueba } from "./fixtures/datosGerente";
 
 // Etapa 5 B, commit 3: visibilidad granular de Disponibilidades y Cierre para el gerente, con los dos
 // interruptores apagados (lista vacía) = el Reporte de siempre.
@@ -58,6 +58,7 @@ function esperado(slug: string): unknown {
     locales[5] = false;
     return copia;
   }
+  if (slug === "mantenor") return fotoConFilasNuevas(slug, GOLDEN[slug] as { filas: [string, unknown][] });
   if (slug !== "brillante") return GOLDEN[slug];
   const copia = JSON.parse(JSON.stringify(GOLDEN[slug])) as { filas: [string, unknown[][]][] };
   const gold = copia.filas.find(([clave]) => clave === "br.goldSalta")![1][0];
