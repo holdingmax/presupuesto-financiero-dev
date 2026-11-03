@@ -10,7 +10,7 @@ import {
   disponible,
   egreso,
   ingreso,
-  PRESUPUESTO_DISPONIBLE,
+  PRESUPUESTO_DISPONIBLE_PISABLE,
   PRESUPUESTO_MANUAL,
   REAL_MANUAL,
   SIN_REAL,
@@ -112,9 +112,9 @@ const egresos = [
 ];
 
 const deAbajo = [
-  abajo("mn.prestamos", "Prestamos", clasifSentido("debitos", "PRESTAMOS MS"), PRESUPUESTO_DISPONIBLE, {
+  abajo("mn.prestamos", "Prestamos", clasifSentido("debitos", "PRESTAMOS MS"), PRESUPUESTO_DISPONIBLE_PISABLE, {
     pendiente: "K13",
-    nota: "P = DISPONIBLE SI - CAPITAL DE TRABAJO del mes (agosto).",
+    nota: "P = DISPONIBLE SI - CAPITAL DE TRABAJO del mes (agosto); un valor tipeado en /reporte/carga lo pisa.",
   }),
   abajo("mn.dividendos", "Dividendos", clasif("DIVIDENDOS"), cat("Dividendos")),
   abajo("mn.inversiones", "Inversiones", clasif("INVERSIONES"), cat("INVERSIONES")),

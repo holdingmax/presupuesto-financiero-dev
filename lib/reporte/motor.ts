@@ -123,8 +123,9 @@ export type FuentePresupuesto =
       // Un Presupuestado manual del mes (ValorManualReporte) pisa el espejo; sin valor sigue el espejo.
       pisableConManual?: boolean;
     }
-  // = DISPONIBLE SI − CAPITAL DE TRABAJO del mismo mes.
-  | { tipo: "disponible" }
+  // = DISPONIBLE SI − CAPITAL DE TRABAJO del mismo mes. Con `pisableConManual`, un Presupuestado manual del
+  // mes (ValorManualReporte) lo pisa; sin valor sigue el Disponible.
+  | { tipo: "disponible"; pisableConManual?: boolean }
   | { tipo: "ninguna" };
 
 export type CodigosPendientes = CodigoPendiente | CodigoPendiente[];
@@ -438,6 +439,8 @@ export function armarReporte(
         return { v: o.v === null ? null : sinMenosCero(p.factor * o.v), inc, oculto: o.oculto };
       }
       case "disponible": {
+        const manual = p.pisableConManual ? meses[i].manuales?.presupuesto.get(fila.clave) : undefined;
+        if (manual !== undefined) return { v: manual, inc };
         if (!filaDisponible) throw new Error(`${fila.clave}: la plantilla no tiene fila de Disponible.`);
         const d = valor(filaDisponible.clave, i, "P");
         return { v: d.v, inc, oculto: d.oculto };
@@ -630,7 +633,10 @@ export function camposManuales(plantilla: Plantilla): CampoManual[] {
       if (f.real.tipo === "manual" || f.real.tipo === "manualDesde") {
         campos.push({ clave: f.clave, texto: f.texto, bloque: f.bloque, columna: "REAL" });
       }
-      if (f.presupuesto.tipo === "manual" || (f.presupuesto.tipo === "espejo" && f.presupuesto.pisableConManual)) {
+      if (
+        f.presupuesto.tipo === "manual" ||
+        ((f.presupuesto.tipo === "espejo" || f.presupuesto.tipo === "disponible") && f.presupuesto.pisableConManual)
+      ) {
         campos.push({ clave: f.clave, texto: f.texto, bloque: f.bloque, columna: "PRESUPUESTADO" });
       }
     } else if (f.tipo === "capital") {

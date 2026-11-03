@@ -38,6 +38,8 @@ export const PRESUPUESTO_MANUAL: FuentePresupuesto = { tipo: "manual" };
 export const REAL_IGUAL_PRESUPUESTO: FuenteReal = { tipo: "igualPresupuesto" };
 // P = Disponible del mes.
 export const PRESUPUESTO_DISPONIBLE: FuentePresupuesto = { tipo: "disponible" };
+// Como PRESUPUESTO_DISPONIBLE, pero un Presupuestado tipeado en /reporte/carga lo pisa.
+export const PRESUPUESTO_DISPONIBLE_PISABLE: FuentePresupuesto = { tipo: "disponible", pisableConManual: true };
 // P = menos el valor (Real) de un componente de Disponibilidades del mismo mes.
 export const espejoDe = (fila: string): FuentePresupuesto => ({
   tipo: "espejo",

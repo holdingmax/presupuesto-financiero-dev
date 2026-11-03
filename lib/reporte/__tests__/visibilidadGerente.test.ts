@@ -58,7 +58,20 @@ function esperado(slug: string): unknown {
     locales[5] = false;
     return copia;
   }
-  if (slug === "mantenor") return fotoConFilasNuevas(slug, GOLDEN[slug] as { filas: [string, unknown][] });
+  if (slug === "mantenor") {
+    // «Prestamos» de Mantenor ahora tiene Presupuestado manual pisable (mesesDePrueba lo numera): deja de ser null,
+    // y TOTAL GASTOS, que lo suma, también (antes dependía del Disponible, que es un bloque reservado).
+    // Son las ÚNICAS diferencias con la foto de Mantenor (que no se regenera).
+    const copia = fotoConFilasNuevas(slug, GOLDEN[slug] as { filas: [string, unknown[][]][] });
+    const celdaDe = (clave: string) => copia.filas.find(([k]) => k === clave)![1][0];
+    const prestamos = celdaDe("mn.prestamos");
+    const totalGastos = celdaDe("mn.totalGastos");
+    assert.deepEqual([prestamos[0], prestamos[2], prestamos[3]], [null, null, null], "la foto de antes tiene Prestamos sin Presupuestado");
+    assert.deepEqual([totalGastos[0], totalGastos[2], totalGastos[3]], [null, null, null], "la foto de antes tiene TOTAL GASTOS sin Presupuestado");
+    [prestamos[0], prestamos[2], prestamos[3]] = [1013, 0, 1013];
+    [totalGastos[0], totalGastos[2], totalGastos[3]] = [284489, -50.44483266488336, 427999];
+    return copia;
+  }
   if (slug !== "brillante") return GOLDEN[slug];
   const copia = JSON.parse(JSON.stringify(GOLDEN[slug])) as { filas: [string, unknown[][]][] };
   const gold = copia.filas.find(([clave]) => clave === "br.goldSalta")![1][0];

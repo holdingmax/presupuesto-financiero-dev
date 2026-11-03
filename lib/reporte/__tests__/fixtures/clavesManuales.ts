@@ -214,6 +214,7 @@ export const CLAVES_MANUALES: Record<string, string[]> = {
     "mn.resultadoFci|REAL",
     "mn.prestamoMs|PRESUPUESTADO",
     "mn.expensas|REAL",
+    "mn.prestamos|PRESUPUESTADO",
     "mn.capital|PRESUPUESTADO",
   ],
   "avianor": [
