@@ -4,6 +4,7 @@ import {
   capital,
   cat,
   clasif,
+  clasifMasManual,
   clasifNeteando,
   clasifSentido,
   disp,
@@ -96,7 +97,7 @@ const egresos = [
     parcial: true,
     nota: "Planilla: PREST BRIOS Y TC + reparto de tarjetas.",
   }),
-  egreso("br.sac", "SAC", clasif("SAC"), cat("SAC"), {
+  egreso("br.sac", "SAC", clasifMasManual("2026-10", "SAC"), cat("SAC"), {
     pendiente: "K1",
     parcial: true,
     nota: "Planilla: SAC de la unidad + reparto del SAC sin unidad.",

@@ -98,10 +98,10 @@ const ESPERADO: Record<
     ],
     capital: "ra.capital",
   },
-  // Brillante: 4 Real manual de Ingresos (con Gold Salta) + 1 de Egresos (Expensas) + 2 de abajo + 11 de Disponibilidades.
+  // Brillante: 4 Real manual de Ingresos (con Gold Salta) + 2 de Egresos (SAC, Expensas) + 2 de abajo + 11 de Disponibilidades.
   brillante: {
     ingresos: ["br.otrasOperacionesJujuy", "br.goldSalta", "br.resultadoFci", "br.otroMsnt"],
-    egresos: ["br.expensas"],
+    egresos: ["br.sac", "br.expensas"],
     abajo: ["br.traspasoSaldoInicial", "br.recuperoGastos"],
     disponibilidades: [
       "br.dBancoFci",
@@ -128,11 +128,11 @@ const ESPERADO: Record<
     presupuestoPisable: ["hv.acreditacionTarjetas"],
     capital: "hv.capital",
   },
-  // Conexión Logística: 1 Real manual de Ingresos + 2 de Egresos (Expensas, Proveedores IVA) + 1 de abajo + 11 de Disponibilidades.
+  // Conexión Logística: 1 Real manual de Ingresos + 3 de Egresos (SAC, Expensas, Proveedores IVA) + 1 de abajo + 11 de Disponibilidades.
   // (El alias de testing «conexion-logistica-spp» tiene el tipeo de flujo pero no ve Disponibilidades: 4 celdas, ver tipeoDirecto.test.ts.)
   "conexion-logistica": {
     ingresos: ["cx.resultadoFci"],
-    egresos: ["cx.expensas", "cx.proveedoresIva"],
+    egresos: ["cx.sac", "cx.expensas", "cx.proveedoresIva"],
     abajo: ["cx.dividendosExpensas"],
     disponibilidades: [
       "cx.dBanco",
@@ -151,17 +151,30 @@ const ESPERADO: Record<
   },
 };
 
+// Filas con `sumarManual` (Real = clasificaciones + valor tipeado): exactamente estas, y ninguna más en ninguna plantilla.
+const SUMAR_MANUAL: Record<string, string[]> = { brillante: ["br.sac"], "conexion-logistica": ["cx.sac"], "conexion-logistica-spp": ["cx.sac"] };
+
+test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac y cx.sac (conexion-logistica-spp comparte plantilla)", () => {
+  for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
+    const filas = plantilla.filas
+      .filter((f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined)
+      .map((f) => f.clave);
+    assert.deepEqual(filas, SUMAR_MANUAL[slug] ?? [], slug);
+  }
+  assert.equal(PLANTILLAS_POR_SLUG["conexion-logistica-spp"], PLANTILLAS_POR_SLUG["conexion-logistica"]);
+});
+
 // Flujo + Disponibilidades (+ Presupuestado pisable + Capital de trabajo): Fredy 3 + 9 + 1, HWC 5 + 8 + 1, Avianor 14 + 1,
-// Mantenor 8 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 7 + 11 + 1, Havanna 6 + 6 + 1 de P + 1, Conexión 4 + 11 + 1.
+// Mantenor 8 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 6 + 1 de P + 1, Conexión 5 + 11 + 1.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 13,
   hwc: 14,
   avianor: 15,
   mantenor: 15,
   radio: 11,
-  brillante: 19,
+  brillante: 20,
   havanna: 14,
-  "conexion-logistica": 16,
+  "conexion-logistica": 17,
 };
 
 const ABIERTO = { abiertas: 1, cerradas: 0 };
@@ -192,6 +205,10 @@ for (const slug of Object.keys(ESPERADO)) {
   });
 
   test(`${slug}: el Presupuestado (salvo el pisable) y las filas sin Real manual no se tipean`, () => {
+    const conSumarManual = plantilla.filas
+      .filter((f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined)
+      .map((f) => f.clave);
+    assert.deepEqual(conSumarManual, SUMAR_MANUAL[slug] ?? [], `${slug}: filas con sumarManual`);
     const tipeables = new Set(camposTipeables(plantilla, slug).map((c) => `${c.clave}|${c.columna}`));
     for (const f of plantilla.filas) {
       if (f.tipo !== "linea") continue;
@@ -200,7 +217,10 @@ for (const slug of Object.keys(ESPERADO)) {
         (esperado.presupuestoPisable ?? []).includes(f.clave),
         `${f.clave} Presupuestado`
       );
-      if (f.real.tipo !== "manual" && f.real.tipo !== "manualDesde") {
+      // El SAC de Brillante y Conexión suma su Real tipeado (sumarManual): es la ÚNICA excepción, y el conjunto exacto de las
+      // filas con ese mecanismo se verifica más abajo, así que otra fila con sumarManual hace fallar este test.
+      const tieneSumarManual = f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined;
+      if (f.real.tipo !== "manual" && f.real.tipo !== "manualDesde" && !tieneSumarManual) {
         assert.equal(tipeables.has(`${f.clave}|REAL`), false, `${f.clave} Real`);
       }
     }

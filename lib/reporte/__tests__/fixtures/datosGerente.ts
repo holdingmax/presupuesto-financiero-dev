@@ -14,6 +14,9 @@ import {
 
 export const CENTINELA = 7_000_000_000_000;
 
+// SAC de Brillante y Conexión: desde 2026-10 suma su Real tipeado (sumarManual). Sin numerar esas celdas, el resto conserva los valores de las fotos JSON.
+const CELDAS_SIN_NUMERAR_SAC = ["br.sac|REAL", "cx.sac|REAL"];
+
 const CELDAS_SIN_NUMERAR_HAVANNA = ["hv.cobranzasLocales|REAL", "hv.acreditacionTarjetas|REAL", "hv.acreditacionTarjetas|PRESUPUESTADO"];
 
 // Las ocho celdas que Mantenor sumó con el neteo de cobranzas (Otros Clientes Jujuy / Tucuman, MSM COLUMNAS / PINTURA VIAL, Real y
@@ -71,6 +74,7 @@ export function mesesDePrueba(plantilla: Plantilla): DatosMes[] {
     // Lo mismo con las tres celdas que Havanna sumó con el neteo de cobranzas (Cobranzas locales y Acreditación tarjetas):
     // sin numerarlas, el resto conserva los valores de las fotos JSON.
     if (CELDAS_SIN_NUMERAR_HAVANNA.includes(`${c.clave}|${c.columna}`)) continue;
+    if (CELDAS_SIN_NUMERAR_SAC.includes(`${c.clave}|${c.columna}`)) continue;
     // Y con las ocho de Mantenor (cobranza neteada): quedan vacías, como las filas que agrega esperado() a la foto.
     if (CELDAS_SIN_NUMERAR_MANTENOR.includes(`${c.clave}|${c.columna}`)) continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;

@@ -94,6 +94,10 @@ export type FuenteReal =
       // Resta el Real MANUAL de estas filas del mes, a partir de `desde` ("AAAA-MM"). Antes de `desde`, el
       // cálculo no cambia. Si el mes no tiene semanas cerradas sigue siendo null (se evalúa antes de restar).
       restarManuales?: { desde: string; filas: string[] };
+      // Suma el Real MANUAL de esta misma fila al de las clasificaciones, a partir de `desde` ("AAAA-MM"): Real =
+      // automático + lo tipeado. Antes de `desde`, el cálculo no cambia. Si el mes no tiene semanas cerradas pero hay
+      // valor manual, se muestra el manual (en vez de null); sin manual sigue null. Abre la celda de Real del tipeo.
+      sumarManual?: { desde: string };
     }
   // Valor que en la planilla se tipea (Disponibilidades, Resultado FCI…): sale de
   // ValorManualReporte (columna REAL). Sin cargar = null ("—").
@@ -455,14 +459,17 @@ export function armarReporte(
     const r = fila.real;
     switch (r.tipo) {
       case "clasificaciones": {
-        if (sinEjecucion[i]) return { v: null, inc };
+        const sumaManual = r.sumarManual && meses[i].periodo >= r.sumarManual.desde;
+        const manualPropio = sumaManual ? meses[i].manuales?.real.get(fila.clave) : undefined;
+        if (sinEjecucion[i]) return { v: manualPropio ?? null, inc };
         const delMes = realPorMes[i][r.sentido ?? "neto"];
         const bruto = aplicarSigno(fila.signo, delMes.get(fila.clave) ?? 0);
         const resta = r.restarManuales;
-        if (!resta || meses[i].periodo < resta.desde) return { v: bruto, inc };
         const manuales = meses[i].manuales?.real;
-        const aRestar = resta.filas.reduce((a, c) => a + (manuales?.get(c) ?? 0), 0);
-        return { v: sinMenosCero(bruto - aRestar), inc };
+        const aRestar =
+          resta && meses[i].periodo >= resta.desde ? resta.filas.reduce((a, c) => a + (manuales?.get(c) ?? 0), 0) : 0;
+        if (aRestar === 0 && manualPropio === undefined) return { v: bruto, inc };
+        return { v: sinMenosCero(bruto - aRestar + (manualPropio ?? 0)), inc };
       }
       case "manual":
         return { v: meses[i].manuales?.real.get(fila.clave) ?? null, inc };
@@ -630,7 +637,7 @@ export function camposManuales(plantilla: Plantilla): CampoManual[] {
   const campos: CampoManual[] = [];
   for (const f of plantilla.filas) {
     if (f.tipo === "linea") {
-      if (f.real.tipo === "manual" || f.real.tipo === "manualDesde") {
+      if (f.real.tipo === "manual" || f.real.tipo === "manualDesde" || (f.real.tipo === "clasificaciones" && f.real.sumarManual)) {
         campos.push({ clave: f.clave, texto: f.texto, bloque: f.bloque, columna: "REAL" });
       }
       if (
@@ -685,6 +692,9 @@ export function validarPlantilla(plantilla: Plantilla): string[] {
       errores.push(`${fila.clave}: toma el Disponible, pero la plantilla no tiene esa fila`);
     }
     if (fila.real.tipo === "clasificaciones") {
+      if (fila.real.sumarManual && fila.bloque !== "INGRESOS" && fila.bloque !== "EGRESOS" && fila.bloque !== "ABAJO") {
+        errores.push(`${fila.clave}: sumarManual solo va en filas de Ingresos, Egresos o de abajo`);
+      }
       for (const c of fila.real.restarManuales?.filas ?? []) {
         const o = plantilla.filas.find((f) => f.clave === c);
         if (!o || o.tipo !== "linea" || (o.real.tipo !== "manual" && o.real.tipo !== "manualDesde")) {

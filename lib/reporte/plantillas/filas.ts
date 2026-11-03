@@ -28,6 +28,12 @@ export const clasifNeteando = (desde: string, filas: string[], ...clasificacione
   clasificaciones,
   restarManuales: { desde, filas },
 });
+// Como clasif, pero desde `desde` ("AAAA-MM") suma además el Real tipeado de la misma fila (SAC de Brillante y Conexión).
+export const clasifMasManual = (desde: string, ...clasificaciones: string[]): FuenteReal => ({
+  tipo: "clasificaciones",
+  clasificaciones,
+  sumarManual: { desde },
+});
 export const cat = (...categorias: string[]): FuentePresupuesto => ({ tipo: "categorias", categorias });
 export const SIN_REAL: FuenteReal = { tipo: "ninguna" };
 export const SIN_PRESUPUESTO: FuentePresupuesto = { tipo: "ninguna" };

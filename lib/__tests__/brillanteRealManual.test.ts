@@ -69,7 +69,7 @@ function datos(conValores: boolean): DatosMes[] {
   const presupuesto = new Map<string, number>();
   let n = 0;
   for (const c of camposManuales(BRILLANTE)) {
-    if (c.columna === "REAL" && (c.clave === JUJUY || c.clave === RECUPERO || c.clave === "br.expensas" || c.clave === "br.goldSalta")) continue;
+    if (c.columna === "REAL" && (c.clave === JUJUY || c.clave === RECUPERO || c.clave === "br.expensas" || c.clave === "br.goldSalta" || c.clave === "br.sac")) continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;
     (c.columna === "REAL" ? real : presupuesto).set(c.clave, valor);
   }
