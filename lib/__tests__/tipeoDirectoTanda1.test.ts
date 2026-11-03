@@ -29,9 +29,11 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
     ],
   },
   hwc: {
-    ingresos: ["hw.facturacionLatam", "hw.recaudacionLatamAvianca", "hw.recaudacionJetsmart", "hw.resultadoFci"],
+    // Facturación/Recaudaciones de aerolíneas y los pagos a Globe, Avianca y GOL ya salen de Ejecución por
+    // clasificación (COBRANZAS LATAM, WCS, …): quedan fuera del tipeo. Solo Pago LATAM y Pago Flybondi siguen a mano.
+    ingresos: ["hw.resultadoFci"],
     egresos: ["hw.expensas", "hw.costoIva"],
-    abajo: ["hw.pagoGlobe", "hw.pagoLatam", "hw.pagoAvianca", "hw.pagoFlybondi", "hw.pagoGol"],
+    abajo: ["hw.pagoLatam", "hw.pagoFlybondi"],
     disponibilidades: [
       "hw.dBancosFci",
       "hw.dCaja",
@@ -126,11 +128,11 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
   },
 };
 
-// Flujo + Disponibilidades: Fredy 3 + 9, HWC 11 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7, Brillante 6 + 11,
+// Flujo + Disponibilidades: Fredy 3 + 9, HWC 5 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7, Brillante 6 + 11,
 // Havanna 4 + 6, Conexión 4 + 11.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 12,
-  hwc: 19,
+  hwc: 13,
   avianor: 15,
   mantenor: 9,
   radio: 10,

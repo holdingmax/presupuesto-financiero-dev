@@ -37,11 +37,11 @@ const ingresos = [
   ingreso("hw.clientesPropios", "CLIENTES PROPIOS", clasif("COBRANZAS"), cat("COBRANZAS"), {
     pendiente: "K6",
     parcial: true,
-    nota: "Hasta resolver K6 lleva toda la cobranza de la unidad HWC.",
+    nota: "Toma solo la clasificación COBRANZAS de la unidad HWC; las cobranzas de aerolíneas tienen su propia clasificación y fila.",
   }),
-  ingreso("hw.facturacionLatam", "FACTURACION HANDY A LATAM", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
-  ingreso("hw.recaudacionLatamAvianca", "RECAUDACION LATAM Y AVIANCA", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
-  ingreso("hw.recaudacionJetsmart", "RECAUDACION JETSMART", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
+  ingreso("hw.facturacionLatam", "FACTURACION HANDY A LATAM", clasif("COBRANZAS LATAM"), PRESUPUESTO_MANUAL, { pendiente: "K6" }),
+  ingreso("hw.recaudacionLatamAvianca", "RECAUDACION LATAM Y AVIANCA", clasif("COBRANZAS LAN/AVIANCA"), PRESUPUESTO_MANUAL, { pendiente: "K6" }),
+  ingreso("hw.recaudacionJetsmart", "RECAUDACION JETSMART", clasif("COBRANZA JETSMART"), PRESUPUESTO_MANUAL, { pendiente: "K6" }),
   ingreso("hw.reservaSac", "RESERVA SAC", REAL_IGUAL_PRESUPUESTO, PRESUPUESTO_MANUAL, {
     pendiente: "K10",
     nota: "Espejo de PREVISION SAC de Disponibilidades; P a mano, R = P.",
@@ -73,11 +73,11 @@ const egresos = [
 ];
 
 const deAbajo = [
-  abajo("hw.pagoGlobe", "PAGO GLOBE AIR CARGO", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
+  abajo("hw.pagoGlobe", "PAGO GLOBE AIR CARGO", clasif("WCS"), PRESUPUESTO_MANUAL, { pendiente: "K6" }),
   abajo("hw.pagoLatam", "PAGO LATAM Y LAN ECUADOR", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
-  abajo("hw.pagoAvianca", "PAGO AVIANCA", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
+  abajo("hw.pagoAvianca", "PAGO AVIANCA", clasif("AVIANCA"), PRESUPUESTO_MANUAL, { pendiente: "K6" }),
   abajo("hw.pagoFlybondi", "PAGO FLYBONDI", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
-  abajo("hw.pagoGol", "PAGO GOL LINEAS AEREAS", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
+  abajo("hw.pagoGol", "PAGO GOL LINEAS AEREAS", clasif("GOL LINHEAS A"), PRESUPUESTO_MANUAL, { pendiente: "K6" }),
   abajo("hw.dividendos", "Dividendos Entregados", clasif("DIVIDENDOS"), cat("Dividendos")),
   abajo("hw.gastosAvion", "Gastos Avion", clasif("AVION"), PRESUPUESTO_MANUAL),
   abajo("hw.ms", "MS", clasif("MS"), PRESUPUESTO_MANUAL),

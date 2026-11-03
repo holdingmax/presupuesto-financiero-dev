@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { armarReporte, camposManuales, type DatosMes, type Reporte } from "@/lib/reporte/motor";
+import { CLASIFICACIONES_SUGERIDAS } from "@/lib/clasificaciones";
 import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { camposTipeables, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto";
 import { mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
@@ -100,41 +101,88 @@ test("Brillante: Compra IVA no cambia", () => {
   assert.ok(f.tipo === "linea" && f.real.tipo === "clasificaciones");
 });
 
-// HWC: además de Expensas, las tres filas de Ingresos de aerolíneas y las cinco de pagos pasan a Real manual (Kike las
-// tipea en VALORES A MANO). Siguen con su Presupuestado manual y sus pendientes K6/K2. Ninguna tiene clasificaciones.
-const HWC_INGRESOS = ["hw.facturacionLatam", "hw.recaudacionLatamAvianca", "hw.recaudacionJetsmart"];
-const HWC_PAGOS = ["hw.pagoGlobe", "hw.pagoLatam", "hw.pagoAvianca", "hw.pagoFlybondi", "hw.pagoGol"];
+// HWC: Expensas y los pagos a LATAM y Flybondi son Real manual (Kike los tipea en VALORES A MANO). Las tres filas de Ingresos de
+// aerolíneas y los pagos a Globe, Avianca y GOL ya NO: leen su Real de Ejecución por clasificación propia (los nombres exactos del
+// archivo madre de Kike, hoja CONTROL VS PF). Todas siguen con su Presupuestado manual y su pendiente K6/K2.
+const HWC_INGRESOS_CLASIF: Record<string, string> = {
+  "hw.facturacionLatam": "COBRANZAS LATAM",
+  "hw.recaudacionLatamAvianca": "COBRANZAS LAN/AVIANCA",
+  "hw.recaudacionJetsmart": "COBRANZA JETSMART",
+};
+const HWC_PAGOS_CLASIF: Record<string, string> = {
+  "hw.pagoGlobe": "WCS",
+  "hw.pagoAvianca": "AVIANCA",
+  "hw.pagoGol": "GOL LINHEAS A",
+};
+const HWC_PAGOS_MANUALES = ["hw.pagoLatam", "hw.pagoFlybondi"];
 
-test("HWC: ingresos de aerolíneas y cinco pagos son Real manual con Presupuestado manual y su pendiente", () => {
+test("HWC: tres ingresos de aerolíneas y tres pagos leen su clasificación; Pago LATAM y Flybondi siguen siendo Real manual", () => {
   const p = PLANTILLAS_POR_SLUG["hwc"];
-  for (const clave of [...HWC_INGRESOS, ...HWC_PAGOS]) {
+  const campos = camposTipeables(p, "hwc");
+  for (const [clave, clasificacion] of Object.entries({ ...HWC_INGRESOS_CLASIF, ...HWC_PAGOS_CLASIF })) {
+    const f = p.filas.find((x) => x.clave === clave)!;
+    assert.ok(f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.presupuesto.tipo === "manual", clave);
+    assert.deepEqual(f.real.clasificaciones, [clasificacion], clave);
+    assert.equal(f.pendiente, "K6", clave);
+    assert.equal(campos.some((c) => c.clave === clave && c.columna === "REAL"), false, `${clave}: ya no se tipea el Real`);
+  }
+  for (const clave of HWC_PAGOS_MANUALES) {
     const f = p.filas.find((x) => x.clave === clave)!;
     assert.ok(f.tipo === "linea" && f.real.tipo === "manual" && f.presupuesto.tipo === "manual", clave);
     assert.equal(f.pendiente, "K6", clave);
-    assert.equal(camposTipeables(p, "hwc").some((c) => c.clave === clave && c.columna === "REAL"), true, clave);
+    assert.equal(campos.some((c) => c.clave === clave && c.columna === "REAL"), true, clave);
   }
   const exp = p.filas.find((x) => x.clave === "hw.expensas")!;
   assert.ok(exp.tipo === "linea" && exp.pendiente === "K2" && exp.nota === "Planilla: reparto de la unidad EXPENSAS.");
 });
 
-test("HWC: tipear los ingresos suma en TOTAL DE INGRESOS y los pagos en TOTAL EN EFECTIVO PAGADO, una sola vez", () => {
+test("HWC: las seis clasificaciones de aerolíneas están en CLASIFICACIONES_SUGERIDAS (no figuran como nuevas en la madre)", () => {
+  for (const c of [...Object.values(HWC_INGRESOS_CLASIF), ...Object.values(HWC_PAGOS_CLASIF)]) {
+    assert.ok(CLASIFICACIONES_SUGERIDAS.includes(c), c);
+  }
+});
+
+test("HWC: el Real de las seis filas sale de la Ejecución, suma una sola vez en sus totales y ignora un valor manual viejo", () => {
+  const p = PLANTILLAS_POR_SLUG["hwc"];
+  const meses = mesesDePrueba(p);
+  const claves = [...Object.keys(HWC_INGRESOS_CLASIF), ...Object.keys(HWC_PAGOS_CLASIF)];
+  const clasificaciones = { ...HWC_INGRESOS_CLASIF, ...HWC_PAGOS_CLASIF };
+  // Ingresos en créditos (+), pagos en débitos (−), como los guarda la Ejecución.
+  const ejecucion = new Map<string, number>([
+    ...Object.keys(HWC_INGRESOS_CLASIF).map((k) => [clasificaciones[k], IMPORTE] as [string, number]),
+    ...Object.keys(HWC_PAGOS_CLASIF).map((k) => [clasificaciones[k], -IMPORTE] as [string, number]),
+  ]);
+  const manualViejo = new Map(meses[1].manuales!.real);
+  for (const c of claves) manualViejo.set(c, 999_999);
+  const armar = (real: Map<string, number>) =>
+    armarReporte(p, [meses[0], { ...meses[1], semanasCerradas: 1, real, manuales: { ...meses[1].manuales!, real: manualViejo } }], 1);
+  const antes = armar(new Map());
+  const despues = armar(ejecucion);
+  for (const c of claves) {
+    assert.equal(celda(antes, c).real, 0, `${c}: sin movimientos y con semana cerrada es 0, no el manual viejo`);
+    assert.equal(celda(despues, c).real, IMPORTE, `${c}: toma la Ejecución, no el manual de 999.999`);
+  }
+  assert.equal(celda(despues, "hw.totalIngresos").real! - celda(antes, "hw.totalIngresos").real!, IMPORTE * 3, "ingresos");
+  assert.equal(celda(despues, "hw.totalPagado").real! - celda(antes, "hw.totalPagado").real!, IMPORTE * 3, "pagos");
+});
+
+test("HWC: Pago LATAM y Pago Flybondi tipeados suman una sola vez en TOTAL EN EFECTIVO PAGADO", () => {
   const p = PLANTILLAS_POR_SLUG["hwc"];
   const meses = mesesDePrueba(p);
   const base = new Map(meses[1].manuales!.real);
-  for (const c of [...HWC_INGRESOS, ...HWC_PAGOS]) base.delete(c);
+  for (const c of HWC_PAGOS_MANUALES) base.delete(c);
   const con = new Map(base);
-  for (const c of [...HWC_INGRESOS, ...HWC_PAGOS]) con.set(c, IMPORTE);
+  for (const c of HWC_PAGOS_MANUALES) con.set(c, IMPORTE);
   const armar = (r: Map<string, number>) =>
     armarReporte(p, [meses[0], { ...meses[1], manuales: { ...meses[1].manuales!, real: r } }], 1);
   const antes = armar(base);
   const despues = armar(con);
-  for (const c of [...HWC_INGRESOS, ...HWC_PAGOS]) {
+  for (const c of HWC_PAGOS_MANUALES) {
     assert.equal(celda(antes, c).real, null, `${c} sin valor`);
     assert.equal(celda(despues, c).real, IMPORTE, c);
     assert.equal(celda(antes, c).realIncompleto, false, `${c}: con celda tipeable ya no queda marcada incompleta`);
   }
-  assert.equal(celda(despues, "hw.totalIngresos").real! - (celda(antes, "hw.totalIngresos").real ?? 0), IMPORTE * 3, "ingresos");
-  assert.equal(celda(despues, "hw.totalPagado").real! - (celda(antes, "hw.totalPagado").real ?? 0), IMPORTE * 5, "pagos");
+  assert.equal(celda(despues, "hw.totalPagado").real! - (celda(antes, "hw.totalPagado").real ?? 0), IMPORTE * 2, "pagos");
   assert.equal(celda(despues, "hw.totalIngresos").presupuestado, celda(antes, "hw.totalIngresos").presupuestado);
 });
 

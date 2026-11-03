@@ -119,6 +119,9 @@ export function esElegibleParaDesglose(clasificacion: string): boolean {
 // en ejecucion/actions.ts, cruzando contra PagoReferencia — nunca la escribe un
 // archivo ni el usuario a mano, pero tiene que estar acá para que el <select> de
 // TablaMovimientos la muestre bien cuando alguien la corrige manualmente.
+// Las seis de aerolíneas del final (agregadas 2026-11-03) vienen tal cual en la madre de Kike
+// ("ARCHIVO MADRE OCTUBRE 2026 - DETALLE Y CONTROLES.xlsx") y alimentan filas de HWC en el Reporte
+// (plantillas/hwc.ts); "LINHEAS" es la grafía del archivo, no un typo.
 export const CLASIFICACIONES_SUGERIDAS = [
   "COBRANZAS",
   "COM Y GTOS BRIOS",
@@ -142,6 +145,12 @@ export const CLASIFICACIONES_SUGERIDAS = [
   "OTROS",
   "PAGOS ESPECIALES",
   "Liquidación final",
+  "COBRANZAS LATAM",
+  "COBRANZAS LAN/AVIANCA",
+  "COBRANZA JETSMART",
+  "WCS",
+  "AVIANCA",
+  "GOL LINHEAS A",
 ];
 
 // TEMPORAL / hallazgo fuera del alcance original de la paginación: el `distinct` de Prisma
