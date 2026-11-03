@@ -26,6 +26,9 @@ const disponibilidades = [
   disp("mn.dEfectivo", "EFECTIVO", "cuadre", { pendiente: "K9" }),
   disp("mn.dDolares", "DOLARES", "cuadre"),
   disp("mn.dChequesNegociados", "CHEQUES NEGOCIADOS PENDIENTES DE INGRESO", "cuadre"),
+  disp("mn.dReservaSac", "RESERVA SAC", "ajuste", {
+    nota: "Se tipea en negativo. Sin espejo en Ingresos; viene de la hoja VALORES A MANO del PF de octubre.",
+  }),
 ];
 
 const ingresos = [
@@ -74,7 +77,7 @@ const egresos = [
     parcial: true,
     nota: "Planilla: IMP Y PREVISIONALES + PRORRATEO IMPUESTOS (F931/SP).",
   }),
-  egreso("mn.expensas", "Expensas", SIN_REAL, cat("EXPENSAS"), {
+  egreso("mn.expensas", "Expensas", REAL_MANUAL, cat("EXPENSAS"), {
     pendiente: "K2",
     nota: "Planilla: reparto de la unidad EXPENSAS.",
   }),

@@ -54,10 +54,10 @@ const ESPERADO: Record<string, { prefijo: string; lineas: string[]; titulo: stri
   },
   // Avianor lleva una sola fila de Disponibilidades, sin título ni total.
   avianor: { prefijo: "av.", lineas: ["av.dEfectivo"], titulo: null, total: null, cierre: ["av.saldo"] },
-  // Mantenor: 4 componentes y su total, sin título (como la planilla). El gerente ve también el Efectivo (K9 pendiente).
+  // Mantenor: 5 componentes y su total, sin título (como la planilla). El gerente ve también el Efectivo (K9 pendiente).
   mantenor: {
     prefijo: "mn.",
-    lineas: ["mn.dBancoFci", "mn.dEfectivo", "mn.dDolares", "mn.dChequesNegociados"],
+    lineas: ["mn.dBancoFci", "mn.dEfectivo", "mn.dDolares", "mn.dChequesNegociados", "mn.dReservaSac"],
     titulo: null,
     total: "mn.totalDisponibilidades",
     cierre: ["mn.saldo", "mn.capital", "mn.disponible"],

@@ -26,17 +26,23 @@ const SLUGS = [
   "bradenton",
 ] as const;
 
+// Desviación aceptada: filas de la plantilla que no existen en la planilla de agosto (fixture sin tocar). La de
+// Mantenor viene de la hoja VALORES A MANO del PF de octubre; en agosto no tiene valor, así que no altera ningún total.
+const FILAS_SIN_PLANILLA_DE_AGOSTO: Record<string, string[]> = { mantenor: ["mn.dReservaSac"] };
+const estaEnPlanillaDeAgosto = (slug: string, clave: string) => !(FILAS_SIN_PLANILLA_DE_AGOSTO[slug] ?? []).includes(clave);
+
 function armar(slug: string) {
   const datos = AGOSTO_2026[slug];
   const plantilla = PLANTILLAS_POR_SLUG[slug];
-  assert.equal(datos.filas.length, plantilla.filas.length, `${slug}: filas de la fixture y de la plantilla`);
+  const filasDeAgosto = plantilla.filas.filter((f) => estaEnPlanillaDeAgosto(slug, f.clave));
+  assert.equal(datos.filas.length, filasDeAgosto.length, `${slug}: filas de la fixture y de la plantilla`);
   const presupuesto = new Map<string, number>();
   const manP = new Map<string, number>();
   const manR = new Map<string, number>();
   // Real por clasificación que el Excel ya tiene en agosto (Avianor lo lee de una tabla dinámica de movimientos).
   const realPorClasificacion = new Map<string, number>();
   const filaPorNumero = new Map<number, string>();
-  plantilla.filas.forEach((fila, i) => {
+  filasDeAgosto.forEach((fila, i) => {
     const e = datos.filas[i];
     assert.equal(e.texto, fila.texto, `${slug}: la fila ${e.fila} no coincide con la plantilla`);
     filaPorNumero.set(e.fila, fila.clave);
@@ -94,7 +100,7 @@ function comparar(slug: string, reporte: Reporte) {
   const datos = AGOSTO_2026[slug];
   const lineas: string[] = [];
   const fallas: string[] = [];
-  reporte.filas.forEach(({ fila, celdas }, i) => {
+  reporte.filas.filter(({ fila }) => estaEnPlanillaDeAgosto(slug, fila.clave)).forEach(({ fila, celdas }, i) => {
     if (fila.tipo === "titulo") return;
     const e = datos.filas[i];
     const c = celdas[0];
