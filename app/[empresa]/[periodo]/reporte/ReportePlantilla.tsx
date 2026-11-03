@@ -26,7 +26,7 @@ const SOMBRA = "bg-[linear-gradient(rgba(0,0,0,0.06),rgba(0,0,0,0.06))]";
 
 // Cómo se muestran los números de una fila: Disponibilidades centrado y en negrita, el flujo (ingresos y
 // egresos) a la derecha y un poco más chico, y los totales (incluye Capital y Disponible) en negrita.
-type EstiloCeldas = "total" | "disponibilidades" | "flujo";
+type EstiloCeldas = "total" | "totalDisponibilidades" | "disponibilidades" | "flujo";
 
 // Textos neutros: los ve cualquier rol, sin nombrar a nadie.
 const AYUDA_PARCIAL_FILA = "Dato parcial: falta información para completar este valor";
@@ -469,7 +469,15 @@ function FilaTabla({
   const esTotal = fila.tipo === "total";
   // Capital y Disponible también se ven como totales (gris, negrita, etiqueta a la derecha).
   const esTotalVisual = esTotal || fila.tipo === "capital" || fila.tipo === "disponible";
-  const estilo: EstiloCeldas = esTotalVisual ? "total" : fila.bloque === "DISPONIBILIDADES" ? "disponibilidades" : "flujo";
+  // El total de Disponibilidades alinea sus valores como las filas de arriba (centrados), con el gris de total.
+  const estilo: EstiloCeldas =
+    esTotal && fila.bloque === "DISPONIBILIDADES"
+      ? "totalDisponibilidades"
+      : esTotalVisual
+        ? "total"
+        : fila.bloque === "DISPONIBILIDADES"
+          ? "disponibilidades"
+          : "flujo";
   // Disponibilidades, Capital y Disponible no tienen % avance ni falta; Capital y
   // Disponible solo tienen P (como la planilla).
   const sinPorcentajes = fila.bloque === "DISPONIBILIDADES" || fila.tipo === "capital" || fila.tipo === "disponible";
@@ -676,10 +684,14 @@ function CeldasMes({
   motivo?: string;
 }) {
   const alineacion =
-    estilo === "disponibilidades" ? "text-center font-bold" : estilo === "total" ? "text-right" : "text-right text-[8.5pt]";
+    estilo === "disponibilidades" || estilo === "totalDisponibilidades"
+      ? "text-center font-bold"
+      : estilo === "total"
+        ? "text-right"
+        : "text-right text-[8.5pt]";
   const claseNumero = `py-0 px-2 tabular-nums whitespace-nowrap ${alineacion}${atenuado ? ` ${SOMBRA}` : ""}`;
   // Presupuestado y Real llevan el fondo azul claro de la planilla; en los totales manda el gris de la fila.
-  const claseDato = `${claseNumero}${estilo === "total" ? "" : ` ${DATO}`}`;
+  const claseDato = `${claseNumero}${estilo === "total" || estilo === "totalDisponibilidades" ? "" : ` ${DATO}`}`;
   return (
     <>
       <td className={`${claseDato} border-l border-line-hairline`}>
