@@ -262,7 +262,7 @@ test("tipeo: carga única en un mes cerrado — el Real cargado no se toca (sin 
 test("tipeo: el valor guardado viaja en formato argentino y la huella cambia", () => {
   const a = vistaTipeo()!;
   const b = vistaTipeo({ valoresPresupuesto: new Map([["extra.i1", 123_456_789]]) })!;
-  assert.equal(b.celdas.find((c) => c.id === "extra.i1|PRESUPUESTADO")!.importeInicial, "1.234.567,89");
+  assert.equal(b.celdas.find((c) => c.id === "extra.i1|PRESUPUESTADO")!.importeInicial, "1.234.568");
   assert.notEqual(a.huella, b.huella);
 });
 

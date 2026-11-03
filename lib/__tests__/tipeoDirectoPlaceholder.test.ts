@@ -2,18 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { armarReporte, type DatosMes } from "@/lib/reporte/motor";
 import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
-import { formatearCentavos } from "@/lib/reporte/bloqueo";
+import { formatearPesos } from "@/lib/reporte/bloqueo";
 import { placeholderDeCelda } from "@/lib/reporte/tipeoDirecto";
 import { mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 
 // Texto gris de las celdas de Presupuestado vacías del tipeo directo: el valor que calcula la regla de la plantilla.
 
 test("sin valor guardado devuelve el derivado en formato argentino, el mismo que acepta el input", () => {
-  assert.equal(placeholderDeCelda("", 56597300000), "565.973.000,00");
-  assert.equal(placeholderDeCelda("", 56597300000), formatearCentavos(56597300000));
-  assert.equal(placeholderDeCelda("", 123), "1,23");
-  assert.equal(placeholderDeCelda("", -7323948700), "-73.239.487,00");
-  assert.equal(placeholderDeCelda("", 0), "0,00");
+  assert.equal(placeholderDeCelda("", 56597300000), "565.973.000");
+  assert.equal(placeholderDeCelda("", 56597300000), formatearPesos(56597300000));
+  assert.equal(placeholderDeCelda("", 123), "1");
+  assert.equal(placeholderDeCelda("", -7323948700), "-73.239.487");
+  assert.equal(placeholderDeCelda("", 0), "0");
 });
 
 test("con valor guardado no devuelve el derivado", () => {
@@ -52,7 +52,7 @@ for (const [slug, clave] of [
   test(`${clave}: con regla y sin valor guardado, el placeholder es el derivado`, () => {
     const derivado = derivadoDe(real, clave);
     assert.notEqual(derivado, null, "con los datos de prueba la regla da un valor");
-    assert.equal(placeholderDeCelda("", derivado), formatearCentavos(derivado!));
+    assert.equal(placeholderDeCelda("", derivado), formatearPesos(derivado!));
     assert.notEqual(placeholderDeCelda("", derivado), "0");
     assert.equal(placeholderDeCelda("1,00", derivado), "0");
   });

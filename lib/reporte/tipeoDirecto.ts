@@ -7,10 +7,12 @@ import { camposManuales, type Bloque, type CampoManual, type Plantilla } from "@
 import {
   AVISO_UNA_VEZ,
   formatearCentavos,
+  formatearPesos,
   motivoBloqueo,
   motivoRechazoCambio,
   type EstadoSemanas,
 } from "@/lib/reporte/bloqueo";
+import { leerCuenta } from "@/lib/importes";
 import { esClaveDeFilaExtra } from "@/lib/reporte/filasExtra";
 
 // Tipeo directo en el Reporte (ADMIN y FINANZAS): el Real manual de las filas de la plantilla, el Presupuestado de las
@@ -77,12 +79,12 @@ export function camposTipeables(
   });
 }
 
-// Texto gris de una celda de Presupuestado vacía: el valor que calcula la regla de la plantilla (formato argentino, el mismo
-// que acepta el input), para que se vea qué se usa si no se tipea nada. Con un valor guardado la celda no está vacía y el
+// Texto gris de una celda de Presupuestado vacía: el valor que calcula la regla de la plantilla (formato argentino, en
+// pesos enteros: solo se muestra, no se guarda), para que se vea qué se usa si no se tipea nada. Con un valor guardado la celda no está vacía y el
 // texto no se ve; sin derivado queda «0».
 export function placeholderDeCelda(importeInicial: string, derivado: number | null | undefined): string {
   if (importeInicial !== "" || derivado === null || derivado === undefined) return "0";
-  return formatearCentavos(derivado);
+  return formatearPesos(derivado);
 }
 
 export const AVISO_PRESUPUESTO_VALIDADO = "Presupuesto validado: solo se puede cargar una vez";
@@ -95,8 +97,12 @@ export type CeldaTipeo = {
   clave: string;
   columna: "PRESUPUESTADO" | "REAL";
   texto: string;
-  // "1.234,56" (formato argentino, el mismo que acepta leerCuenta) o "" si no hay valor.
+  // "1.235" (pesos enteros, formato argentino; es lo que se MUESTRA) o "" si no hay valor. El valor exacto va en `centavos`.
   importeInicial: string;
+  // Valor guardado en centavos exactos (null = sin valor). La huella y la comparación de cambios usan este, no el texto.
+  centavos: number | null;
+  // "1.234,56" cuando el valor guardado tiene centavos (para el tooltip); null si no los tiene o no hay valor.
+  valorExacto: string | null;
   // Bloqueada pero vacía: se puede cargar una sola vez.
   avisoUnaVez: boolean;
   aviso: string | null;
@@ -148,13 +154,27 @@ export function armarVistaTipeo(e: EntradaVistaTipeo): VistaTipeo | null {
       clave: c.clave,
       columna: c.columna,
       texto: c.texto.trim(),
-      importeInicial: existente === undefined ? "" : formatearCentavos(existente),
+      importeInicial: existente === undefined ? "" : formatearPesos(existente),
+      centavos: existente ?? null,
+      valorExacto: existente !== undefined && existente % 100 !== 0 ? formatearCentavos(existente) : null,
       avisoUnaVez: bloqueo !== null,
       aviso: bloqueo === null ? null : c.columna === "REAL" ? AVISO_UNA_VEZ : AVISO_PRESUPUESTO_VALIDADO,
     });
   }
   if (celdas.length === 0) return null;
-  return { celdas, huella: celdas.map((c) => `${c.id}=${c.importeInicial}`).join("|") };
+  return { celdas, huella: celdas.map((c) => `${c.id}=${c.centavos ?? ""}`).join("|") };
+}
+
+// ¿Lo tipeado cambia el valor guardado? El texto mostrado va en pesos enteros, así que no alcanza comparar textos: un valor
+// con centavos (71.815.208,61) se muestra «71.815.209» y corregirlo a 71.815.209,00 sí es un cambio. Texto igual al mostrado
+// = sin tocar (conserva los centavos); si no, se compara lo que se lee contra los centavos exactos guardados. Una cuenta
+// («100+50») siempre cuenta como cambio: se guarda con su nota. Lo que no se entiende también: lo rechaza el servidor.
+export function celdaModificada(celda: Pick<CeldaTipeo, "importeInicial" | "centavos">, texto: string): boolean {
+  const t = texto.trim();
+  if (t === celda.importeInicial.trim()) return false;
+  if (celda.centavos === null) return true;
+  const r = leerCuenta(t);
+  return !(r.ok && r.nota === null && r.centavos === celda.centavos);
 }
 
 export type EntradaTipeo = { filaClave: string; columna: "PRESUPUESTADO" | "REAL"; texto: string };

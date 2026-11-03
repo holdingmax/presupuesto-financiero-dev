@@ -1,5 +1,6 @@
 import type { Bloque } from "@/lib/reporte/motor";
 import { leerCuenta } from "@/lib/importes";
+import { formatearImporte } from "@/app/ejecucion/formato";
 
 // Regla de bloqueo de los valores manuales del Reporte (lo cerrado no se modifica para
 // atrás), docs/reporte_etapa2b_plan.md §10. Pura, sin Prisma. Sin desbloqueo por ADMIN:
@@ -69,6 +70,13 @@ export function formatearCentavos(centavos: number): string {
     maximumFractionDigits: 2,
   });
   return centavos < 0 ? `-${pesos}` : pesos;
+}
+
+// Centavos → "1.234" (pesos enteros, redondeado solo para MOSTRAR; lo guardado conserva los centavos). Con "-" si es
+// negativo, salvo que redondee a cero.
+export function formatearPesos(centavos: number): string {
+  const pesos = formatearImporte(Math.abs(centavos) / 100);
+  return centavos < 0 && pesos !== "0" ? `-${pesos}` : pesos;
 }
 
 // Filas de Ingresos que reflejan un componente de Disponibilidades en el mes de pago:

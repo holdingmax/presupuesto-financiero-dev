@@ -88,7 +88,7 @@ for (const [slug, clave] of Object.entries(CON_CAPITAL)) {
   });
 
   test(`${slug}: con valor cargado viaja en formato argentino; sin valor no hay nada guardado`, () => {
-    assert.equal(celdaCapital(slug, { valoresPresupuesto: new Map([[clave, 23120000000]]) })!.importeInicial, "231.200.000,00");
+    assert.equal(celdaCapital(slug, { valoresPresupuesto: new Map([[clave, 23120000000]]) })!.importeInicial, "231.200.000");
   });
 
   test(`${slug}: vacío vuelve a la regla de la plantilla`, () => {
@@ -125,7 +125,7 @@ for (const [slug, clave] of Object.entries(CON_CAPITAL)) {
   test(`${slug}: el mes cerrado no bloquea el Presupuestado del Capital (solo el VALIDADO)`, () => {
     const c = celdaCapital(slug, { periodo: "2026-09", semanas: CERRADO, valoresPresupuesto: new Map([[clave, 100]]) })!;
     assert.equal(c.avisoUnaVez, false);
-    assert.equal(c.importeInicial, "1,00");
+    assert.equal(c.importeInicial, "1");
   });
 }
 

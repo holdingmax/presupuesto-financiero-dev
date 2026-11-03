@@ -310,7 +310,7 @@ for (const [slug, clave] of PISABLES) {
     assert.equal(cargada.celdas.some((c) => c.id === `${clave}|PRESUPUESTADO`), false);
     // Sin validar, el valor cargado sí viaja para editarlo.
     const abierta = vista({ valoresPresupuesto: new Map([[clave, 7181520861]]) })!.celdas.find((c) => c.id === `${clave}|PRESUPUESTADO`)!;
-    assert.equal(abierta.importeInicial, "71.815.208,61");
+    assert.equal(abierta.importeInicial, "71.815.209");
     assert.equal(abierta.avisoUnaVez, false);
   });
 }

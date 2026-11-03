@@ -3,7 +3,7 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { guardarTipeoDelReporte } from "./actionsTipeo";
-import { placeholderDeCelda, type CeldaTipeo } from "@/lib/reporte/tipeoDirecto";
+import { celdaModificada, placeholderDeCelda, type CeldaTipeo } from "@/lib/reporte/tipeoDirecto";
 
 // Tipeo directo en el Reporte (solo ADMIN y FINANZAS: el servidor no manda estas celdas a nadie más): el Real
 // manual de las filas de la plantilla y el Presupuestado y el Real de las filas extra. Estado propio, separado
@@ -54,7 +54,7 @@ export function ProveedorTipeo({
   }
 
   const porId = new Map(celdas.map((c) => [c.id, c]));
-  const modificadas = celdas.filter((c) => (valores[c.id] ?? "").trim() !== c.importeInicial.trim());
+  const modificadas = celdas.filter((c) => celdaModificada(c, valores[c.id] ?? ""));
 
   function cambiar(id: string, texto: string) {
     setMensaje(null);
@@ -145,6 +145,14 @@ export function CeldaTipeoEditable({
   const celda = celdas.get(id);
   if (!celda) return null;
   const placeholder = placeholderDeCelda(celda.importeInicial, derivado);
+  const titulo =
+    [
+      celda.aviso,
+      celda.valorExacto !== null ? `Valor exacto: ${celda.valorExacto}` : null,
+      celda.aviso === null && placeholder !== "0" ? "Calculado por la regla; tipeá para reemplazarlo" : null,
+    ]
+      .filter((x) => x !== null)
+      .join(" · ") || undefined;
   return (
     <input
       value={valores[id] ?? ""}
@@ -153,7 +161,7 @@ export function CeldaTipeoEditable({
       placeholder={placeholder}
       disabled={guardando}
       aria-label={`${columna === "REAL" ? "Real" : "Presupuestado"}: ${nombre}`}
-      title={celda.aviso ?? (placeholder !== "0" ? "Calculado por la regla; tipeá para reemplazarlo" : undefined)}
+      title={titulo}
       className="h-5 w-28 rounded border border-line bg-paper px-1.5 text-right text-[11px] leading-none tabular outline-none focus:border-marino focus:ring-1 focus:ring-marino/30 disabled:opacity-60"
     />
   );

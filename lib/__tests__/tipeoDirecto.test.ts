@@ -125,7 +125,7 @@ test("mes en curso: las 19 celdas (18 de Real + el Capital de trabajo) son edita
 test("el valor guardado viaja en formato argentino y la huella cambia con él", () => {
   const sinValor = vista(CON_DISP)!;
   const conValor = vista(CON_DISP, { valoresReales: new Map([["br.resultadoFci", 63534345]]) })!;
-  assert.equal(conValor.celdas.find((c) => c.clave === "br.resultadoFci")!.importeInicial, "635.343,45");
+  assert.equal(conValor.celdas.find((c) => c.clave === "br.resultadoFci")!.importeInicial, "635.343");
   assert.notEqual(sinValor.huella, conValor.huella);
 });
 
