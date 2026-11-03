@@ -77,6 +77,14 @@ export function camposTipeables(
   });
 }
 
+// Texto gris de una celda de Presupuestado vacía: el valor que calcula la regla de la plantilla (formato argentino, el mismo
+// que acepta el input), para que se vea qué se usa si no se tipea nada. Con un valor guardado la celda no está vacía y el
+// texto no se ve; sin derivado queda «0».
+export function placeholderDeCelda(importeInicial: string, derivado: number | null | undefined): string {
+  if (importeInicial !== "" || derivado === null || derivado === undefined) return "0";
+  return formatearCentavos(derivado);
+}
+
 export const AVISO_PRESUPUESTO_VALIDADO = "Presupuesto validado: solo se puede cargar una vez";
 
 // Una celda editable que viaja a la pantalla. Las que el bloqueo deja en solo lectura (valor ya cargado en

@@ -495,7 +495,12 @@ function FilaTabla({
   // (pisableConManual) y el Capital de trabajo; las demás lo cargan el gerente o /reporte/carga.
   const editorPresupuesto =
     (fila.tipo === "linea" || fila.tipo === "capital") && idsTipeables.has(`${fila.clave}|PRESUPUESTADO`) ? (
-      <CeldaTipeoEditable clave={fila.clave} columna="PRESUPUESTADO" nombre={fila.texto.trim()} />
+      <CeldaTipeoEditable
+        clave={fila.clave}
+        columna="PRESUPUESTADO"
+        nombre={fila.texto.trim()}
+        derivado={celdas[celdas.length - 1].presupuestado}
+      />
     ) : undefined;
   const motivo =
     carga && fila.tipo === "linea" && Object.hasOwn(carga.motivosFilas, fila.clave)

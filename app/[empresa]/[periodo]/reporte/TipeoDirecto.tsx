@@ -3,7 +3,7 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { guardarTipeoDelReporte } from "./actionsTipeo";
-import type { CeldaTipeo } from "@/lib/reporte/tipeoDirecto";
+import { placeholderDeCelda, type CeldaTipeo } from "@/lib/reporte/tipeoDirecto";
 
 // Tipeo directo en el Reporte (solo ADMIN y FINANZAS: el servidor no manda estas celdas a nadie más): el Real
 // manual de las filas de la plantilla y el Presupuestado y el Real de las filas extra. Estado propio, separado
@@ -127,29 +127,33 @@ export function BarraGuardarTipeo() {
   );
 }
 
-// Input dentro de la columna Real o Presupuestado del último mes.
+// Input dentro de la columna Real o Presupuestado del último mes. `derivado` (centavos): el Presupuestado que calcula la
+// regla de la plantilla; sin valor guardado se muestra en gris en lugar del «0» y lo tipeado lo reemplaza.
 export function CeldaTipeoEditable({
   clave,
   columna,
   nombre,
+  derivado,
 }: {
   clave: string;
   columna: "PRESUPUESTADO" | "REAL";
   nombre: string;
+  derivado?: number | null;
 }) {
   const { valores, celdas, guardando, cambiar } = useTipeo();
   const id = `${clave}|${columna}`;
   const celda = celdas.get(id);
   if (!celda) return null;
+  const placeholder = placeholderDeCelda(celda.importeInicial, derivado);
   return (
     <input
       value={valores[id] ?? ""}
       onChange={(e) => cambiar(id, e.target.value)}
       inputMode="decimal"
-      placeholder="0"
+      placeholder={placeholder}
       disabled={guardando}
       aria-label={`${columna === "REAL" ? "Real" : "Presupuestado"}: ${nombre}`}
-      title={celda.aviso ?? undefined}
+      title={celda.aviso ?? (placeholder !== "0" ? "Calculado por la regla; tipeá para reemplazarlo" : undefined)}
       className="h-5 w-28 rounded border border-line bg-paper px-1.5 text-right text-[11px] leading-none tabular outline-none focus:border-marino focus:ring-1 focus:ring-marino/30 disabled:opacity-60"
     />
   );
