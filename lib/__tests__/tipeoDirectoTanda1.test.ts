@@ -11,7 +11,12 @@ import { mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 // tipeoDirectoDisponibilidades.test.ts). Las filas extra tienen su propio test (filasExtraEmpresas.test.ts). Las listas de claves están escritas a mano, a propósito:
 // si una plantilla cambia, este test lo avisa. Usan la configuración REAL de lib/config.ts.
 
-const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: string[]; disponibilidades: string[] }> = {
+// `presupuestoPisable`: filas de flujo con Presupuestado derivado que se puede pisar tipeando (pisableConManual); además de su
+// Real manual (si lo tienen), abren la celda de Presupuestado.
+const ESPERADO: Record<
+  string,
+  { ingresos: string[]; egresos: string[]; abajo: string[]; disponibilidades: string[]; presupuestoPisable?: string[] }
+> = {
   "fredy-publicidad": {
     ingresos: ["fr.resultadoFci"],
     egresos: ["fr.compraIva", "fr.expensas"],
@@ -64,6 +69,7 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
     egresos: ["mn.expensas"],
     abajo: [],
     disponibilidades: ["mn.dBancoFci", "mn.dEfectivo", "mn.dDolares", "mn.dChequesNegociados", "mn.dReservaSac"],
+    presupuestoPisable: ["mn.prestamos"],
   },
   // Radio: 1 Real manual de Ingresos (Resultado FCI) + 2 de Egresos (Expensas, Costo IVA) + 7 de Disponibilidades.
   radio: {
@@ -106,6 +112,7 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
     egresos: ["hv.tarjetasComisiones", "hv.expensas"],
     abajo: [],
     disponibilidades: ["hv.dBancoFci", "hv.dEfectivo", "hv.dDolares", "hv.dReservaAguinaldo", "hv.dChequesNegociados", "hv.dIngresoBancoMacro"],
+    presupuestoPisable: ["hv.acreditacionTarjetas"],
   },
   // Conexión Logística: 1 Real manual de Ingresos + 2 de Egresos (Expensas, Proveedores IVA) + 1 de abajo + 11 de Disponibilidades.
   // (El alias de testing «conexion-logistica-spp» tiene el tipeo de flujo pero no ve Disponibilidades: 4 celdas, ver tipeoDirecto.test.ts.)
@@ -129,16 +136,16 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
   },
 };
 
-// Flujo + Disponibilidades: Fredy 3 + 9, HWC 5 + 8, Avianor 14 + 1, Mantenor 8 + 5, Radio 3 + 7, Brillante 7 + 11,
-// Havanna 6 + 6, Conexión 4 + 11.
+// Flujo + Disponibilidades (+ Presupuestado pisable): Fredy 3 + 9, HWC 5 + 8, Avianor 14 + 1, Mantenor 8 + 5 + 1 de P,
+// Radio 3 + 7, Brillante 7 + 11, Havanna 6 + 6 + 1 de P, Conexión 4 + 11.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 12,
   hwc: 13,
   avianor: 15,
-  mantenor: 13,
+  mantenor: 14,
   radio: 10,
   brillante: 18,
-  havanna: 12,
+  havanna: 13,
   "conexion-logistica": 15,
 };
 
@@ -148,23 +155,32 @@ for (const slug of Object.keys(ESPERADO)) {
   const plantilla = PLANTILLAS_POR_SLUG[slug];
   const esperado = ESPERADO[slug];
 
-  test(`${slug}: sus campos tipeables son exactamente los esperados (Real manual de flujo y de Disponibilidades)`, () => {
+  test(`${slug}: sus campos tipeables son exactamente los esperados (Real manual de flujo y de Disponibilidades, y Presupuestado pisable)`, () => {
     const campos = camposTipeables(plantilla, slug);
+    const reales = campos.filter((c) => c.columna === "REAL");
     assert.equal(campos.length, CANTIDAD[slug]);
-    assert.ok(campos.every((c) => c.columna === "REAL"), "solo la columna Real");
-    assert.deepEqual(campos.filter((c) => c.bloque === "INGRESOS").map((c) => c.clave), esperado.ingresos);
-    assert.deepEqual(campos.filter((c) => c.bloque === "EGRESOS").map((c) => c.clave), esperado.egresos);
-    assert.deepEqual(campos.filter((c) => c.bloque === "ABAJO").map((c) => c.clave), esperado.abajo);
-    assert.deepEqual(campos.filter((c) => c.bloque === "DISPONIBILIDADES").map((c) => c.clave), esperado.disponibilidades);
+    // Del Presupuestado solo las filas con pisableConManual.
+    assert.deepEqual(
+      campos.filter((c) => c.columna === "PRESUPUESTADO").map((c) => c.clave),
+      esperado.presupuestoPisable ?? []
+    );
+    assert.deepEqual(reales.filter((c) => c.bloque === "INGRESOS").map((c) => c.clave), esperado.ingresos);
+    assert.deepEqual(reales.filter((c) => c.bloque === "EGRESOS").map((c) => c.clave), esperado.egresos);
+    assert.deepEqual(reales.filter((c) => c.bloque === "ABAJO").map((c) => c.clave), esperado.abajo);
+    assert.deepEqual(reales.filter((c) => c.bloque === "DISPONIBILIDADES").map((c) => c.clave), esperado.disponibilidades);
     assert.equal(campos.some((c) => c.bloque === "CIERRE"), false);
     assert.equal(campos.some((c) => c.clave.startsWith("extra.")), false);
   });
 
-  test(`${slug}: el Presupuestado y las filas sin Real manual no se tipean`, () => {
+  test(`${slug}: el Presupuestado (salvo el pisable) y las filas sin Real manual no se tipean`, () => {
     const tipeables = new Set(camposTipeables(plantilla, slug).map((c) => `${c.clave}|${c.columna}`));
     for (const f of plantilla.filas) {
       if (f.tipo !== "linea") continue;
-      assert.equal(tipeables.has(`${f.clave}|PRESUPUESTADO`), false, `${f.clave} Presupuestado`);
+      assert.equal(
+        tipeables.has(`${f.clave}|PRESUPUESTADO`),
+        (esperado.presupuestoPisable ?? []).includes(f.clave),
+        `${f.clave} Presupuestado`
+      );
       if (f.real.tipo !== "manual" && f.real.tipo !== "manualDesde") {
         assert.equal(tipeables.has(`${f.clave}|REAL`), false, `${f.clave} Real`);
       }
@@ -216,6 +232,67 @@ for (const slug of Object.keys(ESPERADO)) {
       valoresReales: mesesDePrueba(plantilla)[1].manuales!.real,
     });
     assert.equal(v, null);
+  });
+}
+
+// ---- Presupuestado pisable (pisableConManual) en el tipeo directo del Reporte --------------------------------
+
+const PISABLES: [string, string][] = [
+  ["mantenor", "mn.prestamos"],
+  ["havanna", "hv.acreditacionTarjetas"],
+];
+
+for (const [slug, clave] of PISABLES) {
+  const plantilla = PLANTILLAS_POR_SLUG[slug];
+  const vista = (extra: Partial<Parameters<typeof armarVistaTipeo>[0]> = {}) =>
+    armarVistaTipeo({
+      empresaSlug: slug,
+      plantilla,
+      esAdminOFinanzas: true,
+      periodo: "2026-10",
+      actual: "2026-10",
+      semanas: ABIERTO,
+      valoresReales: new Map(),
+      ...extra,
+    });
+
+  test(`${slug}: ADMIN y FINANZAS reciben la celda de Presupuestado de ${clave}`, () => {
+    const celda = vista()!.celdas.find((c) => c.id === `${clave}|PRESUPUESTADO`);
+    assert.ok(celda);
+    assert.equal(celda.importeInicial, "");
+    assert.equal(celda.aviso, null);
+  });
+
+  test(`${slug}: el gerente no recibe la celda de Presupuestado de ${clave}`, () => {
+    assert.equal(vista({ esAdminOFinanzas: false, valoresPresupuesto: new Map([[clave, 100]]) }), null);
+    const args = { empresaSlug: slug, plantilla, esAdminOFinanzas: false };
+    assert.match(
+      motivoRechazoTipeo({ ...args, entradas: [{ filaClave: clave, columna: "PRESUPUESTADO", texto: "1.000,00" }] })!,
+      /ADMIN y FINANZAS/
+    );
+  });
+
+  test(`${slug}: motivoRechazoTipeo acepta el Presupuestado de ${clave} y rechaza el de otra fila de flujo`, () => {
+    const args = { empresaSlug: slug, plantilla, esAdminOFinanzas: true };
+    assert.equal(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: clave, columna: "PRESUPUESTADO", texto: "1.000,00" }] }), null);
+    const otra = plantilla.filas.find(
+      (f) => f.tipo === "linea" && f.clave !== clave && f.presupuesto.tipo === "manual" && ["INGRESOS", "EGRESOS", "ABAJO"].includes(f.bloque)
+    )!;
+    assert.ok(otra, "sanidad: hay otra fila de flujo con Presupuestado manual");
+    assert.ok(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: otra.clave, columna: "PRESUPUESTADO", texto: "1.000,00" }] }));
+  });
+
+  test(`${slug}: con el Presupuesto VALIDADO el Presupuestado de ${clave} solo se carga una vez`, () => {
+    const vacia = vista({ presupuestoValidado: true })!.celdas.find((c) => c.id === `${clave}|PRESUPUESTADO`)!;
+    assert.equal(vacia.avisoUnaVez, true);
+    assert.equal(vacia.aviso, "Presupuesto validado: solo se puede cargar una vez");
+    // Ya cargado, no viaja: nadie lo modifica ni lo borra.
+    const cargada = vista({ presupuestoValidado: true, valoresPresupuesto: new Map([[clave, 100]]) })!;
+    assert.equal(cargada.celdas.some((c) => c.id === `${clave}|PRESUPUESTADO`), false);
+    // Sin validar, el valor cargado sí viaja para editarlo.
+    const abierta = vista({ valoresPresupuesto: new Map([[clave, 7181520861]]) })!.celdas.find((c) => c.id === `${clave}|PRESUPUESTADO`)!;
+    assert.equal(abierta.importeInicial, "71.815.208,61");
+    assert.equal(abierta.avisoUnaVez, false);
   });
 }
 

@@ -111,11 +111,13 @@ test("campos manuales de Havanna: Locales y Acreditación en Real, Acreditación
   for (const c of [`${LOCALES}|REAL`, `${ACREDITACION}|REAL`, `${ACREDITACION}|PRESUPUESTADO`]) assert.ok(campos.includes(c), c);
 });
 
-test("el Real se tipea en el Reporte; el Presupuestado de la Acreditación solo en /reporte/carga, no lo carga el gerente", () => {
+test("el Real y el Presupuestado de la Acreditación se tipean en el Reporte (y en /reporte/carga); no lo carga el gerente", () => {
   const tipeables = camposTipeables(HAVANNA, "havanna").map((c) => `${c.clave}|${c.columna}`);
   assert.ok(tipeables.includes(`${LOCALES}|REAL`));
   assert.ok(tipeables.includes(`${ACREDITACION}|REAL`));
-  assert.equal(tipeables.includes(`${ACREDITACION}|PRESUPUESTADO`), false);
+  assert.equal(tipeables.includes(`${ACREDITACION}|PRESUPUESTADO`), true);
+  // Cobranzas locales no tiene Presupuestado pisable: su P sigue sin tipearse en el Reporte.
+  assert.equal(tipeables.includes(`${LOCALES}|PRESUPUESTADO`), false);
   const fila = HAVANNA.filas.find((f) => f.clave === ACREDITACION)!;
   assert.equal(esFilaManualEditable(fila), false);
 });

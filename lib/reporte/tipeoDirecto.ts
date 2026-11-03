@@ -13,8 +13,8 @@ import {
 } from "@/lib/reporte/bloqueo";
 import { esClaveDeFilaExtra } from "@/lib/reporte/filasExtra";
 
-// Tipeo directo en el Reporte (ADMIN y FINANZAS): el Real manual de las filas de la plantilla y, en las filas
-// extra, también el Presupuestado. Puro: sin Prisma ni next/*, para poder probarlo. Define qué celdas se pueden
+// Tipeo directo en el Reporte (ADMIN y FINANZAS): el Real manual de las filas de la plantilla, el Presupuestado de las
+// que lo tienen pisable y, en las filas extra, también el Presupuestado. Puro: sin Prisma ni next/*, para poder probarlo. Define qué celdas se pueden
 // tipear, cuáles de ellas viajan a la pantalla y qué rechaza el servidor. El guardado lo hace
 // guardarValoresManuales (reporte/carga/actions.ts): ahí viven la validación contra la plantilla, los importes
 // (lib/importes.ts) y la regla de bloqueo.
@@ -39,8 +39,18 @@ export function tipeoDirectoActivo(empresaSlug: string, interruptores: Interrupt
   return interruptores.tipeo.includes(empresaSlug);
 }
 
+// Fila de la plantilla cuyo Presupuestado derivado (Disponible o espejo) se puede pisar con un valor tipeado.
+function tienePresupuestoPisable(f: Plantilla["filas"][number]): boolean {
+  return (
+    f.tipo === "linea" &&
+    (f.presupuesto.tipo === "disponible" || f.presupuesto.tipo === "espejo") &&
+    f.presupuesto.pisableConManual === true
+  );
+}
+
 // Campos que se pueden tipear en el Reporte de esta empresa. Sin interruptor, ninguno.
-// - Filas de la plantilla: solo el Real manual; los de Disponibilidades, solo si la empresa también ve ese bloque.
+// - Filas de la plantilla: el Real manual (los de Disponibilidades, solo si la empresa también ve ese bloque) y el
+//   Presupuestado de las que lo tienen pisable (pisableConManual: Mantenor «Prestamos», Havanna «Acreditación Tarjetas»).
 // - Filas extra (clave «extra.<id>», solo si la plantilla que se pasa las trae): Presupuestado y Real.
 export function camposTipeables(
   plantilla: Plantilla,
@@ -50,8 +60,10 @@ export function camposTipeables(
   if (!tipeoDirectoActivo(empresaSlug, interruptores)) return [];
   const conDisponibilidades = interruptores.disponibilidades.includes(empresaSlug);
   const conFilasExtra = (interruptores.filasExtra ?? EMPRESAS_CON_FILAS_EXTRA).includes(empresaSlug);
+  const pisables = new Set(plantilla.filas.filter(tienePresupuestoPisable).map((f) => f.clave));
   return camposManuales(plantilla).filter((c) => {
     if (esClaveDeFilaExtra(c.clave)) return conFilasExtra && BLOQUES_DE_FLUJO.includes(c.bloque);
+    if (c.columna === "PRESUPUESTADO") return pisables.has(c.clave) && BLOQUES_DE_FLUJO.includes(c.bloque);
     return (
       c.columna === "REAL" &&
       (c.bloque === "DISPONIBILIDADES" ? conDisponibilidades : BLOQUES_DE_FLUJO.includes(c.bloque))

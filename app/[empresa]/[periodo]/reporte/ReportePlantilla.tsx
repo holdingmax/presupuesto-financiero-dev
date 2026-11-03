@@ -491,7 +491,8 @@ function FilaTabla({
     fila.tipo === "linea" && idsTipeables.has(`${fila.clave}|REAL`) ? (
       <CeldaTipeoEditable clave={fila.clave} columna="REAL" nombre={fila.texto.trim()} />
     ) : undefined;
-  // Presupuestado tipeado en el Reporte: solo las filas extra (las demás lo cargan el gerente o /reporte/carga).
+  // Presupuestado tipeado en el Reporte: las filas extra y las de Presupuestado pisable (pisableConManual); las demás lo
+  // cargan el gerente o /reporte/carga.
   const editorPresupuesto =
     fila.tipo === "linea" && idsTipeables.has(`${fila.clave}|PRESUPUESTADO`) ? (
       <CeldaTipeoEditable clave={fila.clave} columna="PRESUPUESTADO" nombre={fila.texto.trim()} />
