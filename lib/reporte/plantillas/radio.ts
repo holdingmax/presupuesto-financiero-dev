@@ -56,7 +56,7 @@ const egresos = [
   egreso("ra.prestamosTarjetas", "Prestamos y tarjetas", clasif("PREST BRIOS Y TC"), cat("Prestamos y tarjetas")),
   egreso("ra.comisionesEspeciales", "Comisiones Especiales", clasif("COMISIONES ESPECIALES"), cat("COMISIONES ESPECIALES")),
   egreso("ra.impuestos", "Impuestos", clasif("IMP Y PREVISIONALES"), cat("IMP Y PREVISIONALES")),
-  egreso("ra.expensas", "Expensas", SIN_REAL, cat("EXPENSAS"), {
+  egreso("ra.expensas", "Expensas", REAL_MANUAL, cat("EXPENSAS"), {
     pendiente: "K2",
     nota: "Planilla: reparto de la unidad EXPENSAS.",
   }),
@@ -90,16 +90,20 @@ export const PLANTILLA_RADIO: Plantilla = {
     }),
     titulo("ra.tituloIngresos", "INGRESOS", "INGRESOS"),
     ...ingresos,
-    total("ra.totalIngresos", "INGRESOS", "TOTAL INGRESOS", ingresos.map((f) => f.clave)),
+    total("ra.totalIngresos", "INGRESOS", "TOTAL INGRESOS", ingresos.map((f) => f.clave), { rol: "totalIngresos" }),
     total("ra.disponibleAntes", "CIERRE", "DISPONIBLE ANTES DE GASTOS", ["ra.totalDisponibilidades", "ra.totalIngresos"], {
       requiere: ["ra.totalDisponibilidades"],
       soloConPresupuesto: true,
     }),
     titulo("ra.tituloEgresos", "EGRESOS", "EGRESOS"),
     ...egresos,
-    total("ra.totalEgresosOperativos", "EGRESOS", "TOTAL EGRESOS OPERATIVOS", egresos.map((f) => f.clave)),
+    total("ra.totalEgresosOperativos", "EGRESOS", "TOTAL EGRESOS OPERATIVOS", egresos.map((f) => f.clave), {
+      rol: "totalEgresosOperativos",
+    }),
     ...deAbajo,
-    total("ra.totalEgresos", "ABAJO", "TOTAL EGRESOS", ["ra.totalEgresosOperativos", ...deAbajo.map((f) => f.clave)]),
+    total("ra.totalEgresos", "ABAJO", "TOTAL EGRESOS", ["ra.totalEgresosOperativos", ...deAbajo.map((f) => f.clave)], {
+      rol: "totalEgresos",
+    }),
     total("ra.saldo", "CIERRE", "SALDO INICIAL + INGRESOS - TOTAL EGRESOS", ["ra.disponibleAntes"], {
       resta: ["ra.totalEgresos"],
       requiere: ["ra.disponibleAntes"],

@@ -20,7 +20,7 @@ import { camposTipeables, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto"
 import { mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 import { CON_FILAS_EXTRA_HOY } from "./filasExtraEmpresasLista";
 
-// Filas extra del Reporte, parametrizado por empresa: Fredy Publicidad, HWC y Avianor (Brillante tiene sus tests en
+// Filas extra del Reporte, parametrizado por empresa: Fredy Publicidad, HWC, Avianor, Mantenor y Radio (Brillante tiene sus tests en
 // filasExtra.test.ts y filasExtraAcciones.test.ts). Sumar una empresa es una entrada más en ESPERADO. Las claves y los
 // importes están escritos a mano, a propósito. Usan la configuración REAL de lib/config.ts y la lista fijada de
 // filasExtraEmpresasLista.ts.
@@ -85,6 +85,15 @@ const ESPERADO: Record<string, Esperado> = {
     disponibleAntes: "mn.disponibleAntes",
     capital: null,
     capitalManual: { capital: "mn.capital", disponible: "mn.disponible" },
+    textoExistente: "Proveedores",
+  },
+  radio: {
+    ingresos: "ra.totalIngresos",
+    operativos: "ra.totalEgresosOperativos",
+    egresos: "ra.totalEgresos",
+    saldo: "ra.saldo",
+    disponibleAntes: "ra.disponibleAntes",
+    capital: { capital: "ra.capital", disponible: "ra.disponible", porcentaje: 50 },
     textoExistente: "Proveedores",
   },
 };

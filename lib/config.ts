@@ -121,7 +121,7 @@ export const EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE: readonly string[] = [
 // Ver lib/reporte/tipeoDirecto.ts.
 //
 // Tanda 1: solo flujo (Real manual de Ingresos/Egresos/de abajo). Sin filas extra y sin Disponibilidades.
-export const EMPRESAS_CON_TIPEO_DIRECTO: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"];
+export const EMPRESAS_CON_TIPEO_DIRECTO: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio"];
 
 // Filas extra del Reporte (las que agrega ADMIN/FINANZAS mientras revisa, lib/reporte/filasExtra.ts). Lista de
 // SLUGS de empresa; vacía = el Reporte no consulta ni muestra ninguna (ni siquiera lee la tabla) y no hay botón
@@ -136,7 +136,9 @@ export const EMPRESAS_CON_TIPEO_DIRECTO: readonly string[] = ["brillante", "fred
 // gastos y Saldo.
 // Mantenor: el Capital de trabajo es manual (se tipea en /reporte/carga) y no depende de ningún total: las filas extra no
 // lo tocan. Sí mueven los totales, Disponible antes de gastos y Posición de efectivo.
-export const EMPRESAS_CON_FILAS_EXTRA: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"];
+// Radio: el Capital de trabajo sale del 50% de TOTAL EGRESOS OPERATIVOS, así que una fila extra de Egresos lo mueve (igual
+// que en Fredy y HWC); un Capital tipeado a mano lo reemplaza.
+export const EMPRESAS_CON_FILAS_EXTRA: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio"];
 
 // Etiqueta del ciclo fiscal que se muestra en la portada de login (app/login/page.tsx).
 //

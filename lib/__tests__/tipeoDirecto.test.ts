@@ -37,7 +37,7 @@ const ABIERTO = { abiertas: 1, cerradas: 0 };
 
 // Empresas con tipeo directo hoy: Brillante y la Tanda 1 (solo flujo). Fijada a propósito: activar otra empresa
 // tiene que obligar a tocar este test.
-const CON_TIPEO_HOY = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor"];
+const CON_TIPEO_HOY = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio"];
 
 test("config: el interruptor es Brillante + Tanda 1, sin repetidos y con plantilla", () => {
   assert.ok(EMPRESAS_CON_TIPEO_DIRECTO.includes("brillante"));
@@ -88,7 +88,7 @@ test("sin Disponibilidades visibles, solo las 5 de flujo; sin interruptor, ningu
 
 test("las empresas fuera del interruptor no tienen celdas editables", () => {
   const fuera = SLUGS.filter((s) => !EMPRESAS_CON_TIPEO_DIRECTO.includes(s));
-  assert.ok(fuera.includes("havanna") && fuera.includes("radio"), "sanidad: el recorrido no está vacío");
+  assert.ok(fuera.includes("havanna") && fuera.includes("conexion-logistica"), "sanidad: el recorrido no está vacío");
   for (const slug of fuera) {
     assert.deepEqual(camposTipeables(PLANTILLAS_POR_SLUG[slug], slug), [], slug);
   }

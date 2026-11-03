@@ -63,10 +63,25 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
     abajo: [],
     disponibilidades: ["mn.dBancoFci", "mn.dEfectivo", "mn.dDolares", "mn.dChequesNegociados", "mn.dReservaSac"],
   },
+  // Radio: 1 Real manual de Ingresos (Resultado FCI) + 2 de Egresos (Expensas, Costo IVA) + 7 de Disponibilidades.
+  radio: {
+    ingresos: ["ra.resultadoFci"],
+    egresos: ["ra.expensas", "ra.costoIva"],
+    abajo: [],
+    disponibilidades: [
+      "ra.dBancoFci",
+      "ra.dEfectivo",
+      "ra.dChequesEnCartera",
+      "ra.dChequesNegociados",
+      "ra.dComisionesPendientes",
+      "ra.dReservaAguinaldo",
+      "ra.dChequesDespuesDel15",
+    ],
+  },
 };
 
-// Flujo + Disponibilidades: Fredy 3 + 9, HWC 2 + 8, Avianor 14 + 1, Mantenor 4 + 5.
-const CANTIDAD: Record<string, number> = { "fredy-publicidad": 12, hwc: 10, avianor: 15, mantenor: 9 };
+// Flujo + Disponibilidades: Fredy 3 + 9, HWC 2 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7.
+const CANTIDAD: Record<string, number> = { "fredy-publicidad": 12, hwc: 10, avianor: 15, mantenor: 9, radio: 10 };
 
 const ABIERTO = { abiertas: 1, cerradas: 0 };
 

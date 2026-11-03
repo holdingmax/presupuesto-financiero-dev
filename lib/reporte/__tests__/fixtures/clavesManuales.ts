@@ -119,6 +119,7 @@ export const CLAVES_MANUALES: Record<string, string[]> = {
     "ra.cobroJuicio|PRESUPUESTADO",
     "ra.devolucionEmbargo|PRESUPUESTADO",
     "ra.otroIngreso|PRESUPUESTADO",
+    "ra.expensas|REAL",
     "ra.expensasNoSocios|PRESUPUESTADO",
     "ra.costoIva|REAL",
     "ra.ajusteCaja|PRESUPUESTADO",
