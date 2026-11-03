@@ -2,12 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { requireAccesoEmpresa, puedeOperarEjecucionGlobal, veTodoEjecucion } from "@/lib/auth";
 import { obtenerEjecucionPorSemana, obtenerUltimaEjecucion } from "@/lib/ejecucion";
-import {
-  FILAS_POR_PAGINA,
-  filtroDeUnidades,
-  mapearMovimiento,
-  sumarImporteDeUnidades,
-} from "@/lib/ejecucionVista";
+import { FILAS_POR_PAGINA, mapearMovimiento, sumarImporteDeUnidades } from "@/lib/ejecucionVista";
+import { opcionesDeClasificacion, whereMovimientosDeEmpresa } from "@/lib/filtroClasificacionEmpresa";
 
 // Pestaña "Ejecución financiera" de cada empresa (docs/ejecucion_global_plan.md §3.4 y §6): SOLO
 // LECTURA y filtrada. Ejecución se opera en el módulo global (/ejecucion); acá se ve, de cada
@@ -46,24 +42,32 @@ export async function obtenerDatosSemanaDeEmpresa(
   periodo: string,
   numeroSemana: number,
   pagina: number = 1,
-  soloSinClasificar: boolean = false
+  clasificacion?: string
 ) {
   const { empresa, usuario } = await resolverEmpresaParaLeer(empresaSlug, periodo);
   const ejecucion = await obtenerEjecucionPorSemana(periodo, numeroSemana);
   if (!ejecucion) return null;
 
   const unidades = empresa.unidadesNegocio;
-  const filtroClasificacion = soloSinClasificar ? { clasificacion: "SIN CLASIFICAR" } : {};
-  const where = { ejecucionId: ejecucion.id, ...filtroDeUnidades(unidades), ...filtroClasificacion };
+  // Semana + unidades de la empresa (AND) + clasificación elegida, si hay.
+  const where = whereMovimientosDeEmpresa(ejecucion.id, unidades, clasificacion);
 
-  const [totalMovimientos, totalImporte, semanas] = await Promise.all([
+  const [totalMovimientos, totalImporte, semanas, clasificacionesDeLaEmpresa] = await Promise.all([
     prisma.movimientoBancario.count({ where }),
-    sumarImporteDeUnidades(ejecucion.id, unidades, soloSinClasificar),
+    sumarImporteDeUnidades(ejecucion.id, unidades, clasificacion),
     prisma.ejecucionSemanal.findMany({
       where: { periodo },
       orderBy: { numeroSemana: "asc" },
       select: { numeroSemana: true, estado: true },
     }),
+    // Opciones del desplegable: solo las clasificaciones de ESTA empresa en ESTA semana (sin el
+    // filtro elegido, para poder cambiar de opción). Nunca la lista global de la base.
+    unidades.length === 0
+      ? Promise.resolve([])
+      : prisma.movimientoBancario.groupBy({
+          by: ["clasificacion"],
+          where: whereMovimientosDeEmpresa(ejecucion.id, unidades, undefined),
+        }),
   ]);
   const totalPaginas = Math.max(1, Math.ceil(totalMovimientos / FILAS_POR_PAGINA));
   const paginaEfectiva = Math.min(Math.max(1, pagina), totalPaginas);
@@ -98,7 +102,8 @@ export async function obtenerDatosSemanaDeEmpresa(
     totalImporte,
     pagina: paginaEfectiva,
     totalPaginas,
-    soloSinClasificar,
+    clasificacion: clasificacion ?? null,
+    clasificacionesDisponibles: opcionesDeClasificacion(clasificacionesDeLaEmpresa.map((c) => c.clasificacion)),
   };
 }
 

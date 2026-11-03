@@ -5,10 +5,12 @@ import { formatearImporteConCentavos } from "@/app/ejecucion/formato";
 import { obtenerDatosSemanaDeEmpresa } from "../datos";
 import { AccesoDenegadoError } from "@/lib/auth";
 import { textoTrazabilidad } from "@/lib/fecha";
+import { hrefConFiltro, leerClasificacion, queryClasificacion } from "@/lib/filtroClasificacionEmpresa";
+import { nombreParaMostrar } from "@/lib/clasificaciones";
 
 type Props = {
   params: Promise<{ empresa: string; periodo: string; numeroSemana: string }>;
-  searchParams: Promise<{ pagina?: string; filtro?: string }>;
+  searchParams: Promise<{ pagina?: string; filtro?: string; clasificacion?: string }>;
 };
 
 function parsearPagina(paginaParam: string | undefined) {
@@ -21,9 +23,12 @@ function parsearPagina(paginaParam: string | undefined) {
 // (/ejecucion), al que lleva el enlace de arriba para quien opera o es ADMIN/FINANZAS.
 export default async function EjecucionSemanaPage({ params, searchParams }: Props) {
   const { empresa, periodo, numeroSemana: numeroSemanaParam } = await params;
-  const { pagina: paginaParam, filtro } = await searchParams;
+  const { pagina: paginaParam, filtro, clasificacion: clasificacionParam } = await searchParams;
   const numeroSemana = Number(numeroSemanaParam);
-  const soloSinClasificar = filtro === "sin_clasificar";
+  // Elegir una clasificación reemplaza al viejo ?filtro=sin_clasificar (ver lib/filtroClasificacionEmpresa.ts).
+  const clasificacion = leerClasificacion({ clasificacion: clasificacionParam, filtro });
+  const queryFiltro = queryClasificacion(clasificacion);
+  const base = `/${empresa}/${periodo}/ejecucion/${numeroSemana}`;
 
   if (!Number.isInteger(numeroSemana) || numeroSemana < 1) {
     return (
@@ -42,7 +47,7 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
       periodo,
       numeroSemana,
       parsearPagina(paginaParam),
-      soloSinClasificar
+      clasificacion
     );
   } catch (error) {
     // Ver el comentario equivalente en presupuesto/page.tsx: el layout ya
@@ -87,10 +92,15 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
         </div>
         <div className="text-right">
           <a
-            href={`/${empresa}/${periodo}/ejecucion/${datos.numeroSemana}/excel`}
+            href={hrefConFiltro(`/${empresa}/${periodo}/ejecucion/${datos.numeroSemana}/excel`, clasificacion)}
             className="mr-3 rounded-md px-2.5 py-1 text-sm text-marino border border-marino hover:bg-marino-tint transition"
+            title={
+              clasificacion
+                ? "Descarga solo los movimientos filtrados por la clasificación elegida"
+                : "Descarga todos los movimientos de la semana"
+            }
           >
-            Descargar Excel
+            {clasificacion ? "Descargar Excel (filtrado)" : "Descargar Excel"}
           </a>
           <span
             className={`text-xs px-2.5 py-1 rounded-md ${
@@ -115,7 +125,7 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
           {datos.semanas.map((s) => (
             <Link
               key={s.numeroSemana}
-              href={`/${empresa}/${periodo}/ejecucion/${s.numeroSemana}`}
+              href={hrefConFiltro(`/${empresa}/${periodo}/ejecucion/${s.numeroSemana}`, clasificacion)}
               className={`rounded-md px-2.5 py-1 transition ${
                 s.numeroSemana === datos.numeroSemana
                   ? "bg-marino text-white"
@@ -133,6 +143,40 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
           Esta empresa no tiene unidades de negocio asignadas, así que no hay movimientos para mostrar.
         </p>
       )}
+
+      <form method="get" action={base} className="mb-4 flex flex-wrap items-end gap-2 text-xs text-ink-secondary">
+        <label className="flex flex-col gap-0.5">
+          Clasificación
+          <select
+            name="clasificacion"
+            defaultValue={clasificacion ?? ""}
+            className="h-7 rounded-md border border-line bg-paper-raised px-2 text-xs text-ink focus:border-marino focus:outline-none"
+          >
+            <option value="">Todas</option>
+            {datos.clasificacionesDisponibles.map((c) => (
+              <option key={c.valor} value={c.valor}>
+                {c.etiqueta}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="submit"
+          className="h-7 rounded-md border border-marino px-3 font-medium text-marino transition hover:bg-marino-tint"
+        >
+          Filtrar
+        </button>
+        {clasificacion && (
+          <Link href={base} className="flex h-7 items-center px-1 text-ink-muted underline hover:text-ink">
+            Quitar filtro
+          </Link>
+        )}
+        {clasificacion && (
+          <span className="flex h-7 items-center text-ink-muted">
+            Mostrando: {nombreParaMostrar(clasificacion)} · el Excel descarga solo lo filtrado
+          </span>
+        )}
+      </form>
 
       <div>
         <div className="flex items-start justify-between mb-2">
@@ -159,7 +203,9 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
 
         {datos.totalMovimientos === 0 ? (
           <p className="text-sm text-ink-muted py-6 border-t border-line-strong">
-            Esta semana no tiene movimientos de {datos.empresaNombre}.
+            {clasificacion
+              ? `Esta semana no tiene movimientos de ${datos.empresaNombre} con la clasificación “${nombreParaMostrar(clasificacion)}”.`
+              : `Esta semana no tiene movimientos de ${datos.empresaNombre}.`}
           </p>
         ) : (
           <>
@@ -168,7 +214,7 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
                 base={`/${empresa}/${periodo}/ejecucion/${datos.numeroSemana}`}
                 pagina={datos.pagina}
                 totalPaginas={datos.totalPaginas}
-                filtro={filtro}
+                query={queryFiltro}
               />
             </div>
             {/* overflow-auto + alto máximo: el encabezado sticky de la tabla se pega al borde de esta caja. */}
@@ -183,7 +229,7 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
               base={`/${empresa}/${periodo}/ejecucion/${datos.numeroSemana}`}
               pagina={datos.pagina}
               totalPaginas={datos.totalPaginas}
-              filtro={filtro}
+              query={queryFiltro}
             />
           </>
         )}

@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
 import { ordenarPorCadenaDeSaldo } from "@/lib/ordenSaldo";
@@ -176,20 +176,22 @@ export function filtroDeUnidades(unidades: string[]): Prisma.MovimientoBancarioW
 // Total en pesos de la vista de una empresa: de la semana, sin ignorados, los movimientos no
 // prorrateados de sus unidades más sus porciones de prorrateo (nunca el importe total de un
 // prorrateado). Sumado en la base (numeric exacto) y pasado a centavos como texto.
-export async function sumarImporteDeUnidades(ejecucionId: string, unidades: string[], soloSinClasificar: boolean) {
+export async function sumarImporteDeUnidades(ejecucionId: string, unidades: string[], clasificacion?: string) {
   if (unidades.length === 0) return 0;
+  // Fragmento parametrizado (nunca se interpola el texto); vacío si no hay filtro.
+  const porClasificacion = clasificacion ? Prisma.sql`AND mb.clasificacion = ${clasificacion}` : Prisma.empty;
   const [fila] = await prisma.$queryRaw<{ total: string }[]>`
     SELECT COALESCE(SUM(x.importe), 0)::text AS total FROM (
       SELECT mb.importe FROM "MovimientoBancario" mb
       WHERE mb."ejecucionId" = ${ejecucionId} AND NOT mb.ignorado
-        AND (NOT ${soloSinClasificar} OR mb.clasificacion = 'SIN CLASIFICAR')
+        ${porClasificacion}
         AND mb."unidadNegocio" = ANY(${unidades}::text[])
         AND NOT EXISTS (SELECT 1 FROM "MovimientoBancarioDesglose" d WHERE d."movimientoId" = mb.id)
       UNION ALL
       SELECT d.importe FROM "MovimientoBancario" mb
       JOIN "MovimientoBancarioDesglose" d ON d."movimientoId" = mb.id
       WHERE mb."ejecucionId" = ${ejecucionId} AND NOT mb.ignorado
-        AND (NOT ${soloSinClasificar} OR mb.clasificacion = 'SIN CLASIFICAR')
+        ${porClasificacion}
         AND d."unidadNegocio" = ANY(${unidades}::text[])
     ) x
   `;

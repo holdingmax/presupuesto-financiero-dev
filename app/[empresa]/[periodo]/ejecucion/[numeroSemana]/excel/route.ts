@@ -2,13 +2,14 @@ import { prisma } from "@/lib/prisma";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { AccesoDenegadoError, requireAccesoEmpresa } from "@/lib/auth";
 import { obtenerEjecucionPorSemana } from "@/lib/ejecucion";
-import { filtroDeUnidades, mapearMovimiento } from "@/lib/ejecucionVista";
+import { mapearMovimiento } from "@/lib/ejecucionVista";
+import { leerClasificacion, whereMovimientosDeEmpresa } from "@/lib/filtroClasificacionEmpresa";
 import { construirExcelMovimientos, respuestaExcel } from "@/lib/ejecucionExcel";
 
 // Igual que la pantalla de la empresa (datos.ts): solo sus unidades (o porciones de prorrateo),
-// sin saldo, mismo orden — pero toda la semana, sin paginar ni filtrar.
+// sin saldo, mismo orden — pero toda la semana, sin paginar. Respeta el filtro por clasificación.
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ empresa: string; periodo: string; numeroSemana: string }> }
 ) {
   const { empresa: empresaSlug, periodo, numeroSemana: numeroSemanaParam } = await params;
@@ -30,8 +31,15 @@ export async function GET(
   if (!ejecucion) return new Response("No existe esa semana.", { status: 404 });
 
   const unidades = empresa.unidadesNegocio;
+  // Mismo filtro que la pantalla (?clasificacion=…, o el viejo ?filtro=sin_clasificar), por AND con
+  // las unidades de la empresa.
+  const url = new URL(req.url);
+  const clasificacion = leerClasificacion({
+    clasificacion: url.searchParams.get("clasificacion") ?? undefined,
+    filtro: url.searchParams.get("filtro") ?? undefined,
+  });
   const filas = await prisma.movimientoBancario.findMany({
-    where: { ejecucionId: ejecucion.id, ...filtroDeUnidades(unidades) },
+    where: whereMovimientosDeEmpresa(ejecucion.id, unidades, clasificacion),
     orderBy: [{ fecha: "asc" }, { id: "asc" }],
     include: { desglose: { orderBy: { createdAt: "asc" } } },
   });
@@ -40,5 +48,9 @@ export async function GET(
     filas.map((m) => mapearMovimiento(m, unidades)),
     false
   );
-  return respuestaExcel(buffer, `movimientos-${empresaSlug.replace(/[^\w-]/g, "")}-${periodo}-semana-${numeroSemana}.xlsx`);
+  const sufijo = clasificacion ? "-filtrado" : "";
+  return respuestaExcel(
+    buffer,
+    `movimientos-${empresaSlug.replace(/[^\w-]/g, "")}-${periodo}-semana-${numeroSemana}${sufijo}.xlsx`
+  );
 }
