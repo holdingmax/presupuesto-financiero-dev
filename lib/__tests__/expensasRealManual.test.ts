@@ -5,12 +5,13 @@ import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { camposTipeables, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto";
 import { mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 
-// Expensas pasa a Real manual en Brillante, Havanna y Conexión Logística (Kike la carga sobre el Reporte). Las claves y los
+// Expensas pasa a Real manual en Brillante, Havanna, Conexión Logística y HWC (Kike la carga sobre el Reporte). Las claves y los
 // totales están escritos a mano, a propósito. Corre con el motor real (armarReporte), sin base.
 
 const EMPRESAS: Record<string, { expensas: string; operativos: string; egresos: string; saldo: string; noSocios?: string }> = {
   brillante: { expensas: "br.expensas", operativos: "br.totalEgresosOperativos", egresos: "br.totalEgresos", saldo: "br.saldo" },
   havanna: { expensas: "hv.expensas", operativos: "hv.totalEgresosOperativos", egresos: "hv.totalEgresos", saldo: "hv.saldo" },
+  hwc: { expensas: "hw.expensas", operativos: "hw.subtotalEstructura", egresos: "hw.totalPagado", saldo: "hw.saldo" },
   "conexion-logistica": {
     expensas: "cx.expensas",
     operativos: "cx.totalEgresosOperativos",
@@ -97,4 +98,54 @@ test("Havanna: Compra IVA y Otros Ingresos no cambian (Kike no trae valor para e
 test("Brillante: Compra IVA no cambia", () => {
   const f = PLANTILLAS_POR_SLUG["brillante"].filas.find((x) => x.clave === "br.compraIva")!;
   assert.ok(f.tipo === "linea" && f.real.tipo === "clasificaciones");
+});
+
+// HWC: además de Expensas, las tres filas de Ingresos de aerolíneas y las cinco de pagos pasan a Real manual (Kike las
+// tipea en VALORES A MANO). Siguen con su Presupuestado manual y sus pendientes K6/K2. Ninguna tiene clasificaciones.
+const HWC_INGRESOS = ["hw.facturacionLatam", "hw.recaudacionLatamAvianca", "hw.recaudacionJetsmart"];
+const HWC_PAGOS = ["hw.pagoGlobe", "hw.pagoLatam", "hw.pagoAvianca", "hw.pagoFlybondi", "hw.pagoGol"];
+
+test("HWC: ingresos de aerolíneas y cinco pagos son Real manual con Presupuestado manual y su pendiente", () => {
+  const p = PLANTILLAS_POR_SLUG["hwc"];
+  for (const clave of [...HWC_INGRESOS, ...HWC_PAGOS]) {
+    const f = p.filas.find((x) => x.clave === clave)!;
+    assert.ok(f.tipo === "linea" && f.real.tipo === "manual" && f.presupuesto.tipo === "manual", clave);
+    assert.equal(f.pendiente, "K6", clave);
+    assert.equal(camposTipeables(p, "hwc").some((c) => c.clave === clave && c.columna === "REAL"), true, clave);
+  }
+  const exp = p.filas.find((x) => x.clave === "hw.expensas")!;
+  assert.ok(exp.tipo === "linea" && exp.pendiente === "K2" && exp.nota === "Planilla: reparto de la unidad EXPENSAS.");
+});
+
+test("HWC: tipear los ingresos suma en TOTAL DE INGRESOS y los pagos en TOTAL EN EFECTIVO PAGADO, una sola vez", () => {
+  const p = PLANTILLAS_POR_SLUG["hwc"];
+  const meses = mesesDePrueba(p);
+  const base = new Map(meses[1].manuales!.real);
+  for (const c of [...HWC_INGRESOS, ...HWC_PAGOS]) base.delete(c);
+  const con = new Map(base);
+  for (const c of [...HWC_INGRESOS, ...HWC_PAGOS]) con.set(c, IMPORTE);
+  const armar = (r: Map<string, number>) =>
+    armarReporte(p, [meses[0], { ...meses[1], manuales: { ...meses[1].manuales!, real: r } }], 1);
+  const antes = armar(base);
+  const despues = armar(con);
+  for (const c of [...HWC_INGRESOS, ...HWC_PAGOS]) {
+    assert.equal(celda(antes, c).real, null, `${c} sin valor`);
+    assert.equal(celda(despues, c).real, IMPORTE, c);
+    assert.equal(celda(antes, c).realIncompleto, false, `${c}: con celda tipeable ya no queda marcada incompleta`);
+  }
+  assert.equal(celda(despues, "hw.totalIngresos").real! - (celda(antes, "hw.totalIngresos").real ?? 0), IMPORTE * 3, "ingresos");
+  assert.equal(celda(despues, "hw.totalPagado").real! - (celda(antes, "hw.totalPagado").real ?? 0), IMPORTE * 5, "pagos");
+  assert.equal(celda(despues, "hw.totalIngresos").presupuestado, celda(antes, "hw.totalIngresos").presupuestado);
+});
+
+test("HWC: Clientes propios, Proveedores y Sueldos siguen leyendo la Ejecución (sin tocar)", () => {
+  const p = PLANTILLAS_POR_SLUG["hwc"];
+  const real = (clave: string) => {
+    const f = p.filas.find((x) => x.clave === clave)!;
+    return f.tipo === "linea" ? f.real.tipo : null;
+  };
+  assert.equal(real("hw.clientesPropios"), "clasificaciones");
+  assert.equal(real("hw.proveedores"), "clasificaciones");
+  assert.equal(real("hw.sueldos"), "clasificaciones");
+  assert.equal(real("hw.recuperoExpensas"), "ninguna");
 });

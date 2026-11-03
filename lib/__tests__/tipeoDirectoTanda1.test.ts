@@ -29,9 +29,9 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
     ],
   },
   hwc: {
-    ingresos: ["hw.resultadoFci"],
-    egresos: ["hw.costoIva"],
-    abajo: [],
+    ingresos: ["hw.facturacionLatam", "hw.recaudacionLatamAvianca", "hw.recaudacionJetsmart", "hw.resultadoFci"],
+    egresos: ["hw.expensas", "hw.costoIva"],
+    abajo: ["hw.pagoGlobe", "hw.pagoLatam", "hw.pagoAvianca", "hw.pagoFlybondi", "hw.pagoGol"],
     disponibilidades: [
       "hw.dBancosFci",
       "hw.dCaja",
@@ -126,11 +126,11 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
   },
 };
 
-// Flujo + Disponibilidades: Fredy 3 + 9, HWC 2 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7, Brillante 6 + 11,
+// Flujo + Disponibilidades: Fredy 3 + 9, HWC 11 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7, Brillante 6 + 11,
 // Havanna 4 + 6, Conexión 4 + 11.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 12,
-  hwc: 10,
+  hwc: 19,
   avianor: 15,
   mantenor: 9,
   radio: 10,
