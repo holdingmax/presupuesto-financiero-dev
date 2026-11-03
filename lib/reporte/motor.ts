@@ -87,7 +87,14 @@ export type FuenteReal =
   // Sin `sentido` es el neto (créditos + débitos). Con `sentido`, solo los
   // importes positivos (creditos) o negativos (debitos): así una misma
   // clasificación puede ir en dos filas (Préstamo MS: entrada y devolución).
-  | { tipo: "clasificaciones"; clasificaciones: string[]; sentido?: Sentido }
+  | {
+      tipo: "clasificaciones";
+      clasificaciones: string[];
+      sentido?: Sentido;
+      // Resta el Real MANUAL de estas filas del mes, a partir de `desde` ("AAAA-MM"). Antes de `desde`, el
+      // cálculo no cambia. Si el mes no tiene semanas cerradas sigue siendo null (se evalúa antes de restar).
+      restarManuales?: { desde: string; filas: string[] };
+    }
   // Valor que en la planilla se tipea (Disponibilidades, Resultado FCI…): sale de
   // ValorManualReporte (columna REAL). Sin cargar = null ("—").
   | { tipo: "manual" }
@@ -440,7 +447,12 @@ export function armarReporte(
       case "clasificaciones": {
         if (sinEjecucion[i]) return { v: null, inc };
         const delMes = realPorMes[i][r.sentido ?? "neto"];
-        return { v: aplicarSigno(fila.signo, delMes.get(fila.clave) ?? 0), inc };
+        const bruto = aplicarSigno(fila.signo, delMes.get(fila.clave) ?? 0);
+        const resta = r.restarManuales;
+        if (!resta || meses[i].periodo < resta.desde) return { v: bruto, inc };
+        const manuales = meses[i].manuales?.real;
+        const aRestar = resta.filas.reduce((a, c) => a + (manuales?.get(c) ?? 0), 0);
+        return { v: sinMenosCero(bruto - aRestar), inc };
       }
       case "manual":
         return { v: meses[i].manuales?.real.get(fila.clave) ?? null, inc };
@@ -653,6 +665,12 @@ export function validarPlantilla(plantilla: Plantilla): string[] {
       errores.push(`${fila.clave}: toma el Disponible, pero la plantilla no tiene esa fila`);
     }
     if (fila.real.tipo === "clasificaciones") {
+      for (const c of fila.real.restarManuales?.filas ?? []) {
+        const o = plantilla.filas.find((f) => f.clave === c);
+        if (!o || o.tipo !== "linea" || o.real.tipo !== "manual") {
+          errores.push(`${fila.clave}: restarManuales apunta a "${c}", que no es una fila con Real manual`);
+        }
+      }
       const sentido = fila.real.sentido ?? "neto";
       for (const c of fila.real.clasificaciones) {
         const clave = claveEquivalencia(c);

@@ -57,6 +57,7 @@ export const CLAVES_MANUALES: Record<string, string[]> = {
     "br.cobranzaChequeDiferido|PRESUPUESTADO",
     "br.otrasOperacionesJujuy|REAL",
     "br.otrasOperacionesJujuy|PRESUPUESTADO",
+    "br.goldSalta|REAL",
     "br.goldSalta|PRESUPUESTADO",
     "br.cobroIvaInterempresa|PRESUPUESTADO",
     "br.resultadoFci|REAL",

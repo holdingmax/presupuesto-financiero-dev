@@ -39,6 +39,9 @@ export function mesesDePrueba(plantilla: Plantilla): DatosMes[] {
   const manualesPresupuesto = new Map<string, number>();
   let n = 0;
   for (const c of camposManuales(plantilla)) {
+    // «Gold Salta» de Brillante pasó a Real manual (neteo de cobranzas): su celda no se numera, para que los valores de las
+    // demás sigan siendo los de las fotos JSON (que no se regeneran). Queda vacía, como en la foto.
+    if (c.clave === "br.goldSalta" && c.columna === "REAL") continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;
     (c.columna === "REAL" ? manualesReal : manualesPresupuesto).set(c.clave, valor);
   }

@@ -35,6 +35,10 @@ function conExpensasManual(foto: { filas: [string, unknown[][]][] }) {
   const celda = copia.filas.find(([clave]) => clave === "br.expensas")![1][0];
   assert.equal(celda[5], true, "la foto de antes tiene Expensas con el Real incompleto");
   celda[5] = false;
+  // Gold Salta también pasó de «Sin Real» a Real manual (neteo de cobranzas, desde 2026-10): mismo motivo.
+  const gold = copia.filas.find(([clave]) => clave === "br.goldSalta")![1][0];
+  assert.equal(gold[5], true, "la foto de antes tiene Gold Salta con el Real incompleto");
+  gold[5] = false;
   return copia;
 }
 
@@ -65,7 +69,7 @@ function datos(conValores: boolean): DatosMes[] {
   const presupuesto = new Map<string, number>();
   let n = 0;
   for (const c of camposManuales(BRILLANTE)) {
-    if (c.columna === "REAL" && (c.clave === JUJUY || c.clave === RECUPERO || c.clave === "br.expensas")) continue;
+    if (c.columna === "REAL" && (c.clave === JUJUY || c.clave === RECUPERO || c.clave === "br.expensas" || c.clave === "br.goldSalta")) continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;
     (c.columna === "REAL" ? real : presupuesto).set(c.clave, valor);
   }

@@ -196,8 +196,8 @@ test("tipeo: las filas extra aceptan Presupuestado y Real; las demás filas de l
   for (const k of ["extra.i1", "extra.e1", "extra.a1"]) {
     assert.ok(campos.includes(`${k}|REAL`) && campos.includes(`${k}|PRESUPUESTADO`), k);
   }
-  // 11 de Disponibilidades + 6 de flujo (Real) + 6 de las filas extra.
-  assert.equal(campos.length, 11 + 6 + 6);
+  // 11 de Disponibilidades + 7 de flujo (Real) + 6 de las filas extra.
+  assert.equal(campos.length, 11 + 7 + 6);
   // El Presupuestado de las filas de la plantilla no se tipea desde acá.
   assert.equal(campos.some((k) => !k.startsWith("extra.") && k.endsWith("|PRESUPUESTADO")), false);
 });
@@ -205,7 +205,7 @@ test("tipeo: las filas extra aceptan Presupuestado y Real; las demás filas de l
 test("tipeo: sin el interruptor de filas extra, ni una celda de ellas; sin tipeo directo, ninguna", () => {
   const sin = camposTipeables(CON_EXTRAS, "brillante", TIPEO_SIN_EXTRAS);
   assert.equal(sin.some((c) => c.clave.startsWith("extra.")), false);
-  assert.equal(sin.length, 17);
+  assert.equal(sin.length, 18);
   assert.deepEqual(camposTipeables(CON_EXTRAS, "brillante", { ...TIPEO, tipeo: [] }), []);
 });
 
@@ -365,6 +365,10 @@ function conExpensasManual(foto: { filas: [string, unknown[][]][] }) {
   const celda = copia.filas.find(([clave]) => clave === "br.expensas")![1][0];
   assert.equal(celda[5], true, "la foto de antes tiene Expensas con el Real incompleto");
   celda[5] = false;
+  // Gold Salta también pasó de «Sin Real» a Real manual (neteo de cobranzas, desde 2026-10): mismo motivo.
+  const gold = copia.filas.find(([clave]) => clave === "br.goldSalta")![1][0];
+  assert.equal(gold[5], true, "la foto de antes tiene Gold Salta con el Real incompleto");
+  gold[5] = false;
   return copia;
 }
 
@@ -393,7 +397,7 @@ function datosDeLaFoto(): DatosMes[] {
   const presupuesto = new Map<string, number>();
   let n = 0;
   for (const c of camposManuales(BRILLANTE)) {
-    if (c.columna === "REAL" && (c.clave === "br.otrasOperacionesJujuy" || c.clave === "br.recuperoGastos" || c.clave === "br.expensas")) continue;
+    if (c.columna === "REAL" && (c.clave === "br.otrasOperacionesJujuy" || c.clave === "br.recuperoGastos" || c.clave === "br.expensas" || c.clave === "br.goldSalta")) continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;
     (c.columna === "REAL" ? real : presupuesto).set(c.clave, valor);
   }

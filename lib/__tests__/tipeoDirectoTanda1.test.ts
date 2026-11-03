@@ -80,9 +80,9 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
       "ra.dChequesDespuesDel15",
     ],
   },
-  // Brillante: 3 Real manual de Ingresos + 1 de Egresos (Expensas) + 2 de abajo + 11 de Disponibilidades.
+  // Brillante: 4 Real manual de Ingresos (con Gold Salta) + 1 de Egresos (Expensas) + 2 de abajo + 11 de Disponibilidades.
   brillante: {
-    ingresos: ["br.otrasOperacionesJujuy", "br.resultadoFci", "br.otroMsnt"],
+    ingresos: ["br.otrasOperacionesJujuy", "br.goldSalta", "br.resultadoFci", "br.otroMsnt"],
     egresos: ["br.expensas"],
     abajo: ["br.traspasoSaldoInicial", "br.recuperoGastos"],
     disponibilidades: [
@@ -128,7 +128,7 @@ const ESPERADO: Record<string, { ingresos: string[]; egresos: string[]; abajo: s
   },
 };
 
-// Flujo + Disponibilidades: Fredy 3 + 9, HWC 5 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7, Brillante 6 + 11,
+// Flujo + Disponibilidades: Fredy 3 + 9, HWC 5 + 8, Avianor 14 + 1, Mantenor 4 + 5, Radio 3 + 7, Brillante 7 + 11,
 // Havanna 4 + 6, Conexión 4 + 11.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 12,
@@ -136,7 +136,7 @@ const CANTIDAD: Record<string, number> = {
   avianor: 15,
   mantenor: 9,
   radio: 10,
-  brillante: 17,
+  brillante: 18,
   havanna: 10,
   "conexion-logistica": 15,
 };

@@ -22,6 +22,12 @@ export const clasifSentido = (sentido: Sentido, ...clasificaciones: string[]): F
   clasificaciones,
   sentido,
 });
+// Como clasif, pero desde `desde` ("AAAA-MM") resta el Real manual de otras filas (Brillante: Gold y MSNT).
+export const clasifNeteando = (desde: string, filas: string[], ...clasificaciones: string[]): FuenteReal => ({
+  tipo: "clasificaciones",
+  clasificaciones,
+  restarManuales: { desde, filas },
+});
 export const cat = (...categorias: string[]): FuentePresupuesto => ({ tipo: "categorias", categorias });
 export const SIN_REAL: FuenteReal = { tipo: "ninguna" };
 export const SIN_PRESUPUESTO: FuentePresupuesto = { tipo: "ninguna" };

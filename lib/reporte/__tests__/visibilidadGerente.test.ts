@@ -45,6 +45,18 @@ const GOLDEN = JSON.parse(
   readFileSync(new URL("./fixtures/gerenteSinReservados.json", import.meta.url), "utf-8")
 ) as Record<string, unknown>;
 
+// Excepción explícita (ver brillanteRealManual.test.ts): «Gold Salta» de Brillante pasó de «Sin Real» a Real manual, y una celda de
+// Real manual vacía ya no se marca como incompleta (realIncompleto). Es la ÚNICA diferencia con la foto de Brillante
+// (tomada antes del cambio, que no se regenera): se pone en una copia ese único campo de esa única fila.
+function esperado(slug: string): unknown {
+  if (slug !== "brillante") return GOLDEN[slug];
+  const copia = JSON.parse(JSON.stringify(GOLDEN[slug])) as { filas: [string, unknown[][]][] };
+  const gold = copia.filas.find(([clave]) => clave === "br.goldSalta")![1][0];
+  assert.equal(gold[5], true, "la foto de antes tiene Gold Salta con el Real incompleto");
+  gold[5] = false;
+  return copia;
+}
+
 test("golden: cubre todas las plantillas", () => {
   assert.deepEqual(Object.keys(GOLDEN).sort(), Object.keys(PLANTILLAS_POR_SLUG).sort());
 });
@@ -57,7 +69,7 @@ for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     assert.equal(acceso, false);
     for (const verBloquesReservados of [false, acceso, { disponibilidades: false, cierre: false }]) {
       const r = armarReporte(plantilla, meses, 1, { verBloquesReservados });
-      assert.deepEqual(proyeccion(r), GOLDEN[slug]);
+      assert.deepEqual(proyeccion(r), esperado(slug));
     }
   });
 
@@ -177,7 +189,7 @@ for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
 
   test(`${slug}: Cierre sin Disponibilidades en el motor — falla cerrado, no hay ni uno ni otro`, () => {
     const r = reporteParcial(slug, { disponibilidades: false, cierre: true });
-    assert.deepEqual(proyeccion(r), GOLDEN[slug]);
+    assert.deepEqual(proyeccion(r), esperado(slug));
   });
 }
 

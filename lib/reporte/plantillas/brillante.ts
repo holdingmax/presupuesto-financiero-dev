@@ -4,6 +4,7 @@ import {
   capital,
   cat,
   clasif,
+  clasifNeteando,
   clasifSentido,
   disp,
   disponible,
@@ -41,19 +42,25 @@ const disponibilidades = [
 ];
 
 const ingresos = [
-  ingreso("br.cobranzaContado", "Cobranza Contado", clasif("COBRANZAS"), cat("COBRANZAS"), {
-    pendiente: "K7",
-    parcial: true,
-    nota: "Planilla: COBRANZAS de la unidad sin las de Gold Seguridad. Hasta resolver K7 incluye las de Gold.",
-  }),
+  ingreso(
+    "br.cobranzaContado",
+    "Cobranza Contado",
+    clasifNeteando("2026-10", ["br.goldSalta", "br.otroMsnt"], "COBRANZAS"),
+    cat("COBRANZAS"),
+    {
+      pendiente: "K7",
+      parcial: true,
+      nota: "Planilla: COBRANZAS de la unidad sin Gold ni MSNT. Desde 2026-10 se les resta el Real manual de «Gold Salta» y «Otro (MSNT…)»; antes de esa fecha incluye las de Gold (K7).",
+    }
+  ),
   ingreso("br.cobranzaChequeDiferido", "Cobranza Cheque Diferido", SIN_REAL, PRESUPUESTO_MANUAL),
   ingreso("br.otrasOperacionesJujuy", "Otras operaciones (MANTENOR JUJUY)", REAL_MANUAL, PRESUPUESTO_MANUAL, {
     pendiente: "K8",
     nota: "Real tipeado a mano.",
   }),
-  ingreso("br.goldSalta", "Otros Operaciones (GOLD SALTA)", SIN_REAL, PRESUPUESTO_MANUAL, {
+  ingreso("br.goldSalta", "Otros Operaciones (GOLD SALTA)", REAL_MANUAL, PRESUPUESTO_MANUAL, {
     pendiente: "K7",
-    nota: "Cobranzas de la razón social Gold Seguridad.",
+    nota: "Cobranzas de la razón social Gold Seguridad, Real tipeado a mano.",
   }),
   ingreso("br.cobroIvaInterempresa", "Otro (Cobro IVA interempresa)", SIN_REAL, PRESUPUESTO_MANUAL),
   ingreso("br.resultadoFci", "Resultado FCI", REAL_MANUAL, cat("Intereses FCI")),
