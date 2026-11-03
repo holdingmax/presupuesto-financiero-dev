@@ -196,16 +196,19 @@ test("tipeo: las filas extra aceptan Presupuestado y Real; las demás filas de l
   for (const k of ["extra.i1", "extra.e1", "extra.a1"]) {
     assert.ok(campos.includes(`${k}|REAL`) && campos.includes(`${k}|PRESUPUESTADO`), k);
   }
-  // 11 de Disponibilidades + 7 de flujo (Real) + 6 de las filas extra.
-  assert.equal(campos.length, 11 + 7 + 6);
-  // El Presupuestado de las filas de la plantilla no se tipea desde acá.
-  assert.equal(campos.some((k) => !k.startsWith("extra.") && k.endsWith("|PRESUPUESTADO")), false);
+  // 11 de Disponibilidades + 7 de flujo (Real) + el Capital de trabajo (Presupuestado) + 6 de las filas extra.
+  assert.equal(campos.length, 11 + 7 + 1 + 6);
+  // El Presupuestado de las filas de la plantilla no se tipea desde acá, salvo el del Capital de trabajo.
+  assert.deepEqual(
+    campos.filter((k) => !k.startsWith("extra.") && k.endsWith("|PRESUPUESTADO")),
+    ["br.capital|PRESUPUESTADO"]
+  );
 });
 
 test("tipeo: sin el interruptor de filas extra, ni una celda de ellas; sin tipeo directo, ninguna", () => {
   const sin = camposTipeables(CON_EXTRAS, "brillante", TIPEO_SIN_EXTRAS);
   assert.equal(sin.some((c) => c.clave.startsWith("extra.")), false);
-  assert.equal(sin.length, 18);
+  assert.equal(sin.length, 18 + 1);
   assert.deepEqual(camposTipeables(CON_EXTRAS, "brillante", { ...TIPEO, tipeo: [] }), []);
 });
 

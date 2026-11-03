@@ -13,9 +13,17 @@ import { mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 
 // `presupuestoPisable`: filas de flujo con Presupuestado derivado que se puede pisar tipeando (pisableConManual); además de su
 // Real manual (si lo tienen), abren la celda de Presupuestado.
+// `capital`: la fila `capital` de Cierre, de la que se tipea el Presupuestado (Avianor no tiene Capital de trabajo).
 const ESPERADO: Record<
   string,
-  { ingresos: string[]; egresos: string[]; abajo: string[]; disponibilidades: string[]; presupuestoPisable?: string[] }
+  {
+    ingresos: string[];
+    egresos: string[];
+    abajo: string[];
+    disponibilidades: string[];
+    presupuestoPisable?: string[];
+    capital?: string;
+  }
 > = {
   "fredy-publicidad": {
     ingresos: ["fr.resultadoFci"],
@@ -32,6 +40,7 @@ const ESPERADO: Record<
       "fr.dDividendosPendientes",
       "fr.dRecuperoBlanqueo",
     ],
+    capital: "fr.capital",
   },
   hwc: {
     // Facturación/Recaudaciones de aerolíneas y los pagos a Globe, Avianca y GOL ya salen de Ejecución por
@@ -49,6 +58,7 @@ const ESPERADO: Record<
       "hw.dPrevisionSac",
       "hw.dPagoLatamPendiente",
     ],
+    capital: "hw.capital",
   },
   avianor: {
     ingresos: [
@@ -70,6 +80,7 @@ const ESPERADO: Record<
     abajo: [],
     disponibilidades: ["mn.dBancoFci", "mn.dEfectivo", "mn.dDolares", "mn.dChequesNegociados", "mn.dReservaSac"],
     presupuestoPisable: ["mn.prestamos"],
+    capital: "mn.capital",
   },
   // Radio: 1 Real manual de Ingresos (Resultado FCI) + 2 de Egresos (Expensas, Costo IVA) + 7 de Disponibilidades.
   radio: {
@@ -85,6 +96,7 @@ const ESPERADO: Record<
       "ra.dReservaAguinaldo",
       "ra.dChequesDespuesDel15",
     ],
+    capital: "ra.capital",
   },
   // Brillante: 4 Real manual de Ingresos (con Gold Salta) + 1 de Egresos (Expensas) + 2 de abajo + 11 de Disponibilidades.
   brillante: {
@@ -104,6 +116,7 @@ const ESPERADO: Record<
       "br.dReservaAporteMs",
       "br.dRecuperoBlanqueo",
     ],
+    capital: "br.capital",
   },
   // Havanna: 4 Real manual de Ingresos (Cobranzas locales y Acreditación tarjetas, por el neteo de cobranzas) + 2 de Egresos
   // (Tarjetas y Comisiones, Expensas) + 6 de Disponibilidades.
@@ -113,6 +126,7 @@ const ESPERADO: Record<
     abajo: [],
     disponibilidades: ["hv.dBancoFci", "hv.dEfectivo", "hv.dDolares", "hv.dReservaAguinaldo", "hv.dChequesNegociados", "hv.dIngresoBancoMacro"],
     presupuestoPisable: ["hv.acreditacionTarjetas"],
+    capital: "hv.capital",
   },
   // Conexión Logística: 1 Real manual de Ingresos + 2 de Egresos (Expensas, Proveedores IVA) + 1 de abajo + 11 de Disponibilidades.
   // (El alias de testing «conexion-logistica-spp» tiene el tipeo de flujo pero no ve Disponibilidades: 4 celdas, ver tipeoDirecto.test.ts.)
@@ -133,20 +147,21 @@ const ESPERADO: Record<
       "cx.dRecuperoBlanqueo",
       "cx.dGastosJps",
     ],
+    capital: "cx.capital",
   },
 };
 
-// Flujo + Disponibilidades (+ Presupuestado pisable): Fredy 3 + 9, HWC 5 + 8, Avianor 14 + 1, Mantenor 8 + 5 + 1 de P,
-// Radio 3 + 7, Brillante 7 + 11, Havanna 6 + 6 + 1 de P, Conexión 4 + 11.
+// Flujo + Disponibilidades (+ Presupuestado pisable + Capital de trabajo): Fredy 3 + 9 + 1, HWC 5 + 8 + 1, Avianor 14 + 1,
+// Mantenor 8 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 7 + 11 + 1, Havanna 6 + 6 + 1 de P + 1, Conexión 4 + 11 + 1.
 const CANTIDAD: Record<string, number> = {
-  "fredy-publicidad": 12,
-  hwc: 13,
+  "fredy-publicidad": 13,
+  hwc: 14,
   avianor: 15,
-  mantenor: 14,
-  radio: 10,
-  brillante: 18,
-  havanna: 13,
-  "conexion-logistica": 15,
+  mantenor: 15,
+  radio: 11,
+  brillante: 19,
+  havanna: 14,
+  "conexion-logistica": 16,
 };
 
 const ABIERTO = { abiertas: 1, cerradas: 0 };
@@ -159,16 +174,20 @@ for (const slug of Object.keys(ESPERADO)) {
     const campos = camposTipeables(plantilla, slug);
     const reales = campos.filter((c) => c.columna === "REAL");
     assert.equal(campos.length, CANTIDAD[slug]);
-    // Del Presupuestado solo las filas con pisableConManual.
+    // Del Presupuestado, fuera de Cierre, solo las filas con pisableConManual.
     assert.deepEqual(
-      campos.filter((c) => c.columna === "PRESUPUESTADO").map((c) => c.clave),
+      campos.filter((c) => c.columna === "PRESUPUESTADO" && c.bloque !== "CIERRE").map((c) => c.clave),
       esperado.presupuestoPisable ?? []
     );
     assert.deepEqual(reales.filter((c) => c.bloque === "INGRESOS").map((c) => c.clave), esperado.ingresos);
     assert.deepEqual(reales.filter((c) => c.bloque === "EGRESOS").map((c) => c.clave), esperado.egresos);
     assert.deepEqual(reales.filter((c) => c.bloque === "ABAJO").map((c) => c.clave), esperado.abajo);
     assert.deepEqual(reales.filter((c) => c.bloque === "DISPONIBILIDADES").map((c) => c.clave), esperado.disponibilidades);
-    assert.equal(campos.some((c) => c.bloque === "CIERRE"), false);
+    // De Cierre solo el Presupuestado del Capital de trabajo (nada si la empresa no tiene).
+    assert.deepEqual(
+      campos.filter((c) => c.bloque === "CIERRE").map((c) => `${c.clave}|${c.columna}`),
+      esperado.capital ? [`${esperado.capital}|PRESUPUESTADO`] : []
+    );
     assert.equal(campos.some((c) => c.clave.startsWith("extra.")), false);
   });
 

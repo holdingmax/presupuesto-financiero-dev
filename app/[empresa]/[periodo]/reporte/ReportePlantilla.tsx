@@ -477,7 +477,7 @@ function FilaTabla({
   // Carga del Presupuestado (Etapa 2): solo la columna P del ÚLTIMO mes (el de la URL). Una fila
   // de categoría es un input, o muestra por qué no se puede editar desde acá.
   // El id es "fila|…" (categoría) o "manual|…" (Presupuestado manual, Etapa 3). El Capital de
-  // trabajo (Cierre) no se edita acá: lo carga ADMIN en /reporte/carga.
+  // trabajo (Cierre) no lo carga el gerente: lo tipean ADMIN y FINANZAS (editorPresupuesto) o /reporte/carga.
   const idCelda =
     fila.tipo !== "linea"
       ? null
@@ -491,10 +491,10 @@ function FilaTabla({
     fila.tipo === "linea" && idsTipeables.has(`${fila.clave}|REAL`) ? (
       <CeldaTipeoEditable clave={fila.clave} columna="REAL" nombre={fila.texto.trim()} />
     ) : undefined;
-  // Presupuestado tipeado en el Reporte: las filas extra y las de Presupuestado pisable (pisableConManual); las demás lo
-  // cargan el gerente o /reporte/carga.
+  // Presupuestado tipeado en el Reporte (solo ADMIN y FINANZAS): las filas extra, las de Presupuestado pisable
+  // (pisableConManual) y el Capital de trabajo; las demás lo cargan el gerente o /reporte/carga.
   const editorPresupuesto =
-    fila.tipo === "linea" && idsTipeables.has(`${fila.clave}|PRESUPUESTADO`) ? (
+    (fila.tipo === "linea" || fila.tipo === "capital") && idsTipeables.has(`${fila.clave}|PRESUPUESTADO`) ? (
       <CeldaTipeoEditable clave={fila.clave} columna="PRESUPUESTADO" nombre={fila.texto.trim()} />
     ) : undefined;
   const motivo =

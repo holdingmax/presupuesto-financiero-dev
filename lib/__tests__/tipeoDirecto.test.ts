@@ -66,14 +66,18 @@ test("subconjunto: aunque el interruptor de tipeo esté prendido en TODAS, Dispo
 
 // ---- Qué se puede tipear -------------------------------------------------------------------------
 
-test("Brillante: 11 de Disponibilidades + 7 de flujo, todas de la columna REAL y ninguna de Cierre", () => {
+test("Brillante: 11 de Disponibilidades + 7 de flujo (Real) + de Cierre solo el Presupuestado del Capital de trabajo", () => {
   const campos = camposTipeables(BRILLANTE, "brillante");
   assert.equal(campos.filter((c) => c.bloque === "DISPONIBILIDADES").length, 11);
   assert.deepEqual(
     campos.filter((c) => c.bloque !== "DISPONIBILIDADES").map((c) => c.clave),
-    ["br.otrasOperacionesJujuy", "br.goldSalta", "br.resultadoFci", "br.otroMsnt", "br.expensas", "br.traspasoSaldoInicial", "br.recuperoGastos"]
+    ["br.otrasOperacionesJujuy", "br.goldSalta", "br.resultadoFci", "br.otroMsnt", "br.expensas", "br.traspasoSaldoInicial", "br.recuperoGastos", "br.capital"]
   );
-  assert.ok(campos.every((c) => c.columna === "REAL" && c.bloque !== "CIERRE"));
+  assert.ok(campos.filter((c) => c.bloque !== "CIERRE").every((c) => c.columna === "REAL"));
+  assert.deepEqual(
+    campos.filter((c) => c.bloque === "CIERRE").map((c) => `${c.clave}|${c.columna}`),
+    ["br.capital|PRESUPUESTADO"]
+  );
   // Ninguna fila "Sin Real" ni de Presupuestado manual entra (Expensas ya es Real manual: se tipea).
   const claves = new Set(campos.map((c) => c.clave));
   assert.equal(claves.has("br.expensas"), true);
@@ -81,8 +85,8 @@ test("Brillante: 11 de Disponibilidades + 7 de flujo, todas de la columna REAL y
   assert.equal(claves.has("br.cobranzaChequeDiferido"), false);
 });
 
-test("sin Disponibilidades visibles, solo las 7 de flujo; sin interruptor, ninguna", () => {
-  assert.equal(camposTipeables(BRILLANTE, "brillante", SOLO_FLUJO).length, 7);
+test("sin Disponibilidades visibles, solo las 7 de flujo y el Capital de trabajo; sin interruptor, ninguna", () => {
+  assert.equal(camposTipeables(BRILLANTE, "brillante", SOLO_FLUJO).length, 7 + 1);
   assert.equal(camposTipeables(BRILLANTE, "brillante", VACIO).length, 0);
   assert.equal(tipeoDirectoActivo("brillante", VACIO), false);
 });
@@ -111,10 +115,10 @@ function vista(interruptores: InterruptoresTipeo, over: Partial<Parameters<typeo
   });
 }
 
-test("mes en curso: las 18 celdas son editables, sin aviso de una sola vez", () => {
+test("mes en curso: las 19 celdas (18 de Real + el Capital de trabajo) son editables, sin aviso de una sola vez", () => {
   const v = vista(CON_DISP);
   assert.ok(v);
-  assert.equal(v.celdas.length, 18);
+  assert.equal(v.celdas.length, 18 + 1);
   assert.ok(v.celdas.every((c) => c.importeInicial === "" && !c.avisoUnaVez));
 });
 
@@ -131,25 +135,38 @@ test("período cerrado: carga única — lo cargado queda afuera, lo vacío se p
   const claves = v.celdas.map((c) => c.clave);
   assert.equal(claves.includes("br.resultadoFci"), false);
   assert.equal(claves.includes("br.dBancoFci"), false);
-  assert.equal(v.celdas.length, 16);
-  assert.ok(v.celdas.every((c) => c.avisoUnaVez && c.importeInicial === ""));
+  // 16 de Real vacías (carga única) + el Capital de trabajo: su Presupuestado no se bloquea por mes cerrado, solo por VALIDADO.
+  assert.equal(v.celdas.length, 16 + 1);
+  assert.ok(v.celdas.filter((c) => c.clave !== "br.capital").every((c) => c.avisoUnaVez && c.importeInicial === ""));
+  const capital = v.celdas.find((c) => c.clave === "br.capital")!;
+  assert.equal(capital.columna, "PRESUPUESTADO");
+  assert.equal(capital.avisoUnaVez, false);
+  assert.equal(capital.importeInicial, "");
 });
 
 test("período cerrado con todo cargado: no queda ninguna celda editable (sin override de admin)", () => {
   const todo = new Map(camposTipeables(BRILLANTE, "brillante", CON_DISP).map((c) => [c.clave, 1]));
-  assert.equal(vista(CON_DISP, { periodo: "2026-09", semanas: CERRADO, valoresReales: todo }), null);
+  const capitalCargado = new Map([["br.capital", 1]]);
+  // El Real cargado queda cerrado; el Capital (Presupuestado) sigue editable aunque esté cargado: el mes cerrado no lo bloquea.
+  const abierta = vista(CON_DISP, { periodo: "2026-09", semanas: CERRADO, valoresReales: todo, valoresPresupuesto: capitalCargado })!;
+  assert.deepEqual(abierta.celdas.map((c) => c.id), ["br.capital|PRESUPUESTADO"]);
+  // Con el Presupuesto VALIDADO y el Capital cargado no queda ninguna.
+  assert.equal(
+    vista(CON_DISP, { periodo: "2026-09", semanas: CERRADO, valoresReales: todo, valoresPresupuesto: capitalCargado, presupuestoValidado: true }),
+    null
+  );
 });
 
 test("mismas reglas de bloqueo de siempre: con semanas abiertas el flujo se edita, Disponibilidades no si ya hay cerradas", () => {
   const todo = new Map(camposTipeables(BRILLANTE, "brillante", CON_DISP).map((c) => [c.clave, 1]));
   const v = vista(CON_DISP, { periodo: "2026-09", semanas: { abiertas: 1, cerradas: 2 }, valoresReales: todo })!;
-  assert.deepEqual(v.celdas.map((c) => c.clave), ["br.otrasOperacionesJujuy", "br.goldSalta", "br.resultadoFci", "br.otroMsnt", "br.expensas", "br.traspasoSaldoInicial", "br.recuperoGastos"]);
+  assert.deepEqual(v.celdas.map((c) => c.clave), ["br.otrasOperacionesJujuy", "br.goldSalta", "br.resultadoFci", "br.otroMsnt", "br.expensas", "br.traspasoSaldoInicial", "br.recuperoGastos", "br.capital"]);
   assert.ok(v.celdas.every((c) => !c.avisoUnaVez));
 });
 
 test("sin Disponibilidades visibles la vista no lleva ninguna de ese bloque", () => {
   const v = vista(SOLO_FLUJO)!;
-  assert.deepEqual(v.celdas.map((c) => c.clave), ["br.otrasOperacionesJujuy", "br.goldSalta", "br.resultadoFci", "br.otroMsnt", "br.expensas", "br.traspasoSaldoInicial", "br.recuperoGastos"]);
+  assert.deepEqual(v.celdas.map((c) => c.clave), ["br.otrasOperacionesJujuy", "br.goldSalta", "br.resultadoFci", "br.otroMsnt", "br.expensas", "br.traspasoSaldoInicial", "br.recuperoGastos", "br.capital"]);
 });
 
 test("interruptor vacío: nadie recibe celdas, tampoco ADMIN (el Reporte queda como siempre)", () => {

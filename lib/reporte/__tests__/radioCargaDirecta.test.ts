@@ -25,8 +25,8 @@ test("Radio: Expensas es Real manual (tipeable y en /carga); Expensas - No socio
   assert.equal(manuales.includes("ra.expensasNoSocios|REAL"), false);
   assert.ok(manuales.includes("ra.expensasNoSocios|PRESUPUESTADO"));
   const tipeables = camposTipeables(RADIO, "radio").map((c) => c.clave);
-  assert.deepEqual(tipeables.filter((c) => !c.startsWith("ra.d")), ["ra.resultadoFci", "ra.expensas", "ra.costoIva"]);
-  assert.equal(tipeables.length, 10);
+  assert.deepEqual(tipeables.filter((c) => !c.startsWith("ra.d")), ["ra.resultadoFci", "ra.expensas", "ra.costoIva", "ra.capital"]);
+  assert.equal(tipeables.length, 11);
   const args = { empresaSlug: "radio", plantilla: RADIO, esAdminOFinanzas: true };
   assert.equal(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: "ra.expensas", columna: "REAL", texto: "1.000,00" }] }), null);
   assert.ok(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: "ra.expensasNoSocios", columna: "REAL", texto: "1.000,00" }] }));

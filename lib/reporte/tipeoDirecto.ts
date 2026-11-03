@@ -14,7 +14,7 @@ import {
 import { esClaveDeFilaExtra } from "@/lib/reporte/filasExtra";
 
 // Tipeo directo en el Reporte (ADMIN y FINANZAS): el Real manual de las filas de la plantilla, el Presupuestado de las
-// que lo tienen pisable y, en las filas extra, también el Presupuestado. Puro: sin Prisma ni next/*, para poder probarlo. Define qué celdas se pueden
+// que lo tienen pisable, el del Capital de trabajo y, en las filas extra, también el Presupuestado. Puro: sin Prisma ni next/*, para poder probarlo. Define qué celdas se pueden
 // tipear, cuáles de ellas viajan a la pantalla y qué rechaza el servidor. El guardado lo hace
 // guardarValoresManuales (reporte/carga/actions.ts): ahí viven la validación contra la plantilla, los importes
 // (lib/importes.ts) y la regla de bloqueo.
@@ -32,7 +32,7 @@ const DE_CONFIG: InterruptoresTipeo = {
   filasExtra: EMPRESAS_CON_FILAS_EXTRA,
 };
 
-// Cierre es reservado y no se tipea desde acá (su Capital de trabajo tiene otro camino).
+// Cierre es reservado: de él solo se tipea el Presupuestado del Capital de trabajo (ver camposTipeables); el resto no.
 const BLOQUES_DE_FLUJO: readonly Bloque[] = ["INGRESOS", "EGRESOS", "ABAJO"];
 
 export function tipeoDirectoActivo(empresaSlug: string, interruptores: InterruptoresTipeo = DE_CONFIG): boolean {
@@ -51,6 +51,7 @@ function tienePresupuestoPisable(f: Plantilla["filas"][number]): boolean {
 // Campos que se pueden tipear en el Reporte de esta empresa. Sin interruptor, ninguno.
 // - Filas de la plantilla: el Real manual (los de Disponibilidades, solo si la empresa también ve ese bloque) y el
 //   Presupuestado de las que lo tienen pisable (pisableConManual: Mantenor «Prestamos», Havanna «Acreditación Tarjetas»).
+// - Cierre: el Presupuestado del Capital de trabajo (fila `capital`); vacío = la regla de la plantilla.
 // - Filas extra (clave «extra.<id>», solo si la plantilla que se pasa las trae): Presupuestado y Real.
 export function camposTipeables(
   plantilla: Plantilla,
@@ -61,9 +62,14 @@ export function camposTipeables(
   const conDisponibilidades = interruptores.disponibilidades.includes(empresaSlug);
   const conFilasExtra = (interruptores.filasExtra ?? EMPRESAS_CON_FILAS_EXTRA).includes(empresaSlug);
   const pisables = new Set(plantilla.filas.filter(tienePresupuestoPisable).map((f) => f.clave));
+  const capitales = new Set(plantilla.filas.filter((f) => f.tipo === "capital").map((f) => f.clave));
   return camposManuales(plantilla).filter((c) => {
     if (esClaveDeFilaExtra(c.clave)) return conFilasExtra && BLOQUES_DE_FLUJO.includes(c.bloque);
-    if (c.columna === "PRESUPUESTADO") return pisables.has(c.clave) && BLOQUES_DE_FLUJO.includes(c.bloque);
+    if (c.columna === "PRESUPUESTADO") {
+      // Del Cierre solo el Capital de trabajo (fila `capital`): ni Disponible ni Saldo ni el Capital que es una línea o un total.
+      if (c.bloque === "CIERRE") return capitales.has(c.clave);
+      return pisables.has(c.clave) && BLOQUES_DE_FLUJO.includes(c.bloque);
+    }
     return (
       c.columna === "REAL" &&
       (c.bloque === "DISPONIBILIDADES" ? conDisponibilidades : BLOQUES_DE_FLUJO.includes(c.bloque))

@@ -439,11 +439,17 @@ for (const slug of SLUGS) {
     for (const k of ["extra.i1", "extra.e1", "extra.a1"]) {
       assert.ok(campos.includes(`${k}|REAL`) && campos.includes(`${k}|PRESUPUESTADO`), k);
     }
-    // El Presupuestado de las filas de la plantilla no se tipea desde acá, salvo el de las pisables (pisableConManual).
-    const pisables = plantilla.filas
-      .filter((f) => f.tipo === "linea" && (f.presupuesto.tipo === "disponible" || f.presupuesto.tipo === "espejo") && f.presupuesto.pisableConManual)
-      .map((f) => `${f.clave}|PRESUPUESTADO`);
-    assert.equal(campos.some((k) => !k.startsWith("extra.") && k.endsWith("|PRESUPUESTADO") && !pisables.includes(k)), false);
+    // El Presupuestado de las filas de la plantilla no se tipea desde acá, salvo el de las pisables (pisableConManual) y el
+    // del Capital de trabajo: ese conjunto, exacto.
+    const conPresupuestoTipeable = plantilla.filas
+      .filter(
+        (f) =>
+          f.tipo === "capital" ||
+          (f.tipo === "linea" && (f.presupuesto.tipo === "disponible" || f.presupuesto.tipo === "espejo") && f.presupuesto.pisableConManual)
+      )
+      .map((f) => `${f.clave}|PRESUPUESTADO`)
+      .sort();
+    assert.deepEqual(campos.filter((k) => !k.startsWith("extra.") && k.endsWith("|PRESUPUESTADO")).sort(), conPresupuestoTipeable);
     const args = { empresaSlug: slug, plantilla: p, esAdminOFinanzas: true };
     for (const columna of ["REAL", "PRESUPUESTADO"] as const) {
       assert.equal(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: "extra.e1", columna, texto: "1.000,00" }] }), null);
