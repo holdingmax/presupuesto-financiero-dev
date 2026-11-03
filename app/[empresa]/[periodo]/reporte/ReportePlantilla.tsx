@@ -55,6 +55,8 @@ type Props = {
   verPendientes: boolean;
   // ADMIN o FINANZAS: control de arrastre, marcas de la planilla y link a la carga.
   verControl: boolean;
+  // Link «Cargar valores del mes» (/reporte/carga): false en la vista histórica del mes en curso (solo lectura).
+  mostrarLinkCarga: boolean;
   // Estado del Presupuesto del mes de la URL y botones del flujo; null = no se muestran
   // (ver mostrarFlujoEnReporte en lib/estadoPresupuesto.ts).
   flujo: EstadoFlujo | null;
@@ -83,6 +85,7 @@ export default function ReportePlantilla({
   reporte,
   verPendientes,
   verControl,
+  mostrarLinkCarga,
   flujo,
   carga,
   tipeo,
@@ -116,13 +119,13 @@ export default function ReportePlantilla({
 
       <div className="mb-3 flex flex-wrap items-stretch gap-3">
         {controlVista}
-        {(verControl || carga || tipeo) && (
+        {(mostrarLinkCarga || carga || tipeo) && (
           <div
             role="group"
             aria-label="Acciones del reporte"
             className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line-strong bg-paper-raised px-3 py-1.5"
           >
-            {verControl && (
+            {mostrarLinkCarga && (
               <Link
                 href={`/${empresaSlug}/${periodo}/reporte/carga`}
                 className="inline-flex h-9 items-center rounded-md border border-line-strong bg-paper-raised px-4 text-xs font-medium text-ink transition hover:border-marino hover:text-marino-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marino"

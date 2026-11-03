@@ -1,5 +1,6 @@
 import { PERIODOS_HABILITADOS, PERIODO_EN_CARGA_GERENTE, PERIODO_INICIO_HISTORIAL } from "@/lib/config";
 import { periodosHasta } from "@/lib/reporte/motor";
+import { nombreLegibleDePeriodo } from "@/lib/periodosHabilitados";
 
 // Vista del Reporte por plantilla (Etapa 5 B): cuántos meses se muestran lado a lado. Solo decide
 // columnas: no cambia permisos ni qué se puede editar (eso lo siguen decidiendo avisoPeriodoSoloLectura
@@ -46,22 +47,78 @@ export function cantidadDeMeses(
   return Math.max(1, cantidad);
 }
 
-// Modo de navegación del Reporte, deducido siempre del período de la URL: el mes en curso de carga (o uno
-// posterior) es «en-curso»; cualquiera anterior, «anteriores». Comparación de texto AAAA-MM (la página ya
-// valida el formato). No guarda estado ni toca permisos.
+// Marca de la URL (?modo=anteriores) con la que el mes en curso se ve desde «Meses anteriores», en solo lectura.
+// Solo vale para el mes en curso de carga (PERIODO_EN_CARGA_GERENTE): en cualquier otro período se ignora, y
+// cualquier valor que no sea exactamente «anteriores» (repetido, con mayúsculas, vacío) también.
+export const PARAMETRO_MODO = "modo";
+export const MARCA_ANTERIORES = "anteriores";
+export type MarcaModo = string | string[] | undefined;
+
+export function esHistorialDelMesEnCurso(
+  periodo: string,
+  marca: MarcaModo,
+  enCarga: string = PERIODO_EN_CARGA_GERENTE
+): boolean {
+  return periodo === enCarga && marca === MARCA_ANTERIORES;
+}
+
+// Modo de navegación del Reporte. Sale del período de la URL: el mes en curso de carga (o uno posterior) es
+// «en-curso»; cualquiera anterior, «anteriores». Única excepción: el mes en curso con la marca válida
+// (esHistorialDelMesEnCurso) es «anteriores». Comparación de texto AAAA-MM (la página ya valida el formato).
+// No guarda estado ni toca permisos.
 export type ModoPeriodo = "en-curso" | "anteriores";
 
-export function modoDePeriodo(periodo: string, enCarga: string = PERIODO_EN_CARGA_GERENTE): ModoPeriodo {
-  return periodo < enCarga ? "anteriores" : "en-curso";
+export function modoDePeriodo(
+  periodo: string,
+  enCarga: string = PERIODO_EN_CARGA_GERENTE,
+  marca?: MarcaModo
+): ModoPeriodo {
+  return periodo < enCarga || esHistorialDelMesEnCurso(periodo, marca, enCarga) ? "anteriores" : "en-curso";
 }
 
 // En «Mes en curso» no hay columnas juntas: un ?vista=todo se ignora y se muestra solo ese mes.
 export function vistaEfectiva(
   vista: VistaReporte,
   periodo: string,
-  enCarga: string = PERIODO_EN_CARGA_GERENTE
+  enCarga: string = PERIODO_EN_CARGA_GERENTE,
+  marca?: MarcaModo
 ): VistaReporte {
-  return modoDePeriodo(periodo, enCarga) === "en-curso" ? "actual" : vista;
+  return modoDePeriodo(periodo, enCarga, marca) === "en-curso" ? "actual" : vista;
+}
+
+// Qué trae la pantalla del Reporte para quien la mira. En la vista histórica del mes en curso NADIE edita ni
+// opera el flujo (ni gerente, ni FINANZAS, ni ADMIN): es solo lectura. Fuera de ella cada pieza queda como
+// siempre; la página además le suma sus condiciones de siempre (interruptores de empresa, estado del
+// presupuesto, rol). El servidor no cambia: esto solo decide qué se arma y se muestra.
+export type EdicionDelReporte = {
+  historial: boolean;
+  flujo: boolean;
+  carga: boolean;
+  tipeo: boolean;
+  filasExtra: boolean;
+  linkCarga: boolean;
+};
+
+export function edicionDelReporte(args: {
+  periodo: string;
+  marca: MarcaModo;
+  esAdminOFinanzas: boolean;
+  enCarga?: string;
+}): EdicionDelReporte {
+  const historial = esHistorialDelMesEnCurso(args.periodo, args.marca, args.enCarga);
+  return {
+    historial,
+    flujo: !historial,
+    carga: !historial,
+    tipeo: !historial && args.esAdminOFinanzas,
+    filasExtra: !historial && args.esAdminOFinanzas,
+    linkCarga: !historial && args.esAdminOFinanzas,
+  };
+}
+
+// Cartel de la vista histórica del mes en curso.
+export function avisoMesEnCursoEnHistorial(enCarga: string = PERIODO_EN_CARGA_GERENTE): string {
+  return `Estás viendo el mes en curso (${nombreLegibleDePeriodo(enCarga)}) desde «Meses anteriores»: solo lectura. Para cargar, usá «Mes en curso».`;
 }
 
 function indiceDeMes(periodo: string): number {
@@ -69,37 +126,56 @@ function indiceDeMes(periodo: string): number {
   return anio * 12 + (mes - 1);
 }
 
-// Meses de «Meses anteriores»: desde `inicio` hasta el mes previo al en curso (sin incluirlo), en orden.
-// Vacía si el inicio no es anterior al mes en curso.
+// Meses de «Meses anteriores»: desde `inicio` hasta el mes en curso INCLUSIVE, en orden (el en curso va último y se
+// ve en solo lectura). Vacía si el inicio no es anterior al mes en curso: sin ningún mes previo no hay historial.
 export function mesesAnteriores(
   inicio: string = PERIODO_INICIO_HISTORIAL,
   enCarga: string = PERIODO_EN_CARGA_GERENTE
 ): string[] {
-  const cantidad = indiceDeMes(enCarga) - indiceDeMes(inicio);
-  if (cantidad <= 0) return [];
-  return periodosHasta(periodosHasta(enCarga, 2)[0], cantidad);
+  const previos = indiceDeMes(enCarga) - indiceDeMes(inicio);
+  if (previos <= 0) return [];
+  return periodosHasta(enCarga, previos + 1);
+}
+
+// Parte de la consulta que suma el botón de un mes de «Meses anteriores»: solo el del mes en curso lleva la marca.
+export function consultaDeBotonDeMes(periodo: string, enCarga: string = PERIODO_EN_CARGA_GERENTE): string {
+  return periodo === enCarga ? `${PARAMETRO_MODO}=${MARCA_ANTERIORES}` : "";
+}
+
+// Links «Un mes | Columnas juntas»: conservan la marca cuando se está viendo el mes en curso como histórico.
+export function enlaceDeVista(
+  empresaSlug: string,
+  periodo: string,
+  vista: VistaReporte,
+  marca: MarcaModo,
+  enCarga: string = PERIODO_EN_CARGA_GERENTE
+): string {
+  const extra = esHistorialDelMesEnCurso(periodo, marca, enCarga) ? `&${consultaDeBotonDeMes(periodo, enCarga)}` : "";
+  return `/${empresaSlug}/${periodo}/reporte?vista=${vista}${extra}`;
 }
 
 export type EnlaceModo = { modo: ModoPeriodo; texto: string; href: string; activo: boolean };
 
 // Los dos links del interruptor. «Mes en curso» va al período en curso sin parámetros; «Meses anteriores», al
-// último mes previo (sin link si no hay ninguno). `activo` sale del modo del período que se está viendo.
+// último mes PREVIO al en curso, sin marca (sin link si no hay ninguno). `activo` sale del modo del período que se
+// está viendo (con su marca, si la hay).
 export function enlacesDeModo(
   empresaSlug: string,
   periodo: string,
   enCarga: string = PERIODO_EN_CARGA_GERENTE,
-  inicio: string = PERIODO_INICIO_HISTORIAL
+  inicio: string = PERIODO_INICIO_HISTORIAL,
+  marca?: MarcaModo
 ): EnlaceModo[] {
-  const modo = modoDePeriodo(periodo, enCarga);
-  const anteriores = mesesAnteriores(inicio, enCarga);
+  const modo = modoDePeriodo(periodo, enCarga, marca);
+  const previos = mesesAnteriores(inicio, enCarga).filter((m) => m < enCarga);
   const enlaces: EnlaceModo[] = [
     { modo: "en-curso", texto: "Mes en curso", href: `/${empresaSlug}/${enCarga}/reporte`, activo: modo === "en-curso" },
   ];
-  if (anteriores.length > 0) {
+  if (previos.length > 0) {
     enlaces.push({
       modo: "anteriores",
       texto: "Meses anteriores",
-      href: `/${empresaSlug}/${anteriores[anteriores.length - 1]}/reporte`,
+      href: `/${empresaSlug}/${previos[previos.length - 1]}/reporte`,
       activo: modo === "anteriores",
     });
   }

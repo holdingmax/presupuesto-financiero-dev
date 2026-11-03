@@ -31,11 +31,15 @@ import { cargarDatosMeses } from "@/lib/reporte/cargarMeses";
 import ReportePlantilla from "./ReportePlantilla";
 import PeriodoSelector from "../presupuesto/PeriodoSelector";
 import {
+  avisoMesEnCursoEnHistorial,
   cantidadDeMeses,
+  consultaDeBotonDeMes,
+  edicionDelReporte,
   mesesAnteriores,
   modoDePeriodo,
   resolverVista,
   vistaEfectiva,
+  type MarcaModo,
   type VistaReporte,
 } from "@/lib/reporte/vistaReporte";
 import { accesoReservadosDelReporte } from "@/lib/reporte/visibilidad";
@@ -47,7 +51,7 @@ import VistaSelector from "./VistaSelector";
 
 type Props = {
   params: Promise<{ empresa: string; periodo: string }>;
-  searchParams: Promise<{ vista?: string | string[] }>;
+  searchParams: Promise<{ vista?: string | string[]; modo?: string | string[] }>;
 };
 
 const FORMATO_PERIODO = /^\d{4}-\d{2}$/;
@@ -82,7 +86,7 @@ const RUBROS_EGRESOS = [
 
 export default async function ReportePage({ params, searchParams }: Props) {
   const { empresa: empresaSlug, periodo } = await params;
-  const { vista: vistaPedida } = await searchParams;
+  const { vista: vistaPedida, modo: marcaModo } = await searchParams;
 
   let empresaNombre: string;
   let empresaId: string;
@@ -120,7 +124,8 @@ export default async function ReportePage({ params, searchParams }: Props) {
         empresaNombre={empresaNombre}
         empresaSlug={empresaSlug}
         periodo={periodo}
-        vista={vistaEfectiva(resolverVista(vistaPedida, esAdminOFinanzas(usuario)), periodo)}
+        vista={vistaEfectiva(resolverVista(vistaPedida, esAdminOFinanzas(usuario)), periodo, undefined, marcaModo)}
+        marcaModo={marcaModo}
         unidadesEmpresa={unidadesEmpresa}
         verPendientes={esAdminOFinanzas(usuario) && MOSTRAR_PENDIENTES_EN_REPORTE}
         verControl={esAdminOFinanzas(usuario)}
@@ -218,6 +223,7 @@ async function ReportePorPlantilla({
   empresaSlug,
   periodo,
   vista,
+  marcaModo,
   unidadesEmpresa,
   verPendientes,
   verControl,
@@ -231,6 +237,8 @@ async function ReportePorPlantilla({
   periodo: string;
   // Cuántos meses se muestran (lib/reporte/vistaReporte.ts); el selector de mes elige el último.
   vista: VistaReporte;
+  // ?modo= de la URL: solo cuenta en el mes en curso (lib/reporte/vistaReporte.ts).
+  marcaModo: MarcaModo;
   unidadesEmpresa: string[];
   verPendientes: boolean;
   verControl: boolean;
@@ -242,8 +250,11 @@ async function ReportePorPlantilla({
   // cambios, Confirmar versión final) para el mes de la URL. ADMIN, FINANZAS y revisores lo
   // ven siempre; el gerente solo si su empresa está en EMPRESAS_CON_CARGA_EN_REPORTE. Solo
   // lee: no crea el PresupuestoMensual del mes.
+  // Vista histórica del mes en curso (?modo=anteriores en el mes en curso): solo lectura para todos los roles, sin
+  // flujo, carga, tipeo, filas extra ni link a la carga. En cualquier otro caso `edicion` no cambia nada.
+  const edicion = edicionDelReporte({ periodo, marca: marcaModo, esAdminOFinanzas: esAdminOFinanzas(usuario) });
   const esRevisor = await puedeRevisarPresupuesto(usuario, empresaId);
-  const flujo: EstadoFlujo | null = mostrarFlujoEnReporte({
+  const flujo: EstadoFlujo | null = edicion.flujo && mostrarFlujoEnReporte({
     esAdminOFinanzas: esAdminOFinanzas(usuario),
     esRevisor,
     cargaActiva: cargaEnReporteActiva(empresaSlug),
@@ -254,9 +265,11 @@ async function ReportePorPlantilla({
 
   // Cartel de solo lectura: solo con la carga activa para la empresa (sin ella el Reporte ya es de
   // solo lectura para el gerente y el cartel confundiría). null = editable o sin cartel.
-  const avisoSoloLectura = cargaEnReporteActiva(empresaSlug)
-    ? avisoPeriodoSoloLectura(periodo, esAdminOFinanzas(usuario))
-    : null;
+  const avisoSoloLectura = edicion.historial
+    ? avisoMesEnCursoEnHistorial()
+    : cargaEnReporteActiva(empresaSlug)
+      ? avisoPeriodoSoloLectura(periodo, esAdminOFinanzas(usuario))
+      : null;
 
   // Un mes más de contexto (no se muestra): el control de arrastre y los espejos del mes
   // anterior lo necesitan para el primer mes visible.
@@ -287,6 +300,7 @@ async function ReportePorPlantilla({
   // PresupuestoMensual del mes se crea recién en el primer guardado.
   let carga: VistaCarga | null = null;
   if (
+    edicion.carga &&
     flujo &&
     avisoSoloLectura === null &&
     cargaEnReporteActiva(empresaSlug) &&
@@ -306,7 +320,7 @@ async function ReportePorPlantilla({
   // extra); la carga del gerente de más arriba sigue con la estática.
   let tipeo: VistaTipeo | null = null;
   let filasExtra: VistaFilasExtra | null = null;
-  if (esAdminOFinanzas(usuario) && tipeoDirectoActivo(empresaSlug)) {
+  if (edicion.tipeo && tipeoDirectoActivo(empresaSlug)) {
     const ultimoMes = meses[meses.length - 1];
     const hayFilasExtra = plantillaReporte.filas.some((f) => f.tipo === "linea" && f.extra === true);
     const [semanas, presupuestoDelMes, valoresDeFilasExtra] = await Promise.all([
@@ -350,13 +364,14 @@ async function ReportePorPlantilla({
   return (
     <>
       {/* Botones de mes solo en «Meses anteriores»; en «Mes en curso» no hay ningún otro mes (lib/reporte/vistaReporte.ts). */}
-      {modoDePeriodo(periodo) === "anteriores" && (
+      {modoDePeriodo(periodo, undefined, marcaModo) === "anteriores" && (
         <PeriodoSelector
           empresaSlug={empresaSlug}
           periodo={periodo}
           segmento="reporte"
           vista={vista}
           periodos={mesesAnteriores()}
+          consultaExtra={(p) => consultaDeBotonDeMes(p)}
           compacto
         />
       )}
@@ -367,6 +382,7 @@ async function ReportePorPlantilla({
       reporte={reporte}
       verPendientes={verPendientes}
       verControl={verControl}
+      mostrarLinkCarga={edicion.linkCarga}
       flujo={flujo}
       carga={carga}
       tipeo={tipeo}
@@ -379,7 +395,7 @@ async function ReportePorPlantilla({
         movimientos: n.movimientos,
       }))}
       semanasConNoAsignado={noAsignado.semanas}
-      controlVista={<VistaSelector empresaSlug={empresaSlug} periodo={periodo} vista={vista} />}
+      controlVista={<VistaSelector empresaSlug={empresaSlug} periodo={periodo} vista={vista} marca={marcaModo} />}
     />
     </>
   );

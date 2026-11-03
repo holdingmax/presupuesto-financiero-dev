@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { enlacesDeModo, modoDePeriodo, type VistaReporte } from "@/lib/reporte/vistaReporte";
+import { enlaceDeVista, enlacesDeModo, modoDePeriodo, type MarcaModo, type VistaReporte } from "@/lib/reporte/vistaReporte";
 
 const COLUMNAS: { vista: VistaReporte; texto: string }[] = [
   { vista: "actual", texto: "Un mes" },
@@ -19,19 +19,22 @@ export default function VistaSelector({
   empresaSlug,
   periodo,
   vista,
+  marca,
 }: {
   empresaSlug: string;
   periodo: string;
   vista: VistaReporte;
+  // ?modo= de la URL: con él válido, el mes en curso se ve como «Meses anteriores».
+  marca?: MarcaModo;
 }) {
-  const enAnteriores = modoDePeriodo(periodo) === "anteriores";
+  const enAnteriores = modoDePeriodo(periodo, undefined, marca) === "anteriores";
   return (
     <div className="inline-flex flex-wrap items-center gap-2">
       <nav
         aria-label="Período del reporte"
         className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-line-strong bg-paper-raised p-1 text-xs"
       >
-        {enlacesDeModo(empresaSlug, periodo).map((e) => (
+        {enlacesDeModo(empresaSlug, periodo, undefined, undefined, marca).map((e) => (
           <Link
             key={e.modo}
             href={e.href}
@@ -50,7 +53,7 @@ export default function VistaSelector({
           {COLUMNAS.map((o) => (
             <Link
               key={o.vista}
-              href={`/${empresaSlug}/${periodo}/reporte?vista=${o.vista}`}
+              href={enlaceDeVista(empresaSlug, periodo, o.vista, marca)}
               aria-current={o.vista === vista ? "page" : undefined}
               className={`${CLASE_LINK} ${o.vista === vista ? CLASE_ACTIVO : CLASE_INACTIVO}`}
             >

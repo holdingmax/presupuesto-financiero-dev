@@ -176,3 +176,15 @@ test("enlacesDePeriodos: con segmento reporte los links van al Reporte; sin segm
   );
   assert.ok(enlacesDePeriodos("hwc", "2026-11").every((e) => e.href.endsWith("/presupuesto")));
 });
+
+test("enlacesDePeriodos: consultaExtra suma un parámetro por período y se combina con la vista; sin ella los links no cambian", () => {
+  const extra = (p: string) => (p === "2026-11" ? "modo=anteriores" : "");
+  assert.deepEqual(
+    enlacesDePeriodos("hwc", "2026-10", undefined, "reporte", undefined, extra).map((e) => e.href),
+    ["/hwc/2026-09/reporte", "/hwc/2026-10/reporte", "/hwc/2026-11/reporte?modo=anteriores"]
+  );
+  assert.deepEqual(
+    enlacesDePeriodos("hwc", "2026-10", undefined, "reporte", "todo", extra).map((e) => e.href),
+    ["/hwc/2026-09/reporte?vista=todo", "/hwc/2026-10/reporte?vista=todo", "/hwc/2026-11/reporte?vista=todo&modo=anteriores"]
+  );
+});

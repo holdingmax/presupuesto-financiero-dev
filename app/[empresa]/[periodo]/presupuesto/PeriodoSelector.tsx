@@ -10,6 +10,7 @@ export default function PeriodoSelector({
   segmento = "presupuesto",
   vista,
   periodos,
+  consultaExtra,
   compacto = false,
 }: {
   empresaSlug: string;
@@ -19,6 +20,8 @@ export default function PeriodoSelector({
   vista?: string;
   // Meses a mostrar; sin ella, la lista de lib/config.ts (como siempre en Presupuesto).
   periodos?: readonly string[];
+  // Parámetro extra de la URL de cada mes (lib/reporte/vistaReporte.ts, consultaDeBotonDeMes).
+  consultaExtra?: (periodo: string) => string;
   // Barra baja y alineada a la izquierda, para el Reporte compacto.
   compacto?: boolean;
 }) {
@@ -32,7 +35,7 @@ export default function PeriodoSelector({
       }
     >
       <span className="mr-2 text-xs uppercase tracking-[0.15em] text-ink-secondary">Mes</span>
-      {enlacesDePeriodos(empresaSlug, periodo, periodos, segmento, vista).map((enlace) => (
+      {enlacesDePeriodos(empresaSlug, periodo, periodos, segmento, vista, consultaExtra).map((enlace) => (
         <Link
           key={enlace.periodo}
           href={enlace.href}

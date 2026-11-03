@@ -502,11 +502,14 @@ test("guardado del tipeo: la acción usa la plantilla del mes con las filas extr
 
 test("pantalla: los botones y el borrado solo se arman para ADMIN/FINANZAS; al componente le llega null para el gerente", () => {
   const page = leerFuente("page.tsx").replace(/\r\n/g, "\n");
-  // Las dos vistas nacen null y solo se asignan dentro del if de ADMIN/FINANZAS con tipeo directo.
+  // Las dos vistas nacen null y solo se asignan dentro del if de tipeo directo, que exige `edicion.tipeo`
+  // (lib/reporte/vistaReporte.ts, edicionDelReporte: ADMIN/FINANZAS y fuera de la vista histórica del mes en curso).
   const nace = page.indexOf("let filasExtra: VistaFilasExtra | null = null;");
-  const si = page.indexOf("if (esAdminOFinanzas(usuario) && tipeoDirectoActivo(empresaSlug)) {");
+  const si = page.indexOf("if (edicion.tipeo && tipeoDirectoActivo(empresaSlug)) {");
   const asigna = page.indexOf("filasExtra = armarVistaFilasExtra(");
   assert.ok(nace > 0 && si > nace && asigna > si);
+  // El rol sigue entrando por ese helper: `edicion` se arma con el rol del usuario.
+  assert.match(page, /edicionDelReporte\(\{ periodo, marca: marcaModo, esAdminOFinanzas: esAdminOFinanzas\(usuario\) \}\)/);
   assert.match(page, /filasExtra=\{filasExtra\}/);
   // El componente muestra el botón y la «×» solo con la vista.
   const tabla = leerFuente("ReportePlantilla.tsx");

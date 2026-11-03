@@ -74,11 +74,16 @@ export function enlacesDePeriodos(
   // Pantalla a la que lleva cada link: Presupuesto (por defecto) o el Reporte.
   segmento: "presupuesto" | "reporte" = "presupuesto",
   // Vista del Reporte ("actual" | "todo"): se conserva al cambiar de mes. Sin ella, el link queda igual que siempre.
-  vista?: string
+  vista?: string,
+  // Parámetro extra por período (p. ej. «modo=anteriores» solo en el mes en curso); "" o sin definir = ninguno.
+  consultaExtra?: (periodo: string) => string
 ): EnlacePeriodo[] {
-  return habilitados.map((periodo) => ({
-    periodo,
-    href: `/${empresaSlug}/${periodo}/${segmento}${vista ? `?vista=${vista}` : ""}`,
-    activo: periodo === periodoActual,
-  }));
+  return habilitados.map((periodo) => {
+    const consulta = [vista ? `vista=${vista}` : "", consultaExtra?.(periodo) ?? ""].filter(Boolean).join("&");
+    return {
+      periodo,
+      href: `/${empresaSlug}/${periodo}/${segmento}${consulta ? `?${consulta}` : ""}`,
+      activo: periodo === periodoActual,
+    };
+  });
 }
