@@ -406,7 +406,7 @@ function EtiquetaPendiente({ codigo }: { codigo: keyof typeof PENDIENTES }) {
   );
 }
 
-function FilaTabla({
+export function FilaTabla({
   filaReporte,
   meses,
   verPendientes,
@@ -433,8 +433,8 @@ function FilaTabla({
   periodo: string;
   soloLecturaPorMes: boolean[];
   // El Reporte se armó sin acceso completo a los bloques reservados (el gerente): Disponibilidades, si
-  // llega, se muestra como un solo valor «Saldo», bajo la columna Real y de solo lectura (ahí
-  // Presupuestado = Real = el saldo real, y no es un presupuesto que se edite).
+  // llega, se muestra como un solo valor «Saldo», de solo lectura, repetido bajo las columnas Presupuestado y
+  // Real (Presupuestado = Real = el saldo real, y no es un presupuesto que se edite).
   soloSaldo: boolean;
 }) {
   const { fila, celdas } = filaReporte;
@@ -455,10 +455,12 @@ function FilaTabla({
           {fila.texto}
         </td>
         {enSaldo ? (
-          // «Saldo» queda sobre la columna Real, que es donde se muestra el valor de cada fila del bloque.
+          // «Saldo» queda sobre las dos columnas (Presupuestado y Real), que muestran el mismo valor en cada fila del bloque.
           Array.from({ length: meses }, (_, i) => (
             <Fragment key={i}>
-              <td className="border-l border-line-hairline" />
+              <td className="border-l border-line-hairline py-0 px-2 text-center text-[8pt] font-bold tracking-wide text-[#4E75A3] uppercase">
+                Saldo
+              </td>
               <td className="py-0 px-2 text-center text-[8pt] font-bold tracking-wide text-[#4E75A3] uppercase">Saldo</td>
               <td colSpan={2} />
             </Fragment>
@@ -636,15 +638,17 @@ function MarcasFila({
   );
 }
 
-// Disponibilidades para el gerente: un solo valor por mes (el saldo), de solo lectura, bajo la columna
-// Real (el saldo ES el real; Presupuestado, % y falta quedan vacíos). Nunca un input, ni marcas de dato
-// parcial (eso es de ADMIN y FINANZAS).
-function CeldaSaldo({ celda, atenuado, total }: { celda: Celda; atenuado: boolean; total: boolean }) {
+// Disponibilidades para el gerente: un solo valor por mes (el saldo), de solo lectura, repetido bajo las
+// columnas Presupuestado y Real (en estas filas P = R; % y falta quedan vacíos). Nunca un input, ni marcas
+// de dato parcial (eso es de ADMIN y FINANZAS).
+export function CeldaSaldo({ celda, atenuado, total }: { celda: Celda; atenuado: boolean; total: boolean }) {
   const sombra = atenuado ? ` ${SOMBRA}` : "";
   const clase = `py-0 px-2 text-center font-bold tabular-nums whitespace-nowrap${sombra}`;
   return (
     <>
-      <td className={`${clase}${total ? "" : ` ${DATO}`} border-l border-line-hairline`} />
+      <td className={`${clase}${total ? "" : ` ${DATO}`} border-l border-line-hairline`}>
+        {celda.presupuestado === null ? "" : importe(celda.presupuestado)}
+      </td>
       <td className={`${clase}${total ? "" : ` ${DATO}`}`}>{celda.real === null ? "" : importe(celda.real)}</td>
       <td className={clase} />
       <td className={clase} />
