@@ -11,7 +11,7 @@ import { formatearImporte } from "@/app/ejecucion/formato";
 import { mesesDePrueba } from "./fixtures/datosGerente";
 
 // Vista del gerente: en Disponibilidades el saldo se repite bajo Presupuestado y Real (P = R); % Avance y
-// Falta ejecutar quedan vacíos. Mismo componente en Mes en curso, Meses anteriores y Columnas juntas.
+// Falta ejecutar quedan vacíos. Mismo componente en Mes en curso, Todos los meses y Columnas juntas.
 
 function reporteDelGerente(slug: string): Reporte {
   const plantilla = PLANTILLAS_POR_SLUG[slug];

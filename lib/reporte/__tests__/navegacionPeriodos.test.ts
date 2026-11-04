@@ -77,13 +77,13 @@ test("links viejos: ?vista=actual y ?vista=todo siguen siendo valores válidos",
   assert.equal(resolverVista("todo", false), "todo");
 });
 
-test("enlacesDeModo: «Mes en curso» va al período en curso sin parámetros; «Meses anteriores», al último mes previo", () => {
+test("enlacesDeModo: «Mes en curso» va al período en curso sin parámetros; «Todos los meses», al mes en curso con la marca", () => {
   const e = enlacesDeModo("brillante", "2026-11", "2026-11", "2026-09");
   assert.deepEqual(
     e.map((x) => [x.texto, x.href]),
     [
       ["Mes en curso", "/brillante/2026-11/reporte"],
-      ["Meses anteriores", "/brillante/2026-10/reporte"],
+      ["Todos los meses", "/brillante/2026-11/reporte?modo=anteriores"],
     ]
   );
 });
@@ -97,16 +97,62 @@ test("enlacesDeModo: marca el modo que se está viendo, deducido del período", 
   assert.deepEqual(activo("2026-09"), ["anteriores"]);
 });
 
-test("enlacesDeModo: «Meses anteriores» aterriza en el último mes PREVIO (octubre), sin marca, aunque la lista incluya noviembre", () => {
-  const e = enlacesDeModo("brillante", "2026-10", "2026-11", "2026-09");
-  assert.equal(e.find((x) => x.modo === "anteriores")!.href, "/brillante/2026-10/reporte");
-  assert.ok(e.every((x) => !x.href.includes("modo=")));
-  // Con la rotación a diciembre aterriza en noviembre.
+test("enlacesDeModo: «Todos los meses» aterriza en el mes en curso (noviembre) con la marca, se mire el período que se mire; «Mes en curso» nunca lleva marca", () => {
+  for (const periodo of ["2026-09", "2026-10", "2026-11"]) {
+    const e = enlacesDeModo("brillante", periodo, "2026-11", "2026-09");
+    assert.equal(e.find((x) => x.modo === "anteriores")!.href, "/brillante/2026-11/reporte?modo=anteriores", periodo);
+    assert.equal(e.find((x) => x.modo === "en-curso")!.href, "/brillante/2026-11/reporte", periodo);
+  }
+  // Con la rotación a diciembre aterriza en diciembre, con la marca de diciembre.
   const r = enlacesDeModo("brillante", "2026-12", "2026-12", "2026-09");
-  assert.equal(r.find((x) => x.modo === "anteriores")!.href, "/brillante/2026-11/reporte");
+  assert.equal(r.find((x) => x.modo === "anteriores")!.href, "/brillante/2026-12/reporte?modo=anteriores");
 });
 
-test("enlacesDeModo: con la marca válida en el mes en curso, «Meses anteriores» queda activo y «Mes en curso» no", () => {
+test("enlacesDeModo: el texto del botón es «Todos los meses» y «Meses anteriores» ya no aparece", () => {
+  const e = enlacesDeModo("brillante", "2026-11", "2026-11", "2026-09");
+  assert.deepEqual(e.map((x) => x.texto), ["Mes en curso", "Todos los meses"]);
+  assert.ok(e.every((x) => !x.texto.includes("Meses anteriores")));
+});
+
+test("la marca va solo cuando el href apunta al mes en curso: ningún link a otro mes la lleva", () => {
+  const meses = mesesAnteriores("2026-09", "2026-11");
+  for (const href of enlacesDePeriodos("hwc", "2026-10", meses, "reporte", undefined, (p) => consultaDeBotonDeMes(p, "2026-11")).map((x) => x.href)) {
+    assert.equal(href.includes("modo=anteriores"), href.includes("/2026-11/"), href);
+  }
+});
+
+test("«Todos los meses» → noviembre en solo lectura: modo «anteriores», sin piezas editables y «Un mes» por defecto, para todos los roles", () => {
+  const href = enlacesDeModo("brillante", "2026-10", "2026-11", "2026-09").find((x) => x.modo === "anteriores")!.href;
+  const url = new URL(href, "http://x");
+  const [, , periodo] = url.pathname.split("/");
+  const marca = url.searchParams.get("modo") ?? undefined;
+  assert.equal(periodo, "2026-11");
+  assert.equal(modoDePeriodo(periodo, "2026-11", marca), "anteriores");
+  assert.equal(vistaEfectiva(resolverVista(url.searchParams.get("vista") ?? undefined, false), periodo, "2026-11", marca), "actual");
+  for (const esAdminOFinanzas of [false, true]) {
+    assert.deepEqual(
+      edicionDelReporte({ periodo, marca, esAdminOFinanzas, enCarga: "2026-11" }),
+      { historial: true, flujo: false, carga: false, tipeo: false, filasExtra: false, linkCarga: false },
+      `admin/finanzas=${esAdminOFinanzas}`
+    );
+  }
+  // Desde ahí «Columnas juntas» conserva la marca y el gerente ve los tres meses.
+  assert.equal(enlaceDeVista("brillante", periodo, "todo", marca, "2026-11"), "/brillante/2026-11/reporte?vista=todo&modo=anteriores");
+  assert.equal(vistaEfectiva("todo", periodo, "2026-11", marca), "todo");
+  assert.equal(cantidadDeMeses("todo", "2026-11", false, PERIODOS_HABILITADOS), 3);
+});
+
+test("«Mes en curso»: sin parámetros, inactivo con la marca y activo sin ella", () => {
+  const sinMarca = enlacesDeModo("hwc", "2026-11", "2026-11", "2026-09");
+  const conMarca = enlacesDeModo("hwc", "2026-11", "2026-11", "2026-09", "anteriores");
+  assert.equal(sinMarca.find((x) => x.modo === "en-curso")!.href, "/hwc/2026-11/reporte");
+  assert.equal(conMarca.find((x) => x.modo === "en-curso")!.href, "/hwc/2026-11/reporte");
+  assert.equal(sinMarca.find((x) => x.modo === "en-curso")!.activo, true);
+  assert.equal(conMarca.find((x) => x.modo === "en-curso")!.activo, false);
+  assert.equal(conMarca.find((x) => x.modo === "anteriores")!.activo, true);
+});
+
+test("enlacesDeModo: con la marca válida en el mes en curso, «Todos los meses» queda activo y «Mes en curso» no", () => {
   const e = enlacesDeModo("hwc", "2026-11", "2026-11", "2026-09", "anteriores");
   assert.deepEqual(e.filter((x) => x.activo).map((x) => x.modo), ["anteriores"]);
   assert.equal(e.find((x) => x.modo === "en-curso")!.href, "/hwc/2026-11/reporte");
@@ -147,7 +193,7 @@ test("cantidadDeMeses con el historial: el gerente en «todo» nunca pasa de los
   });
 });
 
-// --- Mes en curso visto desde «Meses anteriores» (?modo=anteriores) ---
+// --- Mes en curso visto desde «Todos los meses» (?modo=anteriores) ---
 
 test("marca ?modo=anteriores: válida solo en el mes en curso y solo con el valor exacto", () => {
   assert.equal(esHistorialDelMesEnCurso("2026-11", "anteriores", "2026-11"), true);
@@ -242,7 +288,7 @@ test("septiembre y octubre quedan como hoy, con o sin marca: la marca no activa 
 test("cartel de la vista histórica: nombra el mes en curso y dice que es solo lectura", () => {
   assert.equal(
     avisoMesEnCursoEnHistorial("2026-11"),
-    "Estás viendo el mes en curso (Noviembre 2026) desde «Meses anteriores»: solo lectura. Para cargar, usá «Mes en curso»."
+    "Estás viendo el mes en curso (Noviembre 2026) desde «Todos los meses»: solo lectura. Para cargar, usá «Mes en curso»."
   );
   assert.match(avisoMesEnCursoEnHistorial("2026-12"), /Diciembre 2026/);
 });

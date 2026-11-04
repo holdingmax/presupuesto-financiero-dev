@@ -11,9 +11,9 @@ const CLASE_LINK =
 const CLASE_ACTIVO = "bg-marino text-white font-medium";
 const CLASE_INACTIVO = "text-ink-secondary hover:text-ink hover:bg-paper-cool";
 
-// Interruptor «Mes en curso | Meses anteriores» del Reporte. El modo sale del período de la URL
+// Interruptor «Mes en curso | Todos los meses» del Reporte. El modo sale del período de la URL
 // (lib/reporte/vistaReporte.ts), así que siempre marca lo que se está viendo; son links, sin estado en el
-// cliente. En «Meses anteriores» suma «Un mes | Columnas juntas» (?vista=); los botones de mes los pone
+// cliente. En «Todos los meses» suma «Un mes | Columnas juntas» (?vista=); los botones de mes los pone
 // la página. Control segmentado: rectángulo con borde; la opción activa va en marino lleno (aria-current="page").
 export default function VistaSelector({
   empresaSlug,
@@ -24,7 +24,7 @@ export default function VistaSelector({
   empresaSlug: string;
   periodo: string;
   vista: VistaReporte;
-  // ?modo= de la URL: con él válido, el mes en curso se ve como «Meses anteriores».
+  // ?modo= de la URL: con él válido, el mes en curso se ve como «Todos los meses».
   marca?: MarcaModo;
 }) {
   const enAnteriores = modoDePeriodo(periodo, undefined, marca) === "anteriores";

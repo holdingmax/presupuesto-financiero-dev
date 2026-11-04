@@ -363,7 +363,7 @@ async function ReportePorPlantilla({
 
   return (
     <>
-      {/* Botones de mes solo en «Meses anteriores»; en «Mes en curso» no hay ningún otro mes (lib/reporte/vistaReporte.ts). */}
+      {/* Botones de mes solo en «Todos los meses»; en «Mes en curso» no hay ningún otro mes (lib/reporte/vistaReporte.ts). */}
       {modoDePeriodo(periodo, undefined, marcaModo) === "anteriores" && (
         <PeriodoSelector
           empresaSlug={empresaSlug}

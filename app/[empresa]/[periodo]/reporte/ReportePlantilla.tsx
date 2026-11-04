@@ -16,6 +16,8 @@ import { bloqueDeRolTotal, idDeClaveExtra, type BloqueExtra } from "@/lib/report
 import { Fragment, type ReactNode } from "react";
 import { nombreMesBanda, rangoDeMeses } from "@/lib/mesesReporte";
 import { FAMILIA_REPORTE, poppinsReporte } from "./fuenteReporte";
+import ScrollAlFinal from "./ScrollAlFinal";
+import { claveDeScrollInicial } from "@/lib/reporte/scrollInicial";
 
 // Colores del Excel "PRESUPUESTO MES A MES" (réplica fiel). Literales para que Tailwind los detecte.
 const BANDA = "bg-[#CCD8E7]"; // encabezado de mes y filas de sección
@@ -77,6 +79,27 @@ type Props = {
   // Control de vista (VistaSelector), armado en page.tsx: va en el encabezado, junto a las acciones.
   controlVista?: ReactNode;
 };
+
+// Un mes: div liso. Varios meses: contenedor con scroll que abre corrido hasta el final (ScrollAlFinal, componente
+// cliente; con un solo mes no se usa). `clave` = mes de la URL + cantidad de meses: cambia al cambiar de mes o de vista.
+function ContenedorTabla({
+  conScroll,
+  clave,
+  cantidadMeses,
+  children,
+}: {
+  conScroll: boolean;
+  clave: string;
+  cantidadMeses: number;
+  children: ReactNode;
+}) {
+  if (!conScroll) return <div>{children}</div>;
+  return (
+    <ScrollAlFinal clave={clave} cantidadMeses={cantidadMeses} className="max-h-[calc(100vh-4rem)] overflow-auto">
+      {children}
+    </ScrollAlFinal>
+  );
+}
 
 export default function ReportePlantilla({
   empresaNombre,
@@ -187,7 +210,11 @@ export default function ReportePlantilla({
         {/* Un solo mes entra sin scroll horizontal: sin contenedor con overflow, el encabezado fijo se pega a la
             ventana. Con varios meses el contenedor scrollea (en horizontal si la pantalla es angosta) y el
             encabezado se pega a él. */}
-        <div className={periodos.length === 1 ? "" : "max-h-[calc(100vh-4rem)] overflow-auto"}>
+        <ContenedorTabla
+          conScroll={periodos.length > 1}
+          clave={claveDeScrollInicial(periodo, String(periodos.length))}
+          cantidadMeses={periodos.length}
+        >
           <table className="w-full text-[9pt] leading-4">
             <thead className="sticky top-0 z-20 bg-paper-raised">
               <tr>
@@ -243,7 +270,7 @@ export default function ReportePlantilla({
               ))}
             </tbody>
           </table>
-        </div>
+        </ContenedorTabla>
       </section>
 
       {flujo && (

@@ -15,8 +15,8 @@ export const PERIODOS_HABILITADOS: readonly string[] = ["2026-09", "2026-10", "2
 // puedeEditarPeriodoComoGerente en lib/periodosHabilitados.ts.
 export const PERIODO_EN_CARGA_GERENTE = "2026-11";
 
-// Primer mes del historial del Reporte (interruptor «Mes en curso | Meses anteriores»): los botones de
-// «Meses anteriores» van desde acá hasta el mes previo a PERIODO_EN_CARGA_GERENTE. Solo ordena la navegación:
+// Primer mes del historial del Reporte (interruptor «Mes en curso | Todos los meses»): los botones de
+// «Todos los meses» van desde acá hasta el mes previo a PERIODO_EN_CARGA_GERENTE. Solo ordena la navegación:
 // no habilita nada (los permisos salen de PERIODOS_HABILITADOS). Ver lib/reporte/vistaReporte.ts.
 export const PERIODO_INICIO_HISTORIAL = "2026-09";
 
