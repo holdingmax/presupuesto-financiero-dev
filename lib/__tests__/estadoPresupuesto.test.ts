@@ -79,6 +79,7 @@ test("config: tandas de la Etapa 4 (Avianor y Expensas quedan fuera a propósito
       "conexion-logistica-spp",
       "fredy-publicidad",
       "havanna",
+      "havanna-peru",
       "hwc",
       "mantenor",
       "plate-silver",

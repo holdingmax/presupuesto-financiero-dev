@@ -59,6 +59,8 @@ export const EMPRESAS_CON_CARGA_EN_REPORTE: readonly string[] = [
   "conexion-logistica-spp",
   "bradenton",
   "plate-silver",
+  // Tercera tanda: Havanna Perú (Real todo manual; slug con doble «n», ver lib/slug.ts).
+  "havanna-peru",
 ];
 
 // Empresas cuyos importes están en dólares: solo cambia el texto «en pesos» del Reporte por «en dólares»

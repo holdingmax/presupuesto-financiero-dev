@@ -32,7 +32,7 @@ test("ocultaPestanaPresupuesto, interruptor APAGADO: comportamiento anterior (AD
 });
 
 test("ocultaPestanaPresupuesto (config real): se oculta en las empresas activas y NUNCA en las que no tienen carga o plantilla", () => {
-  for (const slug of ["brillante", "havanna", "radio", "fredy-publicidad", "hwc", "mantenor", "conexion-logistica", "conexion-logistica-spp", "bradenton", "plate-silver"]) {
+  for (const slug of ["brillante", "havanna", "radio", "fredy-publicidad", "hwc", "mantenor", "conexion-logistica", "conexion-logistica-spp", "bradenton", "plate-silver", "havanna-peru"]) {
     assert.equal(ocultaPestanaPresupuesto(false, slug), true, slug);
     assert.equal(ocultaPestanaPresupuesto(true, slug), true, slug);
     // Con el interruptor apagado, ADMIN y FINANZAS la conservan.
@@ -40,7 +40,7 @@ test("ocultaPestanaPresupuesto (config real): se oculta en las empresas activas 
     assert.equal(ocultaPestanaPresupuesto(false, slug, undefined, undefined, false), true, slug);
   }
   // Sin plantilla (Expensas, Gold Seguridad) o en una tanda posterior: conservan Presupuesto.
-  for (const slug of ["expensas", "gold-seguridad", "cielos", "tucson", "avianor", "havanna-peru", "inventada"]) {
+  for (const slug of ["expensas", "gold-seguridad", "cielos", "tucson", "avianor", "inventada"]) {
     for (const admin of [true, false]) {
       assert.equal(ocultaPestanaPresupuesto(admin, slug), false, `${slug} admin=${admin}`);
       assert.equal(ocultaPestanaPresupuesto(admin, slug, undefined, undefined, true), false, `${slug} admin=${admin} (encendido)`);

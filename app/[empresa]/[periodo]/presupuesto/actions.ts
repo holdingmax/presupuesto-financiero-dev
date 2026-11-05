@@ -174,7 +174,7 @@ export async function agregarLinea(
   }
 
   const { empresa, presupuesto, usuario } = await resolverEmpresaYPresupuesto(empresaSlug, periodo);
-  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto);
+  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto, empresaSlug);
   if (!autorizacion.ok) {
     return { ok: false, errores: { general: autorizacion.error } };
   }
@@ -209,7 +209,7 @@ export async function editarLinea(
   }
 
   const { empresa, presupuesto, usuario } = await resolverEmpresaYPresupuesto(empresaSlug, periodo);
-  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto);
+  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto, empresaSlug);
   if (!autorizacion.ok) {
     return { ok: false, errores: { general: autorizacion.error } };
   }
@@ -265,7 +265,7 @@ export async function eliminarLinea(
   id: string
 ): Promise<ResultadoEliminar> {
   const { empresa, presupuesto, usuario } = await resolverEmpresaYPresupuesto(empresaSlug, periodo);
-  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto);
+  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto, empresaSlug);
   if (!autorizacion.ok) {
     return { ok: false, error: autorizacion.error };
   }
@@ -299,7 +299,7 @@ export async function guardarDesglose(
   if (!linea || linea.presupuestoId !== presupuesto.id) {
     return { ok: false, errores: { general: "No encontré esa línea." } };
   }
-  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto);
+  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto, empresaSlug);
   if (!autorizacion.ok) {
     return { ok: false, errores: { general: autorizacion.error } };
   }
@@ -363,7 +363,7 @@ export async function eliminarDesglose(
   lineaId: string
 ): Promise<ResultadoEliminar> {
   const { empresa, presupuesto, usuario } = await resolverEmpresaYPresupuesto(empresaSlug, periodo);
-  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto);
+  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto, empresaSlug);
   if (!autorizacion.ok) {
     return { ok: false, error: autorizacion.error };
   }
@@ -543,7 +543,7 @@ export async function subirLineasMasivo(
   }
 
   const { empresa, presupuesto, usuario } = await resolverEmpresaYPresupuesto(empresaSlug, periodo);
-  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto);
+  const autorizacion = await autorizarEdicionLinea(usuario, empresa.id, presupuesto, empresaSlug);
   if (!autorizacion.ok) {
     return { ok: false, error: autorizacion.error };
   }

@@ -27,6 +27,23 @@ export function ocultaPestanaPresupuesto(
   return cargaActiva(empresaSlug) && tienePlantilla(empresaSlug);
 }
 
+// Mensaje cuando un gerente intenta escribir líneas en Presupuesto de una empresa que carga en el Reporte.
+export const MENSAJE_CARGA_SOLO_EN_REPORTE =
+  "Esta empresa carga su presupuesto desde el Reporte. Usá la pantalla Reporte.";
+
+// Puerta de servidor de las acciones que ESCRIBEN líneas de Presupuesto (agregar, editar, borrar, desglose, importar
+// Excel): si la pestaña está oculta para el gerente de esa empresa, la acción lo rechaza aunque la llame directo.
+// ADMIN y FINANZAS nunca se bloquean acá (conservan una vía de ajuste). Devuelve el motivo o null. No aplica a las
+// acciones de estado (enviar a revisión, validar, pedir cambios), que el Reporte usa.
+export function motivoEdicionLineasBloqueadaPorReporte(
+  esAdminOFinanzas: boolean,
+  empresaSlug: string,
+  oculta: (admin: boolean, slug: string) => boolean = ocultaPestanaPresupuesto
+): string | null {
+  if (esAdminOFinanzas) return null;
+  return oculta(false, empresaSlug) ? MENSAJE_CARGA_SOLO_EN_REPORTE : null;
+}
+
 // Último período (AAAA-MM) con al menos una semana CERRADA de Ejecución, sin pasarse del mes actual. Las semanas
 // son del holding, no de la empresa: el resultado es el mismo para todas. Recibe los períodos que tienen
 // alguna semana cerrada (sin orden ni repetidos, pueden venir con cualquier cosa) y devuelve `fallback` si

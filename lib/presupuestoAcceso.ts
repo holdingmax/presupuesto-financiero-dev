@@ -10,6 +10,7 @@ import {
   puedeVerPeriodo,
 } from "@/lib/periodosHabilitados";
 import { puedeEditarPresupuestoAhora } from "@/lib/estadoPresupuesto";
+import { motivoEdicionLineasBloqueadaPorReporte } from "@/lib/navegacionEmpresa";
 
 // Piezas del servidor compartidas por las Server Actions de Presupuesto
 // (A/presupuesto/actions.ts) y por el Reporte. No es un archivo "use server": no expone
@@ -48,8 +49,12 @@ export type ResultadoAutorizacion = { ok: true } | { ok: false; error: string };
 export async function autorizarEdicionLinea(
   usuario: Usuario,
   empresaId: string,
-  presupuesto: PresupuestoMensual
+  presupuesto: PresupuestoMensual,
+  empresaSlug: string
 ): Promise<ResultadoAutorizacion> {
+  // El gerente de una empresa que carga en el Reporte no escribe líneas por acá (ADMIN y FINANZAS sí).
+  const bloqueoReporte = motivoEdicionLineasBloqueadaPorReporte(esAdminOFinanzas(usuario), empresaSlug);
+  if (bloqueoReporte) return { ok: false, error: bloqueoReporte };
   // Primero el período: el gerente solo edita el mes en curso de carga (ADMIN y FINANZAS, todos).
   if (!puedeEditarPeriodoComoGerente(presupuesto.periodo, esAdminOFinanzas(usuario))) {
     return { ok: false, error: mensajePeriodoSoloLectura() };
