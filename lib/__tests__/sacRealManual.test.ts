@@ -5,10 +5,10 @@ import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { armarVistaTipeo, camposTipeables, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto";
 import { AVISO_UNA_VEZ } from "@/lib/reporte/bloqueo";
 
-// SAC de Brillante y Conexión: desde 2026-10 el Real es lo que dan las clasificaciones MÁS el valor tipeado de la misma
+// SAC de Brillante, Conexión y Mantenor: desde 2026-10 el Real es lo que dan las clasificaciones MÁS el valor tipeado de la misma
 // fila (sumarManual). Antes de 2026-10 y sin valor tipeado, igual que antes.
 
-const FILAS: Record<string, string> = { brillante: "br.sac", "conexion-logistica": "cx.sac" };
+const FILAS: Record<string, string> = { brillante: "br.sac", "conexion-logistica": "cx.sac", mantenor: "mn.sac" };
 const SAC = 5_000_000; // 50.000,00 que dan las clasificaciones
 const MANUAL = 1_234_567; // 12.345,67 tipeado
 
@@ -62,17 +62,41 @@ for (const slug of Object.keys(FILAS)) {
   test(`${slug}: el Total de egresos suma el SAC con lo tipeado`, () => {
     const sin = armarReporte(PLANTILLAS_POR_SLUG[slug], [mes("2026-10", {}, undefined, slug)], 0);
     const con = armarReporte(PLANTILLAS_POR_SLUG[slug], [mes("2026-10", {}, MANUAL, slug)], 0);
-    const total = (r: typeof sin) => r.filas.find((f) => f.fila.tipo === "total" && f.fila.clave.endsWith("totalEgresos"))!.celdas[0].real;
+    const total = (r: typeof sin) => r.filas.find((f) => f.fila.tipo === "total" && f.fila.rol === "totalEgresos")!.celdas[0].real;
     assert.equal(total(con)! - total(sin)!, MANUAL);
   });
+
+  test(`${slug}: el % Avance y lo que falta ejecutar usan el valor combinado`, () => {
+    const PRESUPUESTO = 20_000_000;
+    const datos = mes("2026-10", { presupuesto: new Map([["SAC", PRESUPUESTO]]) }, MANUAL, slug);
+    const r = armarReporte(PLANTILLAS_POR_SLUG[slug], [datos], 0);
+    const celda = r.filas.find((f) => f.fila.clave === FILAS[slug])!.celdas[0];
+    assert.equal(celda.real, SAC + MANUAL);
+    assert.equal(celda.faltaEjecutar, PRESUPUESTO - (SAC + MANUAL));
+    assert.equal(celda.avance, ((SAC + MANUAL) / PRESUPUESTO) * 100);
+  });
 }
+
+test("mantenor: mn.sac conserva la marca parcial y el pendiente K1", () => {
+  const f = PLANTILLAS_POR_SLUG["mantenor"].filas.find((x) => x.clave === "mn.sac");
+  assert.ok(f && f.tipo === "linea");
+  assert.equal(f.parcial, true);
+  assert.equal(f.pendiente, "K1");
+});
+
+test("mantenor: Sueldos, Tarjetas, Impuestos y Cobranza siguen sin celda de Real", () => {
+  const claves = camposManuales(PLANTILLAS_POR_SLUG["mantenor"]).filter((c) => c.columna === "REAL").map((c) => c.clave);
+  for (const c of ["mn.sueldos", "mn.tarjetas", "mn.impuestos", "mn.cobranzaJujuy"]) assert.equal(claves.includes(c), false, c);
+});
 
 test("solo br.sac y cx.sac usan sumarManual; el SAC de las demás plantillas no cambia", () => {
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     const usan = plantilla.filas.filter(
       (f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined
     );
-    assert.deepEqual(usan.map((f) => f.clave), slug === "brillante" ? ["br.sac"] : slug.startsWith("conexion-logistica") ? ["cx.sac"] : [], slug);
+    const esperado =
+      slug === "brillante" ? ["br.sac"] : slug.startsWith("conexion-logistica") ? ["cx.sac"] : slug === "mantenor" ? ["mn.sac"] : [];
+    assert.deepEqual(usan.map((f) => f.clave), esperado, slug);
   }
   // El alias de testing de Conexión comparte la plantilla.
   assert.equal(PLANTILLAS_POR_SLUG["conexion-logistica-spp"], PLANTILLAS_POR_SLUG["conexion-logistica"]);

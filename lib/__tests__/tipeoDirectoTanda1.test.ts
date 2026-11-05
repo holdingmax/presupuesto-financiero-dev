@@ -73,10 +73,10 @@ const ESPERADO: Record<
     abajo: ["av.reembolsosPrestamos", "av.cuentaParticular", "av.otroAbajo"],
     disponibilidades: ["av.dEfectivo"],
   },
-  // Mantenor: 7 Real manual de Ingresos + 1 de Egresos (Expensas) + 4 de Disponibilidades (el resto sale de Ejecución o es «Sin Real»).
+  // Mantenor: 7 Real manual de Ingresos + 2 de Egresos (SAC, Expensas) + 5 de Disponibilidades (el resto sale de Ejecución o es «Sin Real»).
   mantenor: {
     ingresos: ["mn.otrosClientesJujuy", "mn.otrosClientesTucuman", "mn.msmColumnas", "mn.msmPinturaVial", "mn.traspasoSaldoInicial", "mn.traspasoPrestamoMs", "mn.resultadoFci"],
-    egresos: ["mn.expensas"],
+    egresos: ["mn.sac", "mn.expensas"],
     abajo: [],
     disponibilidades: ["mn.dBancoFci", "mn.dEfectivo", "mn.dDolares", "mn.dChequesNegociados", "mn.dReservaSac"],
     presupuestoPisable: ["mn.prestamos"],
@@ -152,9 +152,9 @@ const ESPERADO: Record<
 };
 
 // Filas con `sumarManual` (Real = clasificaciones + valor tipeado): exactamente estas, y ninguna más en ninguna plantilla.
-const SUMAR_MANUAL: Record<string, string[]> = { brillante: ["br.sac"], "conexion-logistica": ["cx.sac"], "conexion-logistica-spp": ["cx.sac"] };
+const SUMAR_MANUAL: Record<string, string[]> = { brillante: ["br.sac"], "conexion-logistica": ["cx.sac"], "conexion-logistica-spp": ["cx.sac"], mantenor: ["mn.sac"] };
 
-test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac y cx.sac (conexion-logistica-spp comparte plantilla)", () => {
+test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac, cx.sac y mn.sac (conexion-logistica-spp comparte plantilla)", () => {
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     const filas = plantilla.filas
       .filter((f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined)
@@ -165,12 +165,12 @@ test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac 
 });
 
 // Flujo + Disponibilidades (+ Presupuestado pisable + Capital de trabajo): Fredy 3 + 9 + 1, HWC 5 + 8 + 1, Avianor 14 + 1,
-// Mantenor 8 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 7 + 1 de P + 1, Conexión 5 + 11 + 1.
+// Mantenor 9 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 7 + 1 de P + 1, Conexión 5 + 11 + 1.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 13,
   hwc: 14,
   avianor: 15,
-  mantenor: 15,
+  mantenor: 16,
   radio: 11,
   brillante: 20,
   havanna: 15,
