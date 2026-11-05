@@ -47,8 +47,10 @@ for (const [slug, clave] of [
   ["hwc", "hw.capital"],
   ["mn-prestamos", "mn.prestamos"],
   ["hv-acreditacion", "hv.acreditacionTarjetas"],
+  ["hv-devolucion", "hv.devolucionPrestamoMs"],
 ] as const) {
-  const real = slug === "mn-prestamos" ? "mantenor" : slug === "hv-acreditacion" ? "havanna" : slug;
+  const real =
+    slug === "mn-prestamos" ? "mantenor" : slug === "hv-acreditacion" || slug === "hv-devolucion" ? "havanna" : slug;
   test(`${clave}: con regla y sin valor guardado, el placeholder es el derivado`, () => {
     const derivado = derivadoDe(real, clave);
     assert.notEqual(derivado, null, "con los datos de prueba la regla da un valor");

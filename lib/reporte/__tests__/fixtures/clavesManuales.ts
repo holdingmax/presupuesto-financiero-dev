@@ -109,6 +109,7 @@ export const CLAVES_MANUALES: Record<string, string[]> = {
     "hv.tarjetasComisiones|PRESUPUESTADO",
     "hv.expensas|REAL",
     "hv.devolucionExpensas|PRESUPUESTADO",
+    "hv.devolucionPrestamoMs|PRESUPUESTADO",
     "hv.cuentaParticularMs|PRESUPUESTADO",
     "hv.ajusteCaja|PRESUPUESTADO",
     "hv.pagosMs|PRESUPUESTADO",

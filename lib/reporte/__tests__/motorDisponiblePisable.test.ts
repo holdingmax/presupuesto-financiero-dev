@@ -78,9 +78,10 @@ test("camposManuales: solo la fila con el flag ofrece Presupuestado", () => {
   assert.equal(campos.includes("comun|PRESUPUESTADO"), false);
 });
 
-test("el flag lo usa solo Mantenor «Prestamos»", () => {
+test("el flag lo usan solo Mantenor «Prestamos» y Havanna «Devolucion prestamo - Prestamo MS»", () => {
+  const esperadas: Record<string, string[]> = { mantenor: ["mn.prestamos"], havanna: ["hv.devolucionPrestamoMs"] };
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     const usan = plantilla.filas.filter((f) => f.tipo === "linea" && f.presupuesto.tipo === "disponible" && f.presupuesto.pisableConManual);
-    assert.deepEqual(usan.map((f) => f.clave), slug === "mantenor" ? ["mn.prestamos"] : [], slug);
+    assert.deepEqual(usan.map((f) => f.clave), esperadas[slug] ?? [], slug);
   }
 });

@@ -18,7 +18,8 @@ export const CENTINELA = 7_000_000_000_000;
 const CELDAS_SIN_NUMERAR_SAC = ["br.sac|REAL", "cx.sac|REAL", "mn.sac|REAL"];
 
 // «Cheques en cartera» (nov-2026) también queda sin numerar: es una fila nueva de Disponibilidades y no debe correr los valores de las demás.
-const CELDAS_SIN_NUMERAR_HAVANNA = ["hv.cobranzasLocales|REAL", "hv.acreditacionTarjetas|REAL", "hv.acreditacionTarjetas|PRESUPUESTADO", "hv.dChequesEnCartera|REAL"];
+// «Devolucion prestamo - Prestamo MS» (Presupuestado pisable, nov-2026): sin numerar queda derivada del Disponible, como en la foto.
+const CELDAS_SIN_NUMERAR_HAVANNA = ["hv.cobranzasLocales|REAL", "hv.acreditacionTarjetas|REAL", "hv.acreditacionTarjetas|PRESUPUESTADO", "hv.dChequesEnCartera|REAL", "hv.devolucionPrestamoMs|PRESUPUESTADO"];
 
 // Las ocho celdas que Mantenor sumó con el neteo de cobranzas (Otros Clientes Jujuy / Tucuman, MSM COLUMNAS / PINTURA VIAL, Real y
 // Presupuestado): sin numerarlas, el resto conserva los valores de las fotos JSON.

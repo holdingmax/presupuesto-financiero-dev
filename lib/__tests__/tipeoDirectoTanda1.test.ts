@@ -125,7 +125,7 @@ const ESPERADO: Record<
     egresos: ["hv.tarjetasComisiones", "hv.expensas"],
     abajo: [],
     disponibilidades: ["hv.dBancoFci", "hv.dEfectivo", "hv.dDolares", "hv.dChequesEnCartera", "hv.dReservaAguinaldo", "hv.dChequesNegociados", "hv.dIngresoBancoMacro"],
-    presupuestoPisable: ["hv.acreditacionTarjetas"],
+    presupuestoPisable: ["hv.acreditacionTarjetas", "hv.devolucionPrestamoMs"],
     capital: "hv.capital",
   },
   // Conexión Logística: 1 Real manual de Ingresos + 3 de Egresos (SAC, Expensas, Proveedores IVA) + 1 de abajo + 11 de Disponibilidades.
@@ -165,7 +165,7 @@ test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac,
 });
 
 // Flujo + Disponibilidades (+ Presupuestado pisable + Capital de trabajo): Fredy 3 + 9 + 1, HWC 5 + 8 + 1, Avianor 14 + 1,
-// Mantenor 9 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 7 + 1 de P + 1, Conexión 5 + 11 + 1.
+// Mantenor 9 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 7 + 2 de P + 1, Conexión 5 + 11 + 1.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 13,
   hwc: 14,
@@ -173,7 +173,7 @@ const CANTIDAD: Record<string, number> = {
   mantenor: 16,
   radio: 11,
   brillante: 20,
-  havanna: 15,
+  havanna: 16,
   "conexion-logistica": 17,
 };
 
@@ -279,6 +279,7 @@ for (const slug of Object.keys(ESPERADO)) {
 const PISABLES: [string, string][] = [
   ["mantenor", "mn.prestamos"],
   ["havanna", "hv.acreditacionTarjetas"],
+  ["havanna", "hv.devolucionPrestamoMs"],
 ];
 
 for (const [slug, clave] of PISABLES) {
