@@ -127,6 +127,12 @@ model PresupuestoMensual {
   // algo después de haber marcado "terminé", hay que pedirle que confirme de
   // nuevo antes de que el gerente pueda cerrar el presupuesto.
   revisionCompletada      Boolean @default(false)
+  // true = la versión final no la confirmó el gerente sino un ADMIN o un FINANZAS revisor
+  // "en nombre del gerente" (confirmarEnNombreDelGerente). validadoPorId sigue siendo quién
+  // apretó el botón; el motivo (obligatorio, mínimo 10 caracteres) queda acá. En los
+  // presupuestos validados antes de esta regla queda false/null (no se reconstruye).
+  confirmadoEnNombreDeGerente Boolean @default(false)
+  motivoConfirmacionEnNombre  String?
   createdAt        DateTime          @default(now())
 
   empresa   Empresa              @relation(fields: [empresaId], references: [id])

@@ -276,7 +276,7 @@ async function ReportePorPlantilla({
     cargaActiva: cargaEnReporteActiva(empresaSlug),
     periodoHabilitado: esPeriodoHabilitado(periodo),
   })
-    ? await obtenerEstadoFlujo(empresaId, periodo, esRevisor)
+    ? await obtenerEstadoFlujo(empresaId, periodo, esRevisor, usuario.rol)
     : null;
 
   // Cartel de solo lectura: solo con la carga activa para la empresa (sin ella el Reporte ya es de

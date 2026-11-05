@@ -22,9 +22,20 @@ import { mensajeDeImporte } from "@/lib/importes";
 import { extraerImporteCelda } from "@/lib/importeCelda";
 import { validarMensajePedido, puedePedirCambios } from "@/lib/pedidoCambiosPresupuesto";
 import {
+  ejecutarConfirmacion,
+  puedeConfirmarComoGerente,
+  puedeConfirmarEnNombreDelGerente,
+  type DbConfirmacion,
+} from "@/lib/confirmacionFinal";
+import {
   CLASIFICACIONES_PRESUPUESTO_TODAS,
   traducirClasificacionPresupuesto,
 } from "./clasificacionesPresupuesto";
+
+// Escritura de la confirmación final (la comparten confirmarVersionFinal y confirmarEnNombreDelGerente).
+const dbConfirmacion: DbConfirmacion = {
+  updateMany: (args) => prisma.presupuestoMensual.updateMany(args),
+};
 
 // Lo que cambia acá se ve en Presupuesto y también en el Reporte (estado, botones del flujo y
 // el Presupuestado sumado de las líneas): hay que refrescar las dos pantallas.
@@ -117,15 +128,21 @@ export async function obtenerDatos(empresaSlug: string, periodo: string) {
     fueModificadoPorRevisor: presupuesto.fueModificadoPorRevisor,
     revisionCompletada: presupuesto.revisionCompletada,
     // "Validado por X el dd/mm". por = null en presupuestos validados antes de
-    // que se guardara validadoPorId.
+    // que se guardara validadoPorId. enNombreDeGerente/motivo: constancia de la
+    // confirmación "en nombre del gerente" (false/null en lo validado antes de esa regla).
     validacion: presupuesto.fechaValidacion
       ? {
           fecha: presupuesto.fechaValidacion.toISOString(),
           por: presupuesto.validadoPorId
             ? ((await prisma.usuario.findUnique({ where: { id: presupuesto.validadoPorId }, select: { nombre: true } }))?.nombre ?? null)
             : null,
+          enNombreDeGerente: presupuesto.confirmadoEnNombreDeGerente,
+          motivo: presupuesto.motivoConfirmacionEnNombre,
         }
       : null,
+    // Qué botón de confirmación final le corresponde a este usuario (por rol; el servidor lo vuelve a exigir).
+    puedeConfirmarFinal: puedeConfirmarComoGerente(usuario.rol),
+    puedeConfirmarEnNombre: puedeConfirmarEnNombreDelGerente(usuario.rol, esRevisor),
     // "Pedido por X el dd/mm". por = null si el usuario ya no existe.
     pedidoCambios: ultimoPedido
       ? {
@@ -486,35 +503,47 @@ export async function pedirCambios(
 }
 
 // Cierre real e irreversible (antes lo hacía validarPresupuesto directo
-// desde ABIERTO) — ahora requiere haber pasado por EN_REVISION y que el
-// revisor ya haya marcado "Terminé de revisar".
+// desde ABIERTO) — requiere haber pasado por EN_REVISION y que el revisor ya haya
+// marcado "Terminé de revisar". Regla de quién (lib/confirmacionFinal.ts): SOLO el rol
+// GERENTE confirma por acá; ADMIN y FINANZAS usan confirmarEnNombreDelGerente. La regla
+// se repite acá en el servidor: ocultar el botón no alcanza.
 export async function confirmarVersionFinal(
   empresaSlug: string,
   periodo: string
 ): Promise<ResultadoTransicionEstado> {
   const { presupuesto, usuario } = await resolverEmpresaYPresupuesto(empresaSlug, periodo);
 
-  if (presupuesto.estado !== "EN_REVISION") {
-    return { ok: false, error: "Este presupuesto no está en revisión." };
-  }
-  if (!presupuesto.revisionCompletada) {
-    return { ok: false, error: "Todavía no marcaron que terminaron de revisar este presupuesto." };
-  }
-
-  // Guardia atómica: los chequeos de arriba se hicieron sobre una lectura que pudo
-  // quedar vieja (otra persona cambió el estado en el medio). Repetir las condiciones
-  // en el WHERE hace que VALIDADO solo se escriba si sigue EN_REVISION y completada.
-  const { count } = await prisma.presupuestoMensual.updateMany({
-    where: { id: presupuesto.id, estado: "EN_REVISION", revisionCompletada: true },
-    // Trazabilidad (decisión 2026-10-07): quién confirmó la versión final.
-    data: { estado: "VALIDADO", fechaValidacion: new Date(), validadoPorId: usuario.id },
+  const resultado = await ejecutarConfirmacion(dbConfirmacion, {
+    modo: "GERENTE",
+    usuario,
+    esRevisor: false, // no cuenta en este modo
+    presupuesto,
   });
-  if (count === 0) {
-    return {
-      ok: false,
-      error: "El presupuesto cambió mientras lo confirmabas. Recargá la pantalla y revisá su estado.",
-    };
-  }
+  if (!resultado.ok) return resultado;
+  revalidarPresupuesto(empresaSlug, periodo);
+  return { ok: true };
+}
+
+// Cierre "en nombre del gerente": ADMIN, o FINANZAS con puedeRevisarPresupuesto en la empresa.
+// Exige un motivo escrito (mínimo 10 caracteres) y deja constancia en el presupuesto
+// (confirmadoEnNombreDeGerente + motivoConfirmacionEnNombre); validadoPorId sigue siendo
+// quién apretó. Un GERENTE no puede usarla. Mismas guardas de estado que la normal.
+export async function confirmarEnNombreDelGerente(
+  empresaSlug: string,
+  periodo: string,
+  motivo: string
+): Promise<ResultadoTransicionEstado> {
+  const { empresa, presupuesto, usuario } = await resolverEmpresaYPresupuesto(empresaSlug, periodo);
+  const esRevisor = await puedeRevisarPresupuesto(usuario, empresa.id);
+
+  const resultado = await ejecutarConfirmacion(dbConfirmacion, {
+    modo: "EN_NOMBRE",
+    usuario,
+    esRevisor,
+    presupuesto,
+    motivo,
+  });
+  if (!resultado.ok) return resultado;
   revalidarPresupuesto(empresaSlug, periodo);
   return { ok: true };
 }

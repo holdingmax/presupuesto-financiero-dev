@@ -56,10 +56,13 @@ type Props = {
   fueModificadoPorRevisor: boolean;
   revisionCompletada: boolean;
   // Trazabilidad: quién confirmó la versión final y cuándo (null si no está validado).
-  validacion: { fecha: string; por: string | null } | null;
+  validacion: { fecha: string; por: string | null; enNombreDeGerente: boolean; motivo: string | null } | null;
   // Último pedido de cambios del revisor (null si nunca hubo). Solo se muestra en ABIERTO.
   pedidoCambios: { mensaje: string; fecha: string; por: string | null } | null;
   esRevisor: boolean;
+  // Qué confirmación final le corresponde al usuario, por rol (lib/confirmacionFinal.ts).
+  puedeConfirmarFinal: boolean;
+  puedeConfirmarEnNombre: boolean;
   // Cartel de solo lectura (null = editable). Ver avisoPeriodoSoloLectura en lib/periodosHabilitados.ts.
   avisoSoloLectura: string | null;
   lineasIniciales: Linea[];
@@ -95,6 +98,8 @@ export default function PresupuestoForm({
   validacion,
   pedidoCambios,
   esRevisor,
+  puedeConfirmarFinal,
+  puedeConfirmarEnNombre,
   avisoSoloLectura,
   lineasIniciales,
   totales,
@@ -270,6 +275,8 @@ export default function PresupuestoForm({
         fueModificadoPorRevisor={fueModificadoPorRevisor}
         validacion={validacion}
         pedidoCambios={pedidoCambios}
+        puedeConfirmarFinal={puedeConfirmarFinal}
+        puedeConfirmarEnNombre={puedeConfirmarEnNombre}
       />
 
       {puedeEditarAhora && (
@@ -633,6 +640,8 @@ export default function PresupuestoForm({
         revisionCompletada={revisionCompletada}
         cantidadLineas={lineas.length}
         ocultarEnviarARevision={avisoSoloLectura !== null}
+        puedeConfirmarFinal={puedeConfirmarFinal}
+        puedeConfirmarEnNombre={puedeConfirmarEnNombre}
       />
     </div>
   );

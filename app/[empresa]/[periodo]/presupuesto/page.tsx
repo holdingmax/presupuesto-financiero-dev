@@ -64,6 +64,8 @@ export default async function PresupuestoPage({ params }: Props) {
         validacion={datos.validacion}
         pedidoCambios={datos.pedidoCambios}
         esRevisor={datos.esRevisor}
+        puedeConfirmarFinal={datos.puedeConfirmarFinal}
+        puedeConfirmarEnNombre={datos.puedeConfirmarEnNombre}
         avisoSoloLectura={datos.avisoSoloLectura}
         lineasIniciales={datos.lineas}
         totales={datos.totales}

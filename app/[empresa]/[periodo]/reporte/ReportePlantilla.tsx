@@ -184,6 +184,8 @@ export default function ReportePlantilla({
             fueModificadoPorRevisor={flujo.fueModificadoPorRevisor}
             validacion={flujo.validacion}
             pedidoCambios={flujo.pedidoCambios}
+            puedeConfirmarFinal={flujo.puedeConfirmarFinal}
+            puedeConfirmarEnNombre={flujo.puedeConfirmarEnNombre}
           />
         </div>
       )}
@@ -280,6 +282,8 @@ export default function ReportePlantilla({
           revisionCompletada={flujo.revisionCompletada}
           cantidadLineas={flujo.cantidadLineas}
           ocultarEnviarARevision={avisoSoloLectura !== null}
+          puedeConfirmarFinal={flujo.puedeConfirmarFinal}
+          puedeConfirmarEnNombre={flujo.puedeConfirmarEnNombre}
         />
       )}
       </ConCarga>

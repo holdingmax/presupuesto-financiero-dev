@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import type { EstadoPresupuesto, PresupuestoMensual, Usuario } from "@prisma/client";
+import type { EstadoPresupuesto, PresupuestoMensual, Rol, Usuario } from "@prisma/client";
+import { puedeConfirmarComoGerente, puedeConfirmarEnNombreDelGerente } from "@/lib/confirmacionFinal";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { obtenerOCrearPresupuesto } from "@/lib/presupuesto";
 import { requireAccesoEmpresa, puedeRevisarPresupuesto, esAdminOFinanzas } from "@/lib/auth";
@@ -92,10 +93,14 @@ export type EstadoFlujo = {
   revisionCompletada: boolean;
   // "Validado por X el dd/mm". por = null en presupuestos validados antes de que se guardara
   // validadoPorId.
-  validacion: { fecha: string; por: string | null } | null;
+  // enNombreDeGerente/motivo: constancia de la confirmación "en nombre del gerente".
+  validacion: { fecha: string; por: string | null; enNombreDeGerente: boolean; motivo: string | null } | null;
   // Último pedido de cambios del revisor (null si nunca hubo). La pantalla lo muestra solo en ABIERTO.
   pedidoCambios: { mensaje: string; fecha: string; por: string | null } | null;
   esRevisor: boolean;
+  // Qué botón de confirmación final le corresponde al usuario, por rol (lib/confirmacionFinal.ts).
+  puedeConfirmarFinal: boolean;
+  puedeConfirmarEnNombre: boolean;
   cantidadLineas: number;
 };
 
@@ -106,8 +111,11 @@ export type EstadoFlujo = {
 export async function obtenerEstadoFlujo(
   empresaId: string,
   periodo: string,
-  esRevisor: boolean
+  esRevisor: boolean,
+  rol: Rol
 ): Promise<EstadoFlujo> {
+  const puedeConfirmarFinal = puedeConfirmarComoGerente(rol);
+  const puedeConfirmarEnNombre = puedeConfirmarEnNombreDelGerente(rol, esRevisor);
   const presupuesto = await prisma.presupuestoMensual.findUnique({
     where: { empresaId_periodo: { empresaId, periodo } },
   });
@@ -119,6 +127,8 @@ export async function obtenerEstadoFlujo(
       validacion: null,
       pedidoCambios: null,
       esRevisor,
+      puedeConfirmarFinal,
+      puedeConfirmarEnNombre,
       cantidadLineas: 0,
     };
   }
@@ -136,7 +146,12 @@ export async function obtenerEstadoFlujo(
     fueModificadoPorRevisor: presupuesto.fueModificadoPorRevisor,
     revisionCompletada: presupuesto.revisionCompletada,
     validacion: presupuesto.fechaValidacion
-      ? { fecha: presupuesto.fechaValidacion.toISOString(), por: await nombreDe(presupuesto.validadoPorId) }
+      ? {
+          fecha: presupuesto.fechaValidacion.toISOString(),
+          por: await nombreDe(presupuesto.validadoPorId),
+          enNombreDeGerente: presupuesto.confirmadoEnNombreDeGerente,
+          motivo: presupuesto.motivoConfirmacionEnNombre,
+        }
       : null,
     pedidoCambios: ultimoPedido
       ? {
@@ -146,6 +161,8 @@ export async function obtenerEstadoFlujo(
         }
       : null,
     esRevisor,
+    puedeConfirmarFinal,
+    puedeConfirmarEnNombre,
     cantidadLineas,
   };
 }
