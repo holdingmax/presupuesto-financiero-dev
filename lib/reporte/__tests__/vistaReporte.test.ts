@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { periodosHasta } from "@/lib/reporte/motor";
 import { cantidadDeMeses, resolverVista, vistaPorDefecto } from "@/lib/reporte/vistaReporte";
 import { enlacesDePeriodos } from "@/lib/periodosHabilitados";
 
@@ -26,16 +27,38 @@ test("cantidadDeMeses: «actual» es un solo mes, para cualquier rol y período"
 });
 
 test("cantidadDeMeses: «todo» del gerente se corta en los períodos habilitados", () => {
-  assert.equal(cantidadDeMeses("todo", "2026-11", false, HABILITADOS), 3); // sep, oct, nov
-  assert.equal(cantidadDeMeses("todo", "2026-10", false, HABILITADOS), 2); // ago no está habilitado
-  assert.equal(cantidadDeMeses("todo", "2026-09", false, HABILITADOS), 1);
+  assert.equal(cantidadDeMeses("todo", "2026-11", false, HABILITADOS, "2026-09"), 3); // sep, oct, nov
+  assert.equal(cantidadDeMeses("todo", "2026-10", false, HABILITADOS, "2026-09"), 2); // ago no está habilitado
+  assert.equal(cantidadDeMeses("todo", "2026-09", false, HABILITADOS, "2026-09"), 1);
   // Un período fuera de la lista nunca da cero columnas.
-  assert.equal(cantidadDeMeses("todo", "2026-12", false, HABILITADOS), 1);
+  assert.equal(cantidadDeMeses("todo", "2026-12", false, HABILITADOS, "2026-09"), 1);
 });
 
-test("cantidadDeMeses: «todo» de ADMIN y FINANZAS no tiene tope (como siempre)", () => {
-  assert.equal(cantidadDeMeses("todo", "2026-09", true, HABILITADOS), 3);
-  assert.equal(cantidadDeMeses("todo", "2026-11", true, HABILITADOS), 3);
+test("cantidadDeMeses: «todo» de ADMIN y FINANZAS se corta en el inicio del historial (no ven meses ocultos)", () => {
+  // Con inicio en septiembre: tope de 3 meses, pero nunca antes de septiembre.
+  assert.equal(cantidadDeMeses("todo", "2026-09", true, HABILITADOS, "2026-09"), 1);
+  assert.equal(cantidadDeMeses("todo", "2026-10", true, HABILITADOS, "2026-09"), 2);
+  assert.equal(cantidadDeMeses("todo", "2026-11", true, HABILITADOS, "2026-09"), 3);
+  assert.equal(cantidadDeMeses("todo", "2027-01", true, HABILITADOS, "2026-09"), 3); // sin tope por lista, sí por MESES_EN_TODO
+});
+
+test("cantidadDeMeses con la config real: octubre muestra solo octubre y noviembre, octubre y noviembre; para todos los roles", () => {
+  for (const admin of [true, false]) {
+    assert.equal(cantidadDeMeses("todo", "2026-10", admin), 1, `oct, admin=${admin}`);
+    assert.equal(cantidadDeMeses("todo", "2026-11", admin), 2, `nov, admin=${admin}`);
+  }
+  // Ni agosto ni septiembre entran nunca en las columnas: el primer mes visible es el inicio del historial.
+  for (const admin of [true, false]) {
+    assert.deepEqual(periodosHasta("2026-11", cantidadDeMeses("todo", "2026-11", admin)), ["2026-10", "2026-11"]);
+    assert.deepEqual(periodosHasta("2026-10", cantidadDeMeses("todo", "2026-10", admin)), ["2026-10"]);
+  }
+});
+
+test("el mes de contexto invisible (+1) sigue cargándose: octubre pide septiembre, noviembre pide octubre", () => {
+  // La página arma periodosHasta(periodo, cantidadDeMeses + 1); armarReporte descarta ese primer mes (mesesDeContexto = 1).
+  assert.deepEqual(periodosHasta("2026-10", cantidadDeMeses("todo", "2026-10", true) + 1), ["2026-09", "2026-10"]);
+  assert.deepEqual(periodosHasta("2026-10", cantidadDeMeses("actual", "2026-10", true) + 1), ["2026-09", "2026-10"]);
+  assert.deepEqual(periodosHasta("2026-11", cantidadDeMeses("todo", "2026-11", true) + 1), ["2026-09", "2026-10", "2026-11"]);
 });
 
 test("enlacesDePeriodos: sin vista los links quedan como antes; con vista la conservan", () => {

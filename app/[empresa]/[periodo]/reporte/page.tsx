@@ -1,6 +1,7 @@
 import type { Usuario } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { MOSTRAR_PENDIENTES_EN_REPORTE } from "@/lib/config";
+import Link from "next/link";
+import { MOSTRAR_PENDIENTES_EN_REPORTE, PERIODO_POR_DEFECTO } from "@/lib/config";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import {
   requireAccesoEmpresa,
@@ -10,7 +11,7 @@ import {
   veBloquesReservadosDelReporte,
 } from "@/lib/auth";
 import { obtenerOCrearPresupuesto } from "@/lib/presupuesto";
-import { avisoPeriodoSoloLectura, esPeriodoHabilitado } from "@/lib/periodosHabilitados";
+import { avisoPeriodoSoloLectura, esPeriodoHabilitado, nombreLegibleDePeriodo } from "@/lib/periodosHabilitados";
 import { cargaEnReporteActiva, mostrarFlujoEnReporte, puedeEditarPresupuestoAhora } from "@/lib/estadoPresupuesto";
 import { planDeCarga, vistaDeCarga, type VistaCarga } from "@/lib/reporte/cargaGerente";
 import { leerLineasParaCarga, leerValoresManualesParaCarga } from "@/lib/reporte/aplicarCarga";
@@ -108,6 +109,21 @@ export default async function ReportePage({ params, searchParams }: Props) {
     // acá (Next resuelve esta página en paralelo con el layout).
     if (error instanceof AccesoDenegadoError) return null;
     throw error;
+  }
+
+  // Período fuera de lib/config.ts (PERIODOS_HABILITADOS): no lo abre nadie, tampoco ADMIN ni FINANZAS, y no
+  // se calcula ni se crea nada. Un texto que no es AAAA-MM lo atiende el layout.
+  if (FORMATO_PERIODO.test(periodo) && !esPeriodoHabilitado(periodo)) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-6 py-10">
+        <p className="text-sm text-terracota bg-terracota-tint rounded-md px-3 py-2">
+          El reporte de este mes todavía no está habilitado.{" "}
+          <Link href={`/${empresaSlug}/${PERIODO_POR_DEFECTO}/reporte`} className="underline underline-offset-2">
+            Ir al reporte de {nombreLegibleDePeriodo(PERIODO_POR_DEFECTO)}
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   // Etapa 2a: las 7 empresas con plantilla (réplica del PF de Macchi) toman el

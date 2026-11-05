@@ -4,6 +4,7 @@ import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { AccesoDenegadoError, PermisoDenegadoError, requireAccesoEmpresa, requireAdminOFinanzas } from "@/lib/auth";
 import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
 import { nombreDePeriodo } from "@/lib/ejecucionSemanas";
+import { esPeriodoHabilitado } from "@/lib/periodosHabilitados";
 import { armarReporte, camposManuales, periodosHasta, type DatosMes } from "@/lib/reporte/motor";
 import { plantillaDeEmpresa } from "@/lib/reporte/plantillas";
 import { cargarDatosMeses } from "@/lib/reporte/cargarMeses";
@@ -37,6 +38,8 @@ export default async function CargaPage({ params }: Props) {
     }
     throw error;
   }
+  // Fuera de PERIODOS_HABILITADOS no se abre ni siquiera para ADMIN y FINANZAS.
+  if (!esPeriodoHabilitado(periodo)) return <Aviso texto="El reporte de este mes todavía no está habilitado." />;
   const plantilla = plantillaDeEmpresa(slug);
   if (!plantilla) return <Aviso texto="Esta empresa no tiene reporte por plantilla." />;
 

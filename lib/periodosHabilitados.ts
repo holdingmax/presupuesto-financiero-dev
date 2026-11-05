@@ -1,7 +1,7 @@
 import { PERIODOS_HABILITADOS, PERIODO_EN_CARGA_GERENTE } from "@/lib/config";
 import { nombreDePeriodo } from "@/lib/ejecucionSemanas";
 
-// Períodos de Presupuesto habilitados para quien no es ADMIN ni FINANZAS. Puras (sin Prisma
+// Períodos habilitados (todos los roles). Puras (sin Prisma
 // ni next/*) para poder probarlas; las usan presupuesto/page.tsx, resolverEmpresaYPresupuesto
 // (actions.ts) y el selector de mes. Reciben la lista como parámetro (por defecto, la de
 // lib/config.ts) para probarlas con otra.
@@ -10,13 +10,10 @@ export function esPeriodoHabilitado(periodo: string, habilitados: readonly strin
   return habilitados.includes(periodo);
 }
 
-// ADMIN y FINANZAS abren cualquier período; el resto, solo los habilitados.
-export function puedeVerPeriodo(
-  periodo: string,
-  esAdminOFinanzas: boolean,
-  habilitados: readonly string[] = PERIODOS_HABILITADOS
-): boolean {
-  return esAdminOFinanzas || esPeriodoHabilitado(periodo, habilitados);
+// Quién puede abrir un período: TODOS los roles, ADMIN y FINANZAS incluidos, solo los habilitados. Va antes
+// de obtenerOCrearPresupuesto, así un período oculto no crea ninguna cabecera vacía.
+export function puedeVerPeriodo(periodo: string, habilitados: readonly string[] = PERIODOS_HABILITADOS): boolean {
+  return esPeriodoHabilitado(periodo, habilitados);
 }
 
 // Quién puede EDITAR el presupuesto de un período: ADMIN y FINANZAS, cualquiera; el resto (el

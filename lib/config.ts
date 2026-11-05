@@ -2,11 +2,12 @@
 // resueltos vía lib/slug.ts y lib/presupuesto.ts. EMPRESA_NOMBRE se eliminó porque ya no
 // tiene ningún uso — ninguna pantalla depende de "una sola empresa" en el código.
 //
-// Períodos de Presupuesto que puede abrir un usuario que no es ADMIN ni FINANZAS (ver
-// lib/periodosHabilitados.ts). Es el selector de mes de la pantalla de Presupuesto: para
-// habilitar un mes nuevo, agregarlo acá (en orden). Ejecución financiera y Reporte no
-// usan esta lista.
-export const PERIODOS_HABILITADOS: readonly string[] = ["2026-09", "2026-10", "2026-11"];
+// Períodos de Presupuesto y Reporte que puede abrir CUALQUIER usuario, ADMIN y FINANZAS incluidos (ver
+// lib/periodosHabilitados.ts): un período fuera de la lista no se abre por URL ni crea su cabecera. Es el
+// selector de mes de las pantallas de Presupuesto y Reporte: para habilitar un mes nuevo, agregarlo acá
+// (en orden). Ejecución financiera no usa esta lista. Agosto y septiembre 2026 quedan ocultos a propósito
+// (sus datos siguen en la base, sin tocar).
+export const PERIODOS_HABILITADOS: readonly string[] = ["2026-10", "2026-11"];
 
 // Único período que el gerente (quien no es ADMIN ni FINANZAS) puede EDITAR: el mes en curso de
 // carga. Los demás de PERIODOS_HABILITADOS los puede abrir, pero en solo lectura. Se aplica en el
@@ -18,13 +19,13 @@ export const PERIODO_EN_CARGA_GERENTE = "2026-11";
 // Primer mes del historial del Reporte (interruptor «Mes en curso | Todos los meses»): los botones de
 // «Todos los meses» van desde acá hasta el mes previo a PERIODO_EN_CARGA_GERENTE. Solo ordena la navegación:
 // no habilita nada (los permisos salen de PERIODOS_HABILITADOS). Ver lib/reporte/vistaReporte.ts.
-export const PERIODO_INICIO_HISTORIAL = "2026-09";
+export const PERIODO_INICIO_HISTORIAL = "2026-10";
 
 // Período de respaldo de los links de "Mis empresas" (y del aviso de período no habilitado). ADMIN y FINANZAS entran
 // al Reporte del último mes con alguna semana cerrada (lib/ultimoPeriodoCargado.ts) y caen acá si no hay ninguno;
 // las empresas sin Reporte por plantilla (Expensas, Gold, Cielos, Tucson) van siempre a este período.
 // Tiene que estar en PERIODOS_HABILITADOS (lo controla un test).
-export const PERIODO_POR_DEFECTO = "2026-09";
+export const PERIODO_POR_DEFECTO = "2026-10";
 
 // Reporte por plantilla: muestra las etiquetas K (K1, K7...), sus tooltips y el panel
 // "Pendiente de confirmar con Kike" a ADMIN y FINANZAS. En false se ocultan para todos

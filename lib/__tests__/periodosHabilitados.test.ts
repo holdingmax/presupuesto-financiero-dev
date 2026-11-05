@@ -13,8 +13,9 @@ import {
 } from "@/lib/periodosHabilitados";
 import { ocultaPestanaPresupuesto } from "@/lib/navegacionEmpresa";
 
-test("config: los períodos habilitados son septiembre, octubre y noviembre de 2026", () => {
-  assert.deepEqual([...PERIODOS_HABILITADOS], ["2026-09", "2026-10", "2026-11"]);
+test("config: los períodos habilitados son solo octubre y noviembre de 2026", () => {
+  assert.deepEqual([...PERIODOS_HABILITADOS], ["2026-10", "2026-11"]);
+  for (const oculto of ["2026-08", "2026-09"]) assert.ok(!PERIODOS_HABILITADOS.includes(oculto), oculto);
 });
 
 test("config: el período por defecto está en la lista", () => {
@@ -28,31 +29,32 @@ test("config: la lista no tiene duplicados, está ordenada y todos son AAAA-MM c
 });
 
 test("esPeriodoHabilitado: acepta cada período de la lista", () => {
-  for (const p of ["2026-09", "2026-10", "2026-11"]) assert.equal(esPeriodoHabilitado(p), true, p);
+  for (const p of ["2026-10", "2026-11"]) assert.equal(esPeriodoHabilitado(p), true, p);
 });
 
 test("esPeriodoHabilitado: rechaza cualquier otro valor, incluidos meses inválidos y formas raras", () => {
-  for (const p of ["2026-08", "2026-12", "2027-09", "2026-13", "2026-00", "2026-9", "", " 2026-09", "2026-09 ", "septiembre", "2026-09-01"]) {
+  for (const p of ["2026-08", "2026-09", "2026-12", "2027-09", "2026-13", "2026-00", "2026-9", "", " 2026-09", "2026-09 ", "septiembre", "2026-09-01"]) {
     assert.equal(esPeriodoHabilitado(p), false, JSON.stringify(p));
   }
 });
 
 test("esPeriodoHabilitado: usa la lista que se le pase", () => {
   assert.equal(esPeriodoHabilitado("2026-08", ["2026-08"]), true);
-  assert.equal(esPeriodoHabilitado("2026-09", ["2026-08"]), false);
-  assert.equal(esPeriodoHabilitado("2026-09", []), false);
+  assert.equal(esPeriodoHabilitado("2026-10", ["2026-08"]), false);
+  assert.equal(esPeriodoHabilitado("2026-10", []), false);
 });
 
-test("puedeVerPeriodo: ADMIN y FINANZAS abren cualquier período", () => {
-  for (const p of ["2026-09", "2026-08", "2027-01", "2026-13"]) {
-    assert.equal(puedeVerPeriodo(p, true), true, p);
+test("puedeVerPeriodo: nadie (ADMIN y FINANZAS tampoco) abre un período fuera de la lista", () => {
+  for (const p of ["2026-08", "2026-09", "2026-12", "2027-01", "2026-13", "", "2026-9"]) {
+    assert.equal(puedeVerPeriodo(p), false, JSON.stringify(p));
   }
 });
 
-test("puedeVerPeriodo: el resto solo abre los habilitados", () => {
-  assert.equal(puedeVerPeriodo("2026-10", false), true);
-  assert.equal(puedeVerPeriodo("2026-08", false), false);
-  assert.equal(puedeVerPeriodo("2026-13", false), false);
+test("puedeVerPeriodo: todos abren los habilitados y usa la lista que se le pase", () => {
+  assert.equal(puedeVerPeriodo("2026-10"), true);
+  assert.equal(puedeVerPeriodo("2026-11"), true);
+  assert.equal(puedeVerPeriodo("2026-09", ["2026-09"]), true);
+  assert.equal(puedeVerPeriodo("2026-10", ["2026-09"]), false);
 });
 
 test("enlacesDePeriodos: un link por período, en orden, hacia la pantalla de Presupuesto", () => {
@@ -60,7 +62,6 @@ test("enlacesDePeriodos: un link por período, en orden, hacia la pantalla de Pr
   assert.deepEqual(
     enlaces.map((e) => e.href),
     [
-      "/fredy-publicidad/2026-09/presupuesto",
       "/fredy-publicidad/2026-10/presupuesto",
       "/fredy-publicidad/2026-11/presupuesto",
     ]
@@ -72,15 +73,14 @@ test("enlacesDePeriodos: marca como activo solo el período actual", () => {
   assert.deepEqual(
     enlaces.map((e) => [e.periodo, e.activo]),
     [
-      ["2026-09", false],
       ["2026-10", false],
       ["2026-11", true],
     ]
   );
 });
 
-test("enlacesDePeriodos: con un período fuera de la lista (ADMIN o FINANZAS) no marca ninguno", () => {
-  assert.ok(enlacesDePeriodos("hwc", "2026-08").every((e) => !e.activo));
+test("enlacesDePeriodos: con un período fuera de la lista no marca ninguno", () => {
+  assert.ok(enlacesDePeriodos("hwc", "2026-09").every((e) => !e.activo));
 });
 
 test("PeriodoNoHabilitadoError: es un Error identificable y guarda el período", () => {
@@ -172,7 +172,7 @@ test("selector de mes del Reporte: aparece cuando la pestaña está oculta, para
 test("enlacesDePeriodos: con segmento reporte los links van al Reporte; sin segmento, a Presupuesto", () => {
   assert.deepEqual(
     enlacesDePeriodos("hwc", "2026-11", undefined, "reporte").map((e) => e.href),
-    ["/hwc/2026-09/reporte", "/hwc/2026-10/reporte", "/hwc/2026-11/reporte"]
+    ["/hwc/2026-10/reporte", "/hwc/2026-11/reporte"]
   );
   assert.ok(enlacesDePeriodos("hwc", "2026-11").every((e) => e.href.endsWith("/presupuesto")));
 });
@@ -181,10 +181,10 @@ test("enlacesDePeriodos: consultaExtra suma un parámetro por período y se comb
   const extra = (p: string) => (p === "2026-11" ? "modo=anteriores" : "");
   assert.deepEqual(
     enlacesDePeriodos("hwc", "2026-10", undefined, "reporte", undefined, extra).map((e) => e.href),
-    ["/hwc/2026-09/reporte", "/hwc/2026-10/reporte", "/hwc/2026-11/reporte?modo=anteriores"]
+    ["/hwc/2026-10/reporte", "/hwc/2026-11/reporte?modo=anteriores"]
   );
   assert.deepEqual(
     enlacesDePeriodos("hwc", "2026-10", undefined, "reporte", "todo", extra).map((e) => e.href),
-    ["/hwc/2026-09/reporte?vista=todo", "/hwc/2026-10/reporte?vista=todo", "/hwc/2026-11/reporte?vista=todo&modo=anteriores"]
+    ["/hwc/2026-10/reporte?vista=todo", "/hwc/2026-11/reporte?vista=todo&modo=anteriores"]
   );
 });

@@ -17,9 +17,9 @@ import {
 } from "@/lib/reporte/vistaReporte";
 import { enlacesDePeriodos } from "@/lib/periodosHabilitados";
 
-test("config: PERIODOS_HABILITADOS no cambió y el inicio del historial es anterior al mes en curso", () => {
-  assert.deepEqual([...PERIODOS_HABILITADOS], ["2026-09", "2026-10", "2026-11"]);
-  assert.equal(PERIODO_INICIO_HISTORIAL, "2026-09");
+test("config: PERIODOS_HABILITADOS es oct-nov y el inicio del historial es anterior al mes en curso", () => {
+  assert.deepEqual([...PERIODOS_HABILITADOS], ["2026-10", "2026-11"]);
+  assert.equal(PERIODO_INICIO_HISTORIAL, "2026-10");
   assert.ok(PERIODO_INICIO_HISTORIAL < PERIODO_EN_CARGA_GERENTE);
   assert.match(PERIODO_INICIO_HISTORIAL, /^\d{4}-(0[1-9]|1[0-2])$/);
 });
@@ -52,7 +52,8 @@ test("mesesAnteriores: vacía si el inicio no es anterior al mes en curso (sin n
 
 test("mesesAnteriores: con la config real termina en el mes en curso y los demás son anteriores", () => {
   const meses = mesesAnteriores();
-  assert.deepEqual(meses, ["2026-09", "2026-10", "2026-11"]);
+  assert.deepEqual(meses, ["2026-10", "2026-11"]);
+  assert.ok(!meses.includes("2026-08") && !meses.includes("2026-09"));
   assert.equal(meses[meses.length - 1], PERIODO_EN_CARGA_GERENTE);
   for (const m of meses.slice(0, -1)) assert.equal(modoDePeriodo(m), "anteriores", m);
   // Sin la marca, el mes en curso sigue siendo «en-curso» aunque esté en la lista.
@@ -136,10 +137,10 @@ test("«Todos los meses» → noviembre en solo lectura: modo «anteriores», si
       `admin/finanzas=${esAdminOFinanzas}`
     );
   }
-  // Desde ahí «Columnas juntas» conserva la marca y el gerente ve los tres meses.
+  // Desde ahí «Columnas juntas» conserva la marca y el gerente ve octubre y noviembre.
   assert.equal(enlaceDeVista("brillante", periodo, "todo", marca, "2026-11"), "/brillante/2026-11/reporte?vista=todo&modo=anteriores");
   assert.equal(vistaEfectiva("todo", periodo, "2026-11", marca), "todo");
-  assert.equal(cantidadDeMeses("todo", "2026-11", false, PERIODOS_HABILITADOS), 3);
+  assert.equal(cantidadDeMeses("todo", "2026-11", false, PERIODOS_HABILITADOS), 2);
 });
 
 test("«Mes en curso»: sin parámetros, inactivo con la marca y activo sin ella", () => {

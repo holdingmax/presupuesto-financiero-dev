@@ -26,9 +26,9 @@ export async function resolverEmpresaYPresupuesto(empresaSlug: string, periodo: 
     throw new Error(`No existe una empresa para "${empresaSlug}".`);
   }
   const usuario = await requireAccesoEmpresa(empresa.id);
-  // Fuera de la lista de períodos habilitados solo entran ADMIN y FINANZAS. Va ANTES de
+  // Fuera de la lista de períodos habilitados no entra nadie (tampoco ADMIN ni FINANZAS). Va ANTES de
   // obtenerOCrearPresupuesto: un período no habilitado no tiene que crear ninguna fila.
-  if (!puedeVerPeriodo(periodo, esAdminOFinanzas(usuario))) {
+  if (!puedeVerPeriodo(periodo)) {
     throw new PeriodoNoHabilitadoError(periodo);
   }
   const presupuesto = await obtenerOCrearPresupuesto(empresa.id, periodo);

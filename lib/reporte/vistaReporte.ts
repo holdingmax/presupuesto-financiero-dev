@@ -31,19 +31,21 @@ export function resolverVista(
   return vistaPorDefecto(esAdminOFinanzas);
 }
 
-// Cuántos meses se muestran (el último es el de la URL). En "todo", el gerente queda limitado a los
-// períodos habilitados: se corta en el primer mes anterior que no lo esté. ADMIN y FINANZAS no tienen tope.
+// Cuántos meses se muestran (el último es el de la URL). En "todo" se corta en el primer mes anterior que no esté
+// habilitado (gerente) o que sea previo al inicio del historial (PERIODO_INICIO_HISTORIAL: también ADMIN y
+// FINANZAS), así nadie ve meses ocultos como agosto o septiembre 2026.
 export function cantidadDeMeses(
   vista: VistaReporte,
   periodo: string,
   esAdminOFinanzas: boolean,
-  habilitados: readonly string[] = PERIODOS_HABILITADOS
+  habilitados: readonly string[] = PERIODOS_HABILITADOS,
+  inicio: string = PERIODO_INICIO_HISTORIAL
 ): number {
   if (vista === "actual") return 1;
-  if (esAdminOFinanzas) return MESES_EN_TODO;
   const meses = periodosHasta(periodo, MESES_EN_TODO);
+  const visible = (m: string) => m >= inicio && (esAdminOFinanzas || habilitados.includes(m));
   let cantidad = 0;
-  for (let i = meses.length - 1; i >= 0 && habilitados.includes(meses[i]); i--) cantidad++;
+  for (let i = meses.length - 1; i >= 0 && visible(meses[i]); i--) cantidad++;
   return Math.max(1, cantidad);
 }
 

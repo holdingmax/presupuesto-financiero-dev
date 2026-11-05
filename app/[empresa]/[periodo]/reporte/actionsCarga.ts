@@ -31,8 +31,8 @@ export async function guardarPresupuestoDelReporte(
   // El usuario tiene acceso a ESTA empresa (ADMIN a todas; el resto, por su fila de UsuarioEmpresa).
   const usuario = await requireAccesoEmpresa(empresa.id);
   const adminOFinanzas = esAdminOFinanzas(usuario);
-  // Fuera de los períodos habilitados solo entran ADMIN y FINANZAS.
-  if (!puedeVerPeriodo(periodo, adminOFinanzas)) {
+  // Fuera de los períodos habilitados no entra nadie (tampoco ADMIN ni FINANZAS).
+  if (!puedeVerPeriodo(periodo)) {
     return { ok: false, error: "El presupuesto de este mes todavía no está habilitado." };
   }
   // El gerente solo edita el mes en curso de carga (PERIODO_EN_CARGA_GERENTE); ADMIN y FINANZAS, todos.
