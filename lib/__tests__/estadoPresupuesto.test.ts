@@ -69,10 +69,11 @@ test("config: cada slug de EMPRESAS_CON_CARGA_EN_REPORTE tiene plantilla de Repo
   }
 });
 
-test("config: tandas de la Etapa 4 (Avianor y Expensas quedan fuera a propósito)", () => {
+test("config: tandas de la Etapa 4 (Expensas queda fuera a propósito; Avianor carga en el Reporte)", () => {
   assert.deepEqual(
     [...EMPRESAS_CON_CARGA_EN_REPORTE].sort(),
     [
+      "avianor",
       "bradenton",
       "brillante",
       "conexion-logistica",
@@ -86,8 +87,9 @@ test("config: tandas de la Etapa 4 (Avianor y Expensas quedan fuera a propósito
       "radio",
     ]
   );
-  assert.equal(EMPRESAS_CON_CARGA_EN_REPORTE.includes("avianor"), false);
+  assert.equal(EMPRESAS_CON_CARGA_EN_REPORTE.includes("avianor"), true);
   assert.equal(EMPRESAS_CON_CARGA_EN_REPORTE.includes("expensas"), false);
+  assert.equal(EMPRESAS_CON_CARGA_EN_REPORTE.includes("gold-seguridad"), false);
 });
 
 test("config: EMPRESAS_EN_DOLARES son exactamente Bradenton y Plate Silver, y las dos cargan en el Reporte", () => {

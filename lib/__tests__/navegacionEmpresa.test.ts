@@ -32,7 +32,7 @@ test("ocultaPestanaPresupuesto, interruptor APAGADO: comportamiento anterior (AD
 });
 
 test("ocultaPestanaPresupuesto (config real): se oculta en las empresas activas y NUNCA en las que no tienen carga o plantilla", () => {
-  for (const slug of ["brillante", "havanna", "radio", "fredy-publicidad", "hwc", "mantenor", "conexion-logistica", "conexion-logistica-spp", "bradenton", "plate-silver", "havanna-peru"]) {
+  for (const slug of ["brillante", "havanna", "radio", "fredy-publicidad", "hwc", "mantenor", "conexion-logistica", "conexion-logistica-spp", "bradenton", "plate-silver", "havanna-peru", "avianor"]) {
     assert.equal(ocultaPestanaPresupuesto(false, slug), true, slug);
     assert.equal(ocultaPestanaPresupuesto(true, slug), true, slug);
     // Con el interruptor apagado, ADMIN y FINANZAS la conservan.
@@ -40,7 +40,7 @@ test("ocultaPestanaPresupuesto (config real): se oculta en las empresas activas 
     assert.equal(ocultaPestanaPresupuesto(false, slug, undefined, undefined, false), true, slug);
   }
   // Sin plantilla (Expensas, Gold Seguridad) o en una tanda posterior: conservan Presupuesto.
-  for (const slug of ["expensas", "gold-seguridad", "cielos", "tucson", "avianor", "inventada"]) {
+  for (const slug of ["expensas", "gold-seguridad", "cielos", "tucson", "inventada"]) {
     for (const admin of [true, false]) {
       assert.equal(ocultaPestanaPresupuesto(admin, slug), false, `${slug} admin=${admin}`);
       assert.equal(ocultaPestanaPresupuesto(admin, slug, undefined, undefined, true), false, `${slug} admin=${admin} (encendido)`);
@@ -57,8 +57,8 @@ test("enlaceDeEmpresa: ADMIN y FINANZAS van al Reporte en toda empresa con plant
   }
 });
 
-test("enlaceDeEmpresa: el gerente de Avianor y de las empresas sin plantilla sigue yendo a Presupuesto", () => {
-  assert.equal(enlaceDeEmpresa(false, "avianor"), `/avianor/${PERIODO_EN_CARGA_GERENTE}/presupuesto`);
+test("enlaceDeEmpresa: el gerente de Avianor va al Reporte; el de las empresas sin plantilla sigue yendo a Presupuesto", () => {
+  assert.equal(enlaceDeEmpresa(false, "avianor"), `/avianor/${PERIODO_EN_CARGA_GERENTE}/reporte`);
   assert.equal(enlaceDeEmpresa(false, "expensas"), `/expensas/${PERIODO_EN_CARGA_GERENTE}/presupuesto`);
 });
 
@@ -74,7 +74,7 @@ test("enlaceDeEmpresa, interruptor APAGADO: ADMIN y FINANZAS van al Reporte con 
 test("enlaceDeEmpresa: el gerente va al mes en curso, al Reporte si carga ahí y a Presupuesto si no", () => {
   assert.equal(enlaceDeEmpresa(false, "havanna"), `/havanna/${PERIODO_EN_CARGA_GERENTE}/reporte`);
   assert.equal(enlaceDeEmpresa(false, "expensas"), `/expensas/${PERIODO_EN_CARGA_GERENTE}/presupuesto`);
-  assert.equal(enlaceDeEmpresa(false, "avianor"), `/avianor/${PERIODO_EN_CARGA_GERENTE}/presupuesto`);
+  assert.equal(enlaceDeEmpresa(false, "avianor"), `/avianor/${PERIODO_EN_CARGA_GERENTE}/reporte`);
 });
 
 test("enlaceDeEmpresa: ADMIN y FINANZAS van al período pasado (periodoAdmin) en las empresas con plantilla", () => {

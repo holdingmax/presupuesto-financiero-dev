@@ -45,7 +45,11 @@ export const MOSTRAR_PENDIENTES_EN_REPORTE = false;
 // Primera tanda (Etapa 4): Brillante, Havanna, Radio, Fredy Publicidad, HWC, Mantenor y Conexión
 // (los dos alias de slug: uno es el de testing; el que no exista en una base no hace nada).
 // Segunda tanda: Bradenton y Plate Silver (en dólares: el texto del Reporte lo dice, ver EMPRESAS_EN_DOLARES).
-// Quedan FUERA a propósito: Avianor y Expensas (los carga Enrique Macchi con la pantalla vieja de Presupuesto).
+// Tercera tanda: Havanna Perú y Avianor. Avianor ya no queda afuera: carga desde el Reporte como las demás. OJO: 10
+// categorías de Presupuesto no tienen fila en su plantilla (Intereses FCI, Préstamo Cocos, Préstamo MS, COMISIONES
+// ESPECIALES, INVERSIONES, IVA, Juicios, OTROS, PAGOS ESPECIALES, Prestamos y tarjetas): un monto cargado ahí no llega a la
+// columna Presupuestado ni a los totales (la pantalla de carga lo muestra aparte como «sin fila»).
+// Quedan FUERA a propósito: Expensas y Gold Seguridad (siguen con la pantalla vieja de Presupuesto).
 // Sumar una empresa es agregar su slug acá. Expensas, Gold Seguridad, Cielos y Tucson no
 // tienen Reporte por plantilla: no se pueden activar.
 export const EMPRESAS_CON_CARGA_EN_REPORTE: readonly string[] = [
@@ -59,8 +63,9 @@ export const EMPRESAS_CON_CARGA_EN_REPORTE: readonly string[] = [
   "conexion-logistica-spp",
   "bradenton",
   "plate-silver",
-  // Tercera tanda: Havanna Perú (Real todo manual; slug con doble «n», ver lib/slug.ts).
+  // Havanna Perú (Real todo manual; slug con doble «n», ver lib/slug.ts).
   "havanna-peru",
+  "avianor",
 ];
 
 // Empresas cuyos importes están en dólares: solo cambia el texto «en pesos» del Reporte por «en dólares»

@@ -15,8 +15,8 @@ test("gerente rechazado en una empresa con carga en el Reporte (config real)", (
   }
 });
 
-test("gerente permitido en Expensas, Gold Seguridad y Avianor (siguen con Presupuesto)", () => {
-  for (const slug of ["expensas", "gold-seguridad", "avianor"]) {
+test("gerente permitido en Expensas y Gold Seguridad (siguen con Presupuesto)", () => {
+  for (const slug of ["expensas", "gold-seguridad"]) {
     assert.equal(motivoEdicionLineasBloqueadaPorReporte(false, slug), null, slug);
   }
 });
