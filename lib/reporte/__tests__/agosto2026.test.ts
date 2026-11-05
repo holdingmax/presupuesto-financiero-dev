@@ -29,6 +29,8 @@ const SLUGS = [
 // Desviación aceptada: filas de la plantilla que no existen en la planilla de agosto (fixture sin tocar). La de
 // Mantenor viene de la hoja VALORES A MANO del PF de octubre; en agosto no tiene valor, así que no altera ningún total.
 const FILAS_SIN_PLANILLA_DE_AGOSTO: Record<string, string[]> = {
+  // Havanna: «CHEQUES EN CARTERA» (nov-2026), sin valor en agosto: los totales de agosto siguen siendo los del Excel.
+  havanna: ["hv.dChequesEnCartera"],
   mantenor: ["mn.dReservaSac", "mn.otrosClientesJujuy", "mn.otrosClientesTucuman", "mn.msmColumnas", "mn.msmPinturaVial"],
 };
 const estaEnPlanillaDeAgosto = (slug: string, clave: string) => !(FILAS_SIN_PLANILLA_DE_AGOSTO[slug] ?? []).includes(clave);

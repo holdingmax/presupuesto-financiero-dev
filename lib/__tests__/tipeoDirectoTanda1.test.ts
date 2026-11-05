@@ -119,12 +119,12 @@ const ESPERADO: Record<
     capital: "br.capital",
   },
   // Havanna: 4 Real manual de Ingresos (Cobranzas locales y Acreditación tarjetas, por el neteo de cobranzas) + 2 de Egresos
-  // (Tarjetas y Comisiones, Expensas) + 6 de Disponibilidades.
+  // (Tarjetas y Comisiones, Expensas) + 7 de Disponibilidades (incluye Cheques en cartera).
   havanna: {
     ingresos: ["hv.cobranzasLocales", "hv.acreditacionTarjetas", "hv.resultadoFci", "hv.tarjetaNoIngresada"],
     egresos: ["hv.tarjetasComisiones", "hv.expensas"],
     abajo: [],
-    disponibilidades: ["hv.dBancoFci", "hv.dEfectivo", "hv.dDolares", "hv.dReservaAguinaldo", "hv.dChequesNegociados", "hv.dIngresoBancoMacro"],
+    disponibilidades: ["hv.dBancoFci", "hv.dEfectivo", "hv.dDolares", "hv.dChequesEnCartera", "hv.dReservaAguinaldo", "hv.dChequesNegociados", "hv.dIngresoBancoMacro"],
     presupuestoPisable: ["hv.acreditacionTarjetas"],
     capital: "hv.capital",
   },
@@ -165,7 +165,7 @@ test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac 
 });
 
 // Flujo + Disponibilidades (+ Presupuestado pisable + Capital de trabajo): Fredy 3 + 9 + 1, HWC 5 + 8 + 1, Avianor 14 + 1,
-// Mantenor 8 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 6 + 1 de P + 1, Conexión 5 + 11 + 1.
+// Mantenor 8 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 7 + 1 de P + 1, Conexión 5 + 11 + 1.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 13,
   hwc: 14,
@@ -173,7 +173,7 @@ const CANTIDAD: Record<string, number> = {
   mantenor: 15,
   radio: 11,
   brillante: 20,
-  havanna: 14,
+  havanna: 15,
   "conexion-logistica": 17,
 };
 

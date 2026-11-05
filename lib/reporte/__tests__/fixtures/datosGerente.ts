@@ -17,7 +17,8 @@ export const CENTINELA = 7_000_000_000_000;
 // SAC de Brillante y Conexión: desde 2026-10 suma su Real tipeado (sumarManual). Sin numerar esas celdas, el resto conserva los valores de las fotos JSON.
 const CELDAS_SIN_NUMERAR_SAC = ["br.sac|REAL", "cx.sac|REAL"];
 
-const CELDAS_SIN_NUMERAR_HAVANNA = ["hv.cobranzasLocales|REAL", "hv.acreditacionTarjetas|REAL", "hv.acreditacionTarjetas|PRESUPUESTADO"];
+// «Cheques en cartera» (nov-2026) también queda sin numerar: es una fila nueva de Disponibilidades y no debe correr los valores de las demás.
+const CELDAS_SIN_NUMERAR_HAVANNA = ["hv.cobranzasLocales|REAL", "hv.acreditacionTarjetas|REAL", "hv.acreditacionTarjetas|PRESUPUESTADO", "hv.dChequesEnCartera|REAL"];
 
 // Las ocho celdas que Mantenor sumó con el neteo de cobranzas (Otros Clientes Jujuy / Tucuman, MSM COLUMNAS / PINTURA VIAL, Real y
 // Presupuestado): sin numerarlas, el resto conserva los valores de las fotos JSON.
@@ -58,7 +59,7 @@ export function mesesDePrueba(plantilla: Plantilla): DatosMes[] {
   // El índice no cuenta las cuatro filas que Mantenor sumó con el neteo de cobranzas: así las demás conservan los valores de la foto.
   let i = -1;
   for (const f of plantilla.filas) {
-    if (FILAS_SIN_INDICE_MANTENOR.includes(f.clave)) continue;
+    if (FILAS_SIN_INDICE_MANTENOR.includes(f.clave) || f.clave === "hv.dChequesEnCartera") continue; // Havanna: fila nueva (nov-2026), no corre el índice
     i++;
     if (f.tipo === "linea" && f.presupuesto.tipo === "categorias") {
       for (const c of f.presupuesto.categorias) presupuesto.set(c, 20_000 + i * 11);

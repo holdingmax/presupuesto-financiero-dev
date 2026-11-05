@@ -27,6 +27,8 @@ const disponibilidades = [
   disp("hv.dBancoFci", "BANCO Y FCI", "cuadre"),
   disp("hv.dEfectivo", "EFECTIVO", "cuadre", { pendiente: "K9" }),
   disp("hv.dDolares", "DOLARES", "cuadre"),
+  // Agregada a pedido (nov-2026), no está en la planilla de agosto: se tipea cada mes (P = R) y entra en el total.
+  disp("hv.dChequesEnCartera", "CHEQUES EN CARTERA", "cuadre"),
   disp("hv.dReservaAguinaldo", "RESERVA AGUINALDO", "cuadre", { pendiente: "K10" }),
   disp("hv.dChequesNegociados", "CHEQUES NEGOCIADOS PENDIENTES DE INGRESO", "cuadre"),
   disp("hv.dIngresoBancoMacro", "INGRESO BANCO MACRO", "ajuste"),

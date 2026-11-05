@@ -89,6 +89,7 @@ export const CLAVES_MANUALES: Record<string, string[]> = {
     "hv.dBancoFci|REAL",
     "hv.dEfectivo|REAL",
     "hv.dDolares|REAL",
+    "hv.dChequesEnCartera|REAL",
     "hv.dReservaAguinaldo|REAL",
     "hv.dChequesNegociados|REAL",
     "hv.dIngresoBancoMacro|REAL",
