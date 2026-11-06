@@ -277,10 +277,10 @@ test("el desplegable guarda el valor técnico y muestra el nombre; la página us
 // ---------- Cableado (fuente) ----------
 
 test("datos.ts: filtra por servidor con el where compartido, y no usa la lista global ni BarraFiltros", () => {
-  assert.match(FUENTE_DATOS, /whereMovimientosDeEmpresa\(ejecucion\.id, unidades, clasificacion\)/);
-  assert.match(FUENTE_DATOS, /sumarImporteDeUnidades\(ejecucion\.id, unidades, clasificacion\)/);
+  assert.match(FUENTE_DATOS, /whereMovimientosDeEmpresa\(ejecucion\.id, unidades, clasificacion, ocultas\)/);
+  assert.match(FUENTE_DATOS, /sumarImporteDeUnidades\(ejecucion\.id, unidades, clasificacion, ocultas\)/);
   // Las opciones salen de la consulta de la empresa y la semana, sin el filtro elegido.
-  assert.match(FUENTE_DATOS, /groupBy\(\{\s*by: \["clasificacion"\],\s*where: whereMovimientosDeEmpresa\(ejecucion\.id, unidades, undefined\)/);
+  assert.match(FUENTE_DATOS, /groupBy\(\{\s*by: \["clasificacion"\],\s*where: whereMovimientosDeEmpresa\(ejecucion\.id, unidades, undefined, ocultas\)/);
   for (const fuente of [FUENTE_DATOS, FUENTE_PAGINA, FUENTE_EXCEL]) {
     assert.equal(/calcularClasificacionesDisponibles/.test(fuente), false);
     assert.equal(/BarraFiltros/.test(fuente), false);
@@ -307,7 +307,7 @@ test("el total en SQL filtra por clasificación con un parámetro (nunca texto i
 test("EXCEL: el route lee el mismo filtro y usa el mismo where que la pantalla", () => {
   assert.match(FUENTE_EXCEL, /leerClasificacion\(\{/);
   assert.match(FUENTE_EXCEL, /searchParams\.get\("clasificacion"\)/);
-  assert.match(FUENTE_EXCEL, /where: whereMovimientosDeEmpresa\(ejecucion\.id, unidades, clasificacion\)/);
+  assert.match(FUENTE_EXCEL, /where: whereMovimientosDeEmpresa\(ejecucion\.id, unidades, clasificacion, ocultas\)/);
   assert.equal(/\.\.\.filtroDeUnidades/.test(FUENTE_EXCEL), false);
   // El acceso a la empresa se chequea antes de consultar.
   assert.ok(FUENTE_EXCEL.indexOf("requireAccesoEmpresa(empresa.id)") < FUENTE_EXCEL.indexOf("prisma.movimientoBancario"));

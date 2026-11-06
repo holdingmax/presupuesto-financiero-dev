@@ -168,3 +168,16 @@ export const EMPRESAS_CON_FILAS_EXTRA: readonly string[] = [
 // Jul-Sep en los dos casos) pero divergen para cualquier período que no sea fin de trimestre
 // calendario. Avisen cuál es la regla correcta y lo calculamos a partir de PERIODO.
 export const CICLO_FISCAL_LABEL = "Julio 2026 — Septiembre 2026";
+
+// Clasificaciones cuyo DETALLE no ve el gerente en la pestaña «Ejecución financiera» de su empresa (lista, cantidad,
+// Total de la pantalla, desplegable de Clasificación, ?clasificacion= en la URL y Excel). Mapa por SLUG de empresa
+// (lib/slug.ts); una empresa fuera del mapa no cambia. Se compara sin distinguir mayúsculas ni espacios y se aplica en
+// el SERVIDOR. ADMIN, FINANZAS y quien opera Ejecución (operaEjecucion) ven todo. Solo oculta la visualización del
+// detalle: el Reporte (montos por fila), el saldo, los chequeos y el cierre siguen sumando todos los movimientos.
+// Ver clasificacionesOcultasParaUsuario en lib/clasificacionesOcultas.ts.
+//
+// Conexión Logística (pedido de Kike): AVION, MS y PRESTAMO MS. Los dos slugs son los alias de la empresa (uno es el de testing).
+export const CLASIFICACIONES_OCULTAS_PARA_GERENTE: Readonly<Record<string, readonly string[]>> = {
+  "conexion-logistica": ["AVION", "MS", "PRESTAMO MS"],
+  "conexion-logistica-spp": ["AVION", "MS", "PRESTAMO MS"],
+};

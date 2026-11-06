@@ -45,13 +45,21 @@ export function hrefConFiltro(base: string, clasificacion: string | undefined): 
 }
 
 // Where de la lista, el total y el Excel: la semana, las unidades de la empresa y, si hay, la
-// clasificación — todo por AND (claves distintas del mismo objeto).
+// clasificación — todo por AND (claves distintas del mismo objeto). `ocultas` son los valores EXACTOS
+// guardados que este usuario no puede ver (lib/clasificacionesOcultas.ts): se excluyen siempre, también
+// cuando la URL pide uno de ellos (queda en cero filas).
 export function whereMovimientosDeEmpresa(
   ejecucionId: string,
   unidades: string[],
-  clasificacion: string | undefined
+  clasificacion: string | undefined,
+  ocultas: string[] = []
 ): Prisma.MovimientoBancarioWhereInput {
-  return { ejecucionId, ...filtroDeUnidades(unidades), ...(clasificacion ? { clasificacion } : {}) };
+  return {
+    ejecucionId,
+    ...filtroDeUnidades(unidades),
+    ...(clasificacion ? { clasificacion } : {}),
+    ...(ocultas.length > 0 ? { NOT: { clasificacion: { in: ocultas } } } : {}),
+  };
 }
 
 export type OpcionClasificacion = { valor: string; etiqueta: string };

@@ -176,8 +176,17 @@ export function filtroDeUnidades(unidades: string[]): Prisma.MovimientoBancarioW
 // Total en pesos de la vista de una empresa: de la semana, sin ignorados, los movimientos no
 // prorrateados de sus unidades más sus porciones de prorrateo (nunca el importe total de un
 // prorrateado). Sumado en la base (numeric exacto) y pasado a centavos como texto.
-export async function sumarImporteDeUnidades(ejecucionId: string, unidades: string[], clasificacion?: string) {
+//
+// `ocultas`: valores exactos de clasificación que el usuario no puede ver (lib/clasificacionesOcultas.ts); se
+// excluyen del Total igual que de la lista, para que el Total cierre con las filas visibles.
+export async function sumarImporteDeUnidades(
+  ejecucionId: string,
+  unidades: string[],
+  clasificacion?: string,
+  ocultas: string[] = []
+) {
   if (unidades.length === 0) return 0;
+  const sinOcultas = ocultas.length > 0 ? Prisma.sql`AND NOT (mb.clasificacion = ANY(${ocultas}::text[]))` : Prisma.empty;
   // Fragmento parametrizado (nunca se interpola el texto); vacío si no hay filtro.
   const porClasificacion = clasificacion ? Prisma.sql`AND mb.clasificacion = ${clasificacion}` : Prisma.empty;
   const [fila] = await prisma.$queryRaw<{ total: string }[]>`
@@ -185,6 +194,7 @@ export async function sumarImporteDeUnidades(ejecucionId: string, unidades: stri
       SELECT mb.importe FROM "MovimientoBancario" mb
       WHERE mb."ejecucionId" = ${ejecucionId} AND NOT mb.ignorado
         ${porClasificacion}
+        ${sinOcultas}
         AND mb."unidadNegocio" = ANY(${unidades}::text[])
         AND NOT EXISTS (SELECT 1 FROM "MovimientoBancarioDesglose" d WHERE d."movimientoId" = mb.id)
       UNION ALL
@@ -192,6 +202,7 @@ export async function sumarImporteDeUnidades(ejecucionId: string, unidades: stri
       JOIN "MovimientoBancarioDesglose" d ON d."movimientoId" = mb.id
       WHERE mb."ejecucionId" = ${ejecucionId} AND NOT mb.ignorado
         ${porClasificacion}
+        ${sinOcultas}
         AND d."unidadNegocio" = ANY(${unidades}::text[])
     ) x
   `;

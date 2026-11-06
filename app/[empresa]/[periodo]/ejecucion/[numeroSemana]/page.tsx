@@ -198,6 +198,9 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
             >
               ${formatearImporteConCentavos(datos.totalImporte)}
             </p>
+            {datos.hayReservados && (
+              <p className="mt-0.5 text-xs text-ink-muted">No incluye movimientos reservados</p>
+            )}
           </div>
         </div>
 

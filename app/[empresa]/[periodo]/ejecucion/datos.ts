@@ -2,8 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { requireAccesoEmpresa, puedeOperarEjecucionGlobal, veTodoEjecucion } from "@/lib/auth";
 import { obtenerEjecucionPorSemana, obtenerUltimaEjecucion } from "@/lib/ejecucion";
-import { FILAS_POR_PAGINA, mapearMovimiento, sumarImporteDeUnidades } from "@/lib/ejecucionVista";
+import { FILAS_POR_PAGINA, filtroDeUnidades, mapearMovimiento, sumarImporteDeUnidades } from "@/lib/ejecucionVista";
 import { opcionesDeClasificacion, whereMovimientosDeEmpresa } from "@/lib/filtroClasificacionEmpresa";
+import { obtenerValoresOcultos } from "@/lib/ocultasGerenteDb";
+import { slugDeEmpresa } from "@/lib/slug";
 
 // Pestaña "Ejecución financiera" de cada empresa (docs/ejecucion_global_plan.md §3.4 y §6): SOLO
 // LECTURA y filtrada. Ejecución se opera en el módulo global (/ejecucion); acá se ve, de cada
@@ -49,12 +51,15 @@ export async function obtenerDatosSemanaDeEmpresa(
   if (!ejecucion) return null;
 
   const unidades = empresa.unidadesNegocio;
-  // Semana + unidades de la empresa (AND) + clasificación elegida, si hay.
-  const where = whereMovimientosDeEmpresa(ejecucion.id, unidades, clasificacion);
+  // Clasificaciones que ESTE usuario no ve (config.ts, solo gerentes de algunas empresas): se excluyen en
+  // el servidor de la lista, la cantidad, el Total y el desplegable. Lo demás del sistema no pasa por acá.
+  const ocultas = await obtenerValoresOcultos(ejecucion.id, slugDeEmpresa(empresa.nombre), usuario);
+  // Semana + unidades de la empresa (AND) + clasificación elegida, si hay (menos las ocultas).
+  const where = whereMovimientosDeEmpresa(ejecucion.id, unidades, clasificacion, ocultas);
 
-  const [totalMovimientos, totalImporte, semanas, clasificacionesDeLaEmpresa] = await Promise.all([
+  const [totalMovimientos, totalImporte, semanas, clasificacionesDeLaEmpresa, cantidadOcultos] = await Promise.all([
     prisma.movimientoBancario.count({ where }),
-    sumarImporteDeUnidades(ejecucion.id, unidades, clasificacion),
+    sumarImporteDeUnidades(ejecucion.id, unidades, clasificacion, ocultas),
     prisma.ejecucionSemanal.findMany({
       where: { periodo },
       orderBy: { numeroSemana: "asc" },
@@ -66,7 +71,13 @@ export async function obtenerDatosSemanaDeEmpresa(
       ? Promise.resolve([])
       : prisma.movimientoBancario.groupBy({
           by: ["clasificacion"],
-          where: whereMovimientosDeEmpresa(ejecucion.id, unidades, undefined),
+          where: whereMovimientosDeEmpresa(ejecucion.id, unidades, undefined, ocultas),
+        }),
+    // Solo para mostrar la nota «No incluye movimientos reservados» (nunca viaja el número ni nada de ellos).
+    ocultas.length === 0 || unidades.length === 0
+      ? Promise.resolve(0)
+      : prisma.movimientoBancario.count({
+          where: { ejecucionId: ejecucion.id, ...filtroDeUnidades(unidades), clasificacion: { in: ocultas } },
         }),
   ]);
   const totalPaginas = Math.max(1, Math.ceil(totalMovimientos / FILAS_POR_PAGINA));
@@ -100,6 +111,7 @@ export async function obtenerDatosSemanaDeEmpresa(
     movimientos: movimientos.map((m) => mapearMovimiento(m, unidades)),
     totalMovimientos,
     totalImporte,
+    hayReservados: cantidadOcultos > 0,
     pagina: paginaEfectiva,
     totalPaginas,
     clasificacion: clasificacion ?? null,

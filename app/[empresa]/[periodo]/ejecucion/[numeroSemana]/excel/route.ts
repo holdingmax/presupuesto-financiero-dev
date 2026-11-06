@@ -5,6 +5,8 @@ import { obtenerEjecucionPorSemana } from "@/lib/ejecucion";
 import { mapearMovimiento } from "@/lib/ejecucionVista";
 import { leerClasificacion, whereMovimientosDeEmpresa } from "@/lib/filtroClasificacionEmpresa";
 import { construirExcelMovimientos, respuestaExcel } from "@/lib/ejecucionExcel";
+import { obtenerValoresOcultos } from "@/lib/ocultasGerenteDb";
+import { slugDeEmpresa } from "@/lib/slug";
 
 // Igual que la pantalla de la empresa (datos.ts): solo sus unidades (o porciones de prorrateo),
 // sin saldo, mismo orden — pero toda la semana, sin paginar. Respeta el filtro por clasificación.
@@ -20,8 +22,9 @@ export async function GET(
 
   const empresa = await resolverEmpresaPorSlug(empresaSlug);
   if (!empresa) return new Response("No existe la empresa.", { status: 404 });
+  let usuario;
   try {
-    await requireAccesoEmpresa(empresa.id);
+    usuario = await requireAccesoEmpresa(empresa.id);
   } catch (error) {
     if (error instanceof AccesoDenegadoError) return new Response("Sin acceso.", { status: 403 });
     throw error;
@@ -38,8 +41,10 @@ export async function GET(
     clasificacion: url.searchParams.get("clasificacion") ?? undefined,
     filtro: url.searchParams.get("filtro") ?? undefined,
   });
+  // Mismas clasificaciones ocultas que la pantalla (config.ts): el Excel nunca trae lo que el gerente no ve.
+  const ocultas = await obtenerValoresOcultos(ejecucion.id, slugDeEmpresa(empresa.nombre), usuario);
   const filas = await prisma.movimientoBancario.findMany({
-    where: whereMovimientosDeEmpresa(ejecucion.id, unidades, clasificacion),
+    where: whereMovimientosDeEmpresa(ejecucion.id, unidades, clasificacion, ocultas),
     orderBy: [{ fecha: "asc" }, { id: "asc" }],
     include: { desglose: { orderBy: { createdAt: "asc" } } },
   });
