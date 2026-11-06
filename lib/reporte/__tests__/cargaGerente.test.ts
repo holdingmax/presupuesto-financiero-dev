@@ -50,17 +50,49 @@ test("validarImporteCarga: importes en formato argentino y cuentas", () => {
   assert.deepEqual(validarImporteCarga("100+50", false), { ok: true, centavos: 15000, nota: "100+50" });
 });
 
-test("validarImporteCarga: el gerente no puede cargar negativos, con el mensaje central", () => {
-  assert.equal(MENSAJE_IMPORTE_NEGATIVO, "Los importes se cargan en positivo.");
-  for (const texto of ["-500", "-1.234,56", "10-50", "−100"]) {
-    assert.deepEqual(validarImporteCarga(texto, false), { ok: false, error: MENSAJE_IMPORTE_NEGATIVO }, texto);
+test("validarImporteCarga: el gerente también puede cargar negativos (decisión de Kike, 2026-11)", () => {
+  for (const [texto, centavos, nota] of [
+    ["-500", -50000, null],
+    ["-1.234,56", -123456, null],
+    ["10-50", -4000, "10-50"],
+    ["−100", -10000, null],
+  ] as const) {
+    assert.deepEqual(validarImporteCarga(texto, false), { ok: true, centavos, nota }, texto);
+  }
+  assert.equal(permiteNegativos(false), true);
+});
+
+test("validarImporteCarga: el mensaje de «en positivo» ya no sale para ningún rol", () => {
+  for (const rol of [true, false]) {
+    for (const texto of ["-500", "-1.234,56", "10-50", "500"]) {
+      const r = validarImporteCarga(texto, rol);
+      assert.equal(r.ok, true, `${texto} rol=${rol}`);
+      assert.equal(JSON.stringify(r).includes(MENSAJE_IMPORTE_NEGATIVO), false);
+    }
   }
 });
 
-test("validarImporteCarga: ADMIN y FINANZAS sí pueden cargar negativos", () => {
+test("validarImporteCarga: el parseo de cuentas no cambió (321.235,44+17.755,22 y con resta)", () => {
+  assert.deepEqual(validarImporteCarga("321.235,44+17.755,22", false), {
+    ok: true,
+    centavos: 33899066,
+    nota: "321.235,44+17.755,22",
+  });
+  assert.deepEqual(validarImporteCarga("321.235,44-400.000", false), {
+    ok: true,
+    centavos: -7876456,
+    nota: "321.235,44-400.000",
+  });
+  assert.deepEqual(validarImporteCarga("-321.235,44+17.755,22", false), {
+    ok: true,
+    centavos: -30348022,
+    nota: "-321.235,44+17.755,22",
+  });
+});
+
+test("validarImporteCarga: ADMIN y FINANZAS siguen igual con los negativos", () => {
   assert.deepEqual(validarImporteCarga("-500", true), { ok: true, centavos: -50000, nota: null });
   assert.equal(permiteNegativos(true), true);
-  assert.equal(permiteNegativos(false), false);
 });
 
 test("validarImporteCarga: texto que no es un importe, o demasiado grande, se rechaza", () => {

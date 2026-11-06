@@ -30,10 +30,12 @@ export const DETALLE_CARGA_DESDE_REPORTE = "Carga desde el Reporte";
 
 export const MENSAJE_IMPORTE_NEGATIVO = "Los importes se cargan en positivo.";
 
-// El gerente carga todo en positivo (un egreso se tipea positivo, como en Presupuesto);
-// ADMIN y FINANZAS pueden cargar un negativo (una devolución, un ajuste).
-export function permiteNegativos(esAdminOFinanzas: boolean): boolean {
-  return esAdminOFinanzas;
+// Decisión de Kike (2026-11): el gerente también puede cargar negativos en todas las filas que
+// hoy carga (una devolución, un ajuste). Ya no depende del rol; el parámetro se conserva para que
+// la regla siga viviendo en un solo lugar si hay que volver a distinguir roles.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function permiteNegativos(_esAdminOFinanzas: boolean): boolean {
+  return true;
 }
 
 // Tope de la columna Decimal(18,2), con margen.

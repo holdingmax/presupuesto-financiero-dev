@@ -11,7 +11,7 @@ import {
 import { parsearImporteArgentino } from "@/lib/numero";
 import { formatearCentavos, parsearCuenta } from "@/lib/reporte/bloqueo";
 import { parsearMontoACentavos } from "@/lib/prorrateo";
-import { MENSAJE_IMPORTE_NEGATIVO, validarImporteCarga } from "@/lib/reporte/cargaGerente";
+import { validarImporteCarga } from "@/lib/reporte/cargaGerente";
 import { formatearImporte } from "@/app/ejecucion/formato";
 
 // Importes tipeados (formato argentino): un solo módulo (lib/importes.ts) y los viejos parsers como
@@ -373,8 +373,8 @@ test("negativos: -1.000, -100.000,50 y restas", () => {
   assert.equal(parsearMontoACentavos("-1.000"), 100_000);
 });
 
-test("el Reporte del gerente sigue rechazando negativos y ADMIN/FINANZAS los aceptan (la regla no cambia)", () => {
-  assert.deepEqual(validarImporteCarga("-1.000", false), { ok: false, error: MENSAJE_IMPORTE_NEGATIVO });
+test("el Reporte acepta negativos para el gerente y para ADMIN/FINANZAS (decisión de Kike, 2026-11)", () => {
+  assert.deepEqual(validarImporteCarga("-1.000", false), { ok: true, centavos: -100_000, nota: null });
   assert.deepEqual(validarImporteCarga("-1.000", true), { ok: true, centavos: -100_000, nota: null });
   assert.deepEqual(validarImporteCarga("100.000,00+50", false), { ok: true, centavos: 10_005_000, nota: "100.000,00+50" });
   assert.deepEqual(validarImporteCarga("", false), { ok: true, centavos: null, nota: null });
