@@ -53,17 +53,32 @@ export function sinCierre(r: Reporte): Reporte {
 // Claves de Cierre que trae un Reporte, en orden.
 export const clavesDeCierre = (r: Reporte) => r.filas.filter((f) => f.fila.bloque === "CIERRE").map((f) => f.fila.clave);
 
+// Orden en que se numera el Real de prueba. Conexión: «Préstamo MS» pasó de EGRESOS OPERATIVOS al bloque de abajo (pedido de Kike,
+// 6/11/2026); para que el resto de los Reales de prueba (Gastos Campo, TOTAL DE EGRESOS...) no se corra, sus clasificaciones se cuentan
+// donde estaban antes: justo antes de TOTAL EGRESOS OPERATIVOS.
+function clasificacionesEnOrdenDeNumeracion(plantilla: Plantilla): string[] {
+  const filas = plantilla.filas.filter((f) => f.clave !== "cx.prestamoMs");
+  const movida = plantilla.filas.find((f) => f.clave === "cx.prestamoMs");
+  const i = filas.findIndex((f) => f.clave === "cx.totalEgresosOperativos");
+  if (!movida || i < 0) return clasificacionesDePlantilla(plantilla);
+  return clasificacionesDePlantilla({ ...plantilla, filas: [...filas.slice(0, i), movida, ...filas.slice(i)] });
+}
+
 export function mesesDePrueba(plantilla: Plantilla): DatosMes[] {
   const real = new Map<string, number>();
-  clasificacionesDePlantilla(plantilla).forEach((c, i) => real.set(c, 10_000 + i * 137));
+  clasificacionesEnOrdenDeNumeracion(plantilla).forEach((c, i) => real.set(c, 10_000 + i * 137));
   const presupuesto = new Map<string, number>();
   // El índice no cuenta las cuatro filas que Mantenor sumó con el neteo de cobranzas: así las demás conservan los valores de la foto.
   let i = -1;
+  // Conexión: «Préstamo MS» pasó de EGRESOS OPERATIVOS al bloque de abajo (pedido de Kike, 6/11/2026). Conserva el índice que tenía
+  // antes de moverse (el lugar que hoy ocupa TOTAL EGRESOS OPERATIVOS), así sus valores de prueba no cambian.
+  const indicePrestamoMsConexion = plantilla.filas.findIndex((f) => f.clave === "cx.totalEgresosOperativos");
   for (const f of plantilla.filas) {
     if (FILAS_SIN_INDICE_MANTENOR.includes(f.clave) || f.clave === "hv.dChequesEnCartera") continue; // Havanna: fila nueva (nov-2026), no corre el índice
     i++;
     if (f.tipo === "linea" && f.presupuesto.tipo === "categorias") {
-      for (const c of f.presupuesto.categorias) presupuesto.set(c, 20_000 + i * 11);
+      const indice = f.clave === "cx.prestamoMs" && indicePrestamoMsConexion >= 0 ? indicePrestamoMsConexion : i;
+      for (const c of f.presupuesto.categorias) presupuesto.set(c, 20_000 + indice * 11);
     }
   }
   const manualesReal = new Map<string, number>();

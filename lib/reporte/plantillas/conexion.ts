@@ -106,9 +106,6 @@ const egresos = [
   egreso("cx.proveedoresIva", "Proveedores IVA", REAL_MANUAL, cat("IVA"), { pendiente: "K3" }),
   egreso("cx.liquidacionesFinales", "Liquidaciones Finales", clasif("LIQ FINAL"), cat("Liquidación final")),
   egreso("cx.juicios", "Juicios y requerimientos AFIP", clasif("JUICIOS"), cat("Juicios")),
-  egreso("cx.prestamoMs", "Préstamo MS", clasifSentido("debitos", "PRESTAMOS MS"), cat("Préstamo MS"), {
-    pendiente: "K13",
-  }),
 ];
 
 const deAbajo = [
@@ -118,6 +115,11 @@ const deAbajo = [
     nota: "Planilla: CAMPO + Sueldos y SAC de la unidad CAMPO.",
   }),
   abajo("cx.gastosJps", "Gastos Jet Parts Solutions a recuperar", SIN_REAL, PRESUPUESTO_MANUAL),
+  // Préstamo MS: antes era la última fila de EGRESOS OPERATIVOS; ahora va abajo del TOTAL EGRESOS OPERATIVOS,
+  // entre "Gastos Jet Parts Solutions a recuperar" y "Gastos MS". Misma clave, misma fuente y mismo cálculo.
+  abajo("cx.prestamoMs", "Préstamo MS", clasifSentido("debitos", "PRESTAMOS MS"), cat("Préstamo MS"), {
+    pendiente: "K13",
+  }),
   abajo("cx.gastosMs", "Gastos MS", clasif("MS"), PRESUPUESTO_MANUAL, {
     parcial: true,
     nota: "Jul-26: MS 9.919.918,85 + 13.473.929,75 tipeados sin identificar.",

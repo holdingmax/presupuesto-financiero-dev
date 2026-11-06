@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { validarPlantilla } from "@/lib/reporte/motor";
 import { PLANTILLAS_POR_SLUG, plantillaDeEmpresa } from "@/lib/reporte/plantillas";
 import { TEXTOS_MACCHI } from "./fixtures/textosMacchi";
+import { enOrdenDelExcelDeMacchi } from "./fixtures/ordenExcelConexion";
 
 // Estructura de las plantillas (las 7 de Macchi y Avianor) (docs/reporte_etapa2a_plan.md §5.2):
 // claves únicas, categorías existentes en Presupuesto, ninguna clasificación ni
@@ -58,7 +59,9 @@ for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
           : []
     );
     assert.deepEqual(
-      plantilla.filas.map((f) => f.texto).filter((t) => !desviaciones.has(t)),
+      // Conexión: Préstamo MS se mudó al bloque de abajo (pedido de Kike, 6/11/2026); el Excel de Macchi la tiene antes de TOTAL EGRESOS
+      // OPERATIVOS. Solo esa fila se compara en su posición del Excel (ver fixtures/ordenExcelConexion.ts); el orden real se prueba aparte.
+      enOrdenDelExcelDeMacchi(slug, plantilla.filas, (f) => f.clave).map((f) => f.texto).filter((t) => !desviaciones.has(t)),
       TEXTOS_MACCHI[slug]
     );
   });

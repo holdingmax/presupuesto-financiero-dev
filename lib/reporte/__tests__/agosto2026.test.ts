@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { armarReporte, type DatosMes, type Reporte } from "@/lib/reporte/motor";
 import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { AGOSTO_2026 } from "./fixtures/agosto2026";
+import { enOrdenDelExcelDeMacchi } from "./fixtures/ordenExcelConexion";
 
 // Agosto 2026 de las 7 empresas contra los Excel de Macchi
 // (docs/reporte_etapa2b_plan.md §8.3). Todo en centavos.
@@ -38,7 +39,8 @@ const estaEnPlanillaDeAgosto = (slug: string, clave: string) => !(FILAS_SIN_PLAN
 function armar(slug: string) {
   const datos = AGOSTO_2026[slug];
   const plantilla = PLANTILLAS_POR_SLUG[slug];
-  const filasDeAgosto = plantilla.filas.filter((f) => estaEnPlanillaDeAgosto(slug, f.clave));
+  // Conexión: Préstamo MS se compara en su fila del Excel (48), no donde está hoy en la plantilla (ver ordenExcelConexion.ts).
+  const filasDeAgosto = enOrdenDelExcelDeMacchi(slug, plantilla.filas.filter((f) => estaEnPlanillaDeAgosto(slug, f.clave)), (f) => f.clave);
   assert.equal(datos.filas.length, filasDeAgosto.length, `${slug}: filas de la fixture y de la plantilla`);
   const presupuesto = new Map<string, number>();
   const manP = new Map<string, number>();
@@ -104,7 +106,7 @@ function comparar(slug: string, reporte: Reporte) {
   const datos = AGOSTO_2026[slug];
   const lineas: string[] = [];
   const fallas: string[] = [];
-  reporte.filas.filter(({ fila }) => estaEnPlanillaDeAgosto(slug, fila.clave)).forEach(({ fila, celdas }, i) => {
+  enOrdenDelExcelDeMacchi(slug, reporte.filas.filter(({ fila }) => estaEnPlanillaDeAgosto(slug, fila.clave)), (f) => f.fila.clave).forEach(({ fila, celdas }, i) => {
     if (fila.tipo === "titulo") return;
     const e = datos.filas[i];
     const c = celdas[0];
