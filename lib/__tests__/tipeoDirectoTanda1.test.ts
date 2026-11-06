@@ -128,10 +128,10 @@ const ESPERADO: Record<
     presupuestoPisable: ["hv.acreditacionTarjetas", "hv.devolucionPrestamoMs"],
     capital: "hv.capital",
   },
-  // Conexión Logística: 1 Real manual de Ingresos + 3 de Egresos (SAC, Expensas, Proveedores IVA) + 1 de abajo + 11 de Disponibilidades.
-  // (El alias de testing «conexion-logistica-spp» tiene el tipeo de flujo pero no ve Disponibilidades: 4 celdas, ver tipeoDirecto.test.ts.)
+  // Conexión Logística: 2 Real manual de Ingresos (Resultado FCI y Cheques en cartera después del 10, este último desde 2026-10) + 3 de Egresos (SAC, Expensas, Proveedores IVA) + 1 de abajo + 11 de Disponibilidades.
+  // (El alias «conexion-logistica-spp» comparte plantilla y tiene el tipeo de flujo, pero no ve Disponibilidades: sus celdas son solo las de flujo.)
   "conexion-logistica": {
-    ingresos: ["cx.resultadoFci"],
+    ingresos: ["cx.resultadoFci", "cx.chequesDespuesDel10"],
     egresos: ["cx.sac", "cx.expensas", "cx.proveedoresIva"],
     abajo: ["cx.dividendosExpensas"],
     disponibilidades: [
@@ -165,7 +165,7 @@ test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac,
 });
 
 // Flujo + Disponibilidades (+ Presupuestado pisable + Capital de trabajo): Fredy 3 + 9 + 1, HWC 5 + 8 + 1, Avianor 14 + 1,
-// Mantenor 9 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 7 + 2 de P + 1, Conexión 5 + 11 + 1.
+// Mantenor 9 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 7 + 2 de P + 1, Conexión 6 + 11 + 1.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 13,
   hwc: 14,
@@ -174,7 +174,7 @@ const CANTIDAD: Record<string, number> = {
   radio: 11,
   brillante: 20,
   havanna: 16,
-  "conexion-logistica": 17,
+  "conexion-logistica": 18,
 };
 
 const ABIERTO = { abiertas: 1, cerradas: 0 };

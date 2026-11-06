@@ -20,6 +20,7 @@ export const CLAVES_MANUALES: Record<string, string[]> = {
     "cx.reservaAguinaldo|PRESUPUESTADO",
     "cx.prestamo|PRESUPUESTADO",
     "cx.gastosMsARecuperar|PRESUPUESTADO",
+    "cx.chequesDespuesDel10|REAL",
     "cx.gastosAvionARecuperar|PRESUPUESTADO",
     "cx.sac|REAL",
     "cx.expensas|REAL",

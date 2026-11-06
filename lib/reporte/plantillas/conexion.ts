@@ -57,9 +57,9 @@ const ingresos = [
   }),
   ingreso("cx.prestamo", "Préstamo", SIN_REAL, PRESUPUESTO_MANUAL, { pendiente: "K8" }),
   ingreso("cx.gastosMsARecuperar", "Gastos MS a recuperar", SIN_REAL, PRESUPUESTO_MANUAL),
-  ingreso("cx.chequesDespuesDel10", "Cheques en cartera despues del 10", REAL_IGUAL_PRESUPUESTO, espejoDe("cx.dChequesDespuesDel10"), {
+  ingreso("cx.chequesDespuesDel10", "Cheques en cartera despues del 10", { tipo: "manualDesde", desde: "2026-10" }, espejoDe("cx.dChequesDespuesDel10"), {
     pendiente: "K9",
-    nota: "P = menos CHEQUES EN CARTERA DESPUES DEL 10 de Disponibilidades; R = P.",
+    nota: "P = menos CHEQUES EN CARTERA DESPUES DEL 10 de Disponibilidades. R: hasta 2026-09 = P en mes cerrado; desde 2026-10 se tipea (vacío hasta que se carga).",
   }),
   ingreso("cx.gastosAvionARecuperar", "Gastos avion a recuperar", SIN_REAL, PRESUPUESTO_MANUAL),
 ];

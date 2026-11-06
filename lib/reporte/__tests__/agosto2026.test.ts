@@ -192,3 +192,38 @@ test("R de los espejos: vacío en curso, R = P con el mes cerrado (julio)", () =
   assert.equal(mes(true).real, 19649143618);
   assert.equal(mes(false).real, null);
 });
+
+// Octubre 2026 en adelante: el Real de «Cheques en cartera despues del 10» (Conexión) se tipea; antes de octubre sigue R = P en mes cerrado.
+test("oct-26: Cheques en cartera después del 10 — R vacío sin tipear (aunque el mes esté cerrado) y R = lo tipeado", () => {
+  const plantilla = PLANTILLAS_POR_SLUG["conexion-logistica"];
+  const V = 97374808869; // 973.748.088,69
+  const fila = (periodo: string, cerrado: boolean, tipeado: number | null) =>
+    armarReporte(plantilla, [
+      {
+        periodo,
+        real: new Map(),
+        presupuesto: new Map(),
+        semanasCerradas: 2,
+        mesCerrado: cerrado,
+        manuales: {
+          presupuesto: new Map(),
+          real: new Map([["cx.dChequesDespuesDel10", -V], ...(tipeado === null ? [] : [["cx.chequesDespuesDel10", tipeado] as [string, number]])]),
+        },
+      },
+    ]);
+  const celda = (r: Reporte, clave: string) => r.filas.find((f) => f.fila.clave === clave)!.celdas[0];
+  const sinTipear = fila("2026-10", false, null);
+  assert.equal(celda(sinTipear, "cx.chequesDespuesDel10").presupuestado, V);
+  assert.equal(celda(sinTipear, "cx.chequesDespuesDel10").real, null);
+  // Mes cerrado sin tipear: ya no se completa con P, queda vacío.
+  assert.equal(celda(fila("2026-10", true, null), "cx.chequesDespuesDel10").real, null);
+  // Tipeado: R = lo tipeado y el Presupuestado no cambia; el total de Ingresos lo suma.
+  const conV = fila("2026-10", false, V);
+  assert.equal(celda(conV, "cx.chequesDespuesDel10").real, V);
+  assert.equal(celda(conV, "cx.chequesDespuesDel10").presupuestado, V);
+  assert.equal(celda(conV, "cx.totalIngresos").real, V);
+  assert.equal(celda(conV, "cx.totalIngresos").presupuestado, V);
+  // Septiembre (anterior a 2026-10) conserva R = P con el mes cerrado.
+  assert.equal(celda(fila("2026-09", true, null), "cx.chequesDespuesDel10").real, V);
+  assert.equal(celda(fila("2026-09", false, null), "cx.chequesDespuesDel10").real, null);
+});

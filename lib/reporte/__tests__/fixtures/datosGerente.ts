@@ -14,8 +14,8 @@ import {
 
 export const CENTINELA = 7_000_000_000_000;
 
-// SAC de Brillante, Conexión y Mantenor: desde 2026-10 suma su Real tipeado (sumarManual). Sin numerar esas celdas, el resto conserva los valores de las fotos JSON.
-const CELDAS_SIN_NUMERAR_SAC = ["br.sac|REAL", "cx.sac|REAL", "mn.sac|REAL"];
+// SAC de Brillante, Conexión y Mantenor (desde 2026-10 suma su Real tipeado, sumarManual) y «Cheques en cartera despues del 10» de Conexión (Real tipeado desde 2026-10). Sin numerar esas celdas, el resto conserva los valores de las fotos JSON.
+const CELDAS_SIN_NUMERAR_SAC = ["br.sac|REAL", "cx.sac|REAL", "mn.sac|REAL", "cx.chequesDespuesDel10|REAL"];
 
 // «Cheques en cartera» (nov-2026) también queda sin numerar: es una fila nueva de Disponibilidades y no debe correr los valores de las demás.
 // «Devolucion prestamo - Prestamo MS» (Presupuestado pisable, nov-2026): sin numerar queda derivada del Disponible, como en la foto.
