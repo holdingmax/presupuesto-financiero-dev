@@ -47,7 +47,13 @@ test("filas manuales editables: solo Ingresos/Egresos/Abajo con P manual; nunca 
       if (f.tipo !== "linea") continue;
       assert.ok(BLOQUES_CARGABLES.includes(f.bloque), `${slug}/${clave}: bloque ${f.bloque}`);
       assert.equal(esBloqueReservado(f.bloque), false, `${slug}/${clave}`);
-      assert.equal(f.presupuesto.tipo, "manual", `${slug}/${clave}`);
+      // La única derivada que el gerente también tipea: Havanna «Prestamo MS» (marca cargaGerente).
+      if (f.presupuesto.tipo === "disponible") {
+        assert.equal(`${slug}/${clave}`, "havanna/hv.devolucionPrestamoMs");
+        assert.equal(f.presupuesto.pisableConManual && f.presupuesto.cargaGerente, true, `${slug}/${clave}`);
+      } else {
+        assert.equal(f.presupuesto.tipo, "manual", `${slug}/${clave}`);
+      }
     }
     // Y al revés: toda fila de datos con P manual en un bloque cargable está en el plan.
     for (const f of plantilla.filas) {
@@ -55,7 +61,8 @@ test("filas manuales editables: solo Ingresos/Egresos/Abajo con P manual; nunca 
         assert.equal(Object.hasOwn(plan.manuales, f.clave), true, `${slug}/${f.clave} debería ser editable`);
       }
       // Lo que no es manual nunca entra a manuales.
-      if (f.tipo !== "linea" || f.presupuesto.tipo !== "manual" || !BLOQUES_CARGABLES.includes(f.bloque)) {
+      const derivadaDelGerente = f.tipo === "linea" && f.presupuesto.tipo === "disponible" && f.presupuesto.cargaGerente === true;
+      if (!derivadaDelGerente && (f.tipo !== "linea" || f.presupuesto.tipo !== "manual" || !BLOQUES_CARGABLES.includes(f.bloque))) {
         assert.equal(Object.hasOwn(plan.manuales, f.clave), false, `${slug}/${f.clave} no debería ser editable`);
       }
     }
@@ -64,12 +71,11 @@ test("filas manuales editables: solo Ingresos/Egresos/Abajo con P manual; nunca 
   }
 });
 
-test("las cinco filas de Presupuestado derivado quedan excluidas", () => {
+test("las cuatro filas de Presupuestado derivado que el gerente no carga quedan excluidas", () => {
   const derivadas: [string, string][] = [
     ["conexion-logistica", "cx.chequesDespuesDel10"],
     ["radio", "ra.chequesDespuesDel15"],
     ["havanna", "hv.acreditacionTarjetas"],
-    ["havanna", "hv.devolucionPrestamoMs"],
     ["mantenor", "mn.prestamos"],
   ];
   for (const [slug, clave] of derivadas) {

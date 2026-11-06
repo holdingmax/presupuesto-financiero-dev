@@ -189,7 +189,13 @@ export function categoriasSinFila(plantilla: Plantilla): OpcionClasificacionPres
 // carga. Quedan afuera las de categoría (Etapa 2), las derivadas (espejo / "Disponible") y las
 // "igual al Real" (Disponibilidades, que además es un bloque reservado).
 export function esFilaManualEditable(fila: Fila): fila is FilaLinea {
-  return fila.tipo === "linea" && BLOQUES_CARGABLES.includes(fila.bloque) && fila.presupuesto.tipo === "manual";
+  return (
+    fila.tipo === "linea" &&
+    BLOQUES_CARGABLES.includes(fila.bloque) &&
+    (fila.presupuesto.tipo === "manual" ||
+      // Presupuestado derivado que el gerente también puede pisar tipeando (Havanna «Prestamo MS»).
+      (fila.presupuesto.tipo === "disponible" && fila.presupuesto.pisableConManual === true && fila.presupuesto.cargaGerente === true))
+  );
 }
 
 // Un ValorManualReporte PRESUPUESTADO existente, con quién y cuándo lo cargó.

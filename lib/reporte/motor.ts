@@ -129,7 +129,9 @@ export type FuentePresupuesto =
     }
   // = DISPONIBLE SI − CAPITAL DE TRABAJO del mismo mes. Con `pisableConManual`, un Presupuestado manual del
   // mes (ValorManualReporte) lo pisa; sin valor sigue el Disponible.
-  | { tipo: "disponible"; pisableConManual?: boolean }
+  // Con `cargaGerente` (y pisableConManual), además el gerente tipea ese Presupuestado desde su pantalla de carga
+  // (Havanna «Devolucion prestamo - Prestamo MS»); sin él solo lo pisan ADMIN y FINANZAS.
+  | { tipo: "disponible"; pisableConManual?: boolean; cargaGerente?: boolean }
   | { tipo: "ninguna" };
 
 export type CodigosPendientes = CodigoPendiente | CodigoPendiente[];

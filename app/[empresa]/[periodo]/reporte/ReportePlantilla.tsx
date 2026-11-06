@@ -530,7 +530,14 @@ export function FilaTabla({
         : idsEditables.has(`manual|${fila.clave}`)
           ? `manual|${fila.clave}`
           : null;
-  const editor = idCelda !== null ? <CeldaPresupuestoEditable id={idCelda} nombre={fila.texto.trim()} compacta /> : undefined;
+  const editor = idCelda !== null ? <CeldaPresupuestoEditable
+        id={idCelda}
+        nombre={fila.texto.trim()}
+        compacta
+        derivado={
+          fila.tipo === "linea" && fila.presupuesto.tipo === "disponible" ? celdas[celdas.length - 1].presupuestado : undefined
+        }
+      /> : undefined;
   const editorReal =
     fila.tipo === "linea" && idsTipeables.has(`${fila.clave}|REAL`) ? (
       <CeldaTipeoEditable clave={fila.clave} columna="REAL" nombre={fila.texto.trim()} />

@@ -10,7 +10,7 @@ import {
   disponible,
   egreso,
   ingreso,
-  PRESUPUESTO_DISPONIBLE_PISABLE,
+  PRESUPUESTO_DISPONIBLE_PISABLE_GERENTE,
   PRESUPUESTO_MANUAL,
   REAL_IGUAL_PRESUPUESTO,
   REAL_MANUAL,
@@ -116,8 +116,8 @@ const deAbajo = [
     "hv.devolucionPrestamoMs",
     "Devolucion prestamo - Prestamo MS",
     clasifSentido("debitos", "PRESTAMOS MS"),
-    PRESUPUESTO_DISPONIBLE_PISABLE,
-    { pendiente: "K13", nota: "P = DISPONIBLE SI - CAPITAL DE TRABAJO del mes (agosto); un valor tipeado lo pisa." }
+    PRESUPUESTO_DISPONIBLE_PISABLE_GERENTE,
+    { pendiente: "K13", nota: "P = DISPONIBLE SI - CAPITAL DE TRABAJO del mes (agosto); un valor tipeado (gerente, ADMIN o FINANZAS) lo pisa." }
   ),
   abajo("hv.dividendos", "Dividendos", clasif("DIVIDENDOS"), cat("Dividendos")),
   abajo("hv.cuentaParticularMs", "Cuenta Particular MS -  Aporte liquidacion Mundo Cell", SIN_REAL, PRESUPUESTO_MANUAL),

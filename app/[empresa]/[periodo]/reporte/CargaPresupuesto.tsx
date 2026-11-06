@@ -3,7 +3,7 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { guardarPresupuestoDelReporte } from "./actionsCarga";
-import { celdaModificada } from "@/lib/reporte/tipeoDirecto";
+import { celdaModificada, placeholderDeCelda } from "@/lib/reporte/tipeoDirecto";
 import { HayCambiosSinGuardarContext } from "../CargaPresupuestoContexto";
 import {
   MAX_ACLARACION,
@@ -168,18 +168,26 @@ export function CeldaPresupuestoEditable({
   id,
   nombre,
   compacta = false,
+  derivado,
 }: {
   id: string;
   nombre: string;
   compacta?: boolean;
+  // Solo filas con Presupuestado derivado pisable (Havanna «Prestamo MS»): el valor automático, en gris mientras la celda está vacía.
+  derivado?: number | null;
 }) {
   const { valores, celdas, guardando, cambiar } = useCarga();
   const celda = celdas.get(id);
   const valor = valores[id];
   if (!celda || !valor) return null;
   const claseInput = compacta ? CLASE_INPUT_COMPACTO : CLASE_INPUT;
+  const placeholder = placeholderDeCelda(celda.importeInicial, derivado);
   const titulo =
-    [compacta ? celda.leyenda : null, celda.valorExacto !== null ? `Valor exacto: ${celda.valorExacto}` : null]
+    [
+      compacta ? celda.leyenda : null,
+      celda.valorExacto !== null ? `Valor exacto: ${celda.valorExacto}` : null,
+      placeholder !== "0" ? "Calculado por la regla; tipeá para reemplazarlo" : null,
+    ]
       .filter((x) => x !== null)
       .join(" · ") || undefined;
   return (
@@ -188,7 +196,7 @@ export function CeldaPresupuestoEditable({
         value={valor.importe}
         onChange={(e) => cambiar(id, { importe: e.target.value })}
         inputMode="decimal"
-        placeholder="0"
+        placeholder={placeholder}
         disabled={guardando}
         aria-label={`Presupuestado: ${nombre}`}
         title={titulo}
