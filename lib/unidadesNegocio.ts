@@ -13,6 +13,13 @@ import { normalizarTexto } from "@/lib/texto";
 // - BRADENTON (agregada 2026-10-07): unidad propia de la empresa Bradenton.
 // Qué unidad pertenece a qué empresa NO vive acá: es Empresa.unidadesNegocio,
 // editable en /admin/unidades-negocio.
+// - HAVANNA PERU y PLATE SILVER (agregadas 2026-11-09, pedido de Leti/Kike): unidades
+//   propias de las empresas Havanna Perú y Plate Silver (sin tilde, como las demás).
+//   Se asignan a su empresa en /admin/unidades-negocio. Sus Reportes siguen tipeados a
+//   mano; la unidad solo habilita la pantalla de Unidades y el desplegable de Ejecución.
+// - JPS (retirada 2026-11-09): no existe como negocio. La empresa JPS está inactiva y la
+//   clasificación "JPS" es otra cosa y se conserva. Una fila vieja con unidad JPS no se
+//   rompe: el <select> la muestra como opción extra (ver opcionesUnidad).
 // - HANDYWAY (agregada 2026-10-13, retirada 2026-10-17): Kike confirmó que es la
 //   misma unidad que HWC. La razón social HANDYWAY mapea a HWC; una fila vieja con
 //   HANDYWAY no se rompe (el <select> la muestra como opción extra).
@@ -29,10 +36,11 @@ export const UNIDADES_NEGOCIO = [
   "EXPENSAS",
   "FREDY",
   "HAVANNA",
+  "HAVANNA PERU",
   "HWC",
-  "JPS",
   "LOGISTICA",
   "MANTENOR",
+  "PLATE SILVER",
   "RADIO",
   "SPP",
 ] as const;

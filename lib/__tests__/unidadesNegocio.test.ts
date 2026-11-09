@@ -6,6 +6,7 @@ import {
   opcionesUnidad,
   proponerUnidadPorCuenta,
   proponerUnidadPorRazonSocial,
+  unidadDeLaLista,
 } from "@/lib/unidadesNegocio";
 
 // Tabla oficial de Kike (2026-10-13).
@@ -100,4 +101,26 @@ test("cuenta → unidad: las 11 cuentas de los madres HWC y Fredy", () => {
   for (const c of ["GALICIA 249", "MACRO 160", "MACRO 154", "MACRO 432", "MACRO 789", "MACRO 669", "MACRO 672", "MACRO 870"]) {
     assert.equal(proponerUnidadPorCuenta(c), "FREDY", c);
   }
+});
+
+test("HAVANNA PERU y PLATE SILVER están en la lista, JPS no, y no hay duplicados", () => {
+  assert.ok(esUnidadDeLaLista("HAVANNA PERU"));
+  assert.ok(esUnidadDeLaLista("PLATE SILVER"));
+  assert.ok(!esUnidadDeLaLista("JPS"));
+  assert.ok(!(UNIDADES_NEGOCIO as readonly string[]).includes("JPS"));
+  assert.equal(new Set(UNIDADES_NEGOCIO).size, UNIDADES_NEGOCIO.length);
+});
+
+test("una fila vieja con unidad JPS no se rompe: JPS sale como opción extra", () => {
+  const opciones = opcionesUnidad(["JPS"]);
+  assert.equal(opciones[0], "JPS");
+  assert.equal(opciones.filter((o) => o === "JPS").length, 1);
+  assert.ok(opciones.includes("HAVANNA PERU") && opciones.includes("PLATE SILVER"));
+});
+
+test("unidadDeLaLista reconoce las dos unidades nuevas sin mayúsculas ni espacios de más", () => {
+  assert.equal(unidadDeLaLista("plate silver"), "PLATE SILVER");
+  assert.equal(unidadDeLaLista(" Havanna  Perú "), "HAVANNA PERU");
+  assert.equal(unidadDeLaLista("HAVANNA"), "HAVANNA");
+  assert.equal(unidadDeLaLista("JPS"), null);
 });
