@@ -106,6 +106,11 @@ export default async function MisEmpresasPage() {
                             Cuentas bancarias
                           </Link>
                         </li>
+                        <li>
+                          <Link href="/admin/tipo-cambio" className={PASTILLA}>
+                            Tipo de cambio
+                          </Link>
+                        </li>
                       </>
                     )}
                   </ul>

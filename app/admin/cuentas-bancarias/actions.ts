@@ -56,7 +56,7 @@ export async function crearCuentaBancaria(empresaId: string | null, datos: Datos
     if (!r.ok) return r;
 
     const cuenta = await tx.cuentaBancaria.create({
-      data: { empresaId, nombre: r.cuenta.nombre, banco: r.cuenta.banco, terminacion: r.cuenta.terminacion },
+      data: { empresaId, nombre: r.cuenta.nombre, banco: r.cuenta.banco, terminacion: r.cuenta.terminacion, ...(r.cuenta.moneda ? { moneda: r.cuenta.moneda } : {}) },
       select: SELECCION,
     });
     return { ok: true as const, cuenta, avisos: [] as string[] };
@@ -97,7 +97,7 @@ export async function editarCuentaBancaria(
 
     const cuenta = await tx.cuentaBancaria.update({
       where: { id },
-      data: { empresaId, nombre: r.cuenta.nombre, banco: r.cuenta.banco, terminacion: r.cuenta.terminacion },
+      data: { empresaId, nombre: r.cuenta.nombre, banco: r.cuenta.banco, terminacion: r.cuenta.terminacion, ...(r.cuenta.moneda ? { moneda: r.cuenta.moneda } : {}) },
       select: SELECCION,
     });
     return { ok: true as const, cuenta, avisos: [] as string[] };

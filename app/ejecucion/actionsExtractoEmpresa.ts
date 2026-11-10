@@ -57,6 +57,8 @@ export type ResultadoExtractoEmpresa =
       requiereVistaPrevia: true;
       vista: {
         pestana: string;
+        desde: string;
+        hasta: string;
         filas: number;
         nuevas: number;
         yaCargadas: number;
@@ -190,6 +192,9 @@ export async function subirExtractoEmpresa(
           requiereVistaPrevia: true as const,
           vista: {
             pestana: nombrePestana,
+            // Fechas del ARCHIVO (no del período).
+            desde: new Date(Math.min(...filas.map((f) => f.fecha.getTime()))).toISOString().slice(0, 10),
+            hasta: new Date(Math.max(...filas.map((f) => f.fecha.getTime()))).toISOString().slice(0, 10),
             filas: filas.length,
             nuevas: plan.nuevas.length,
             yaCargadas: plan.cantidadYaCargadas,

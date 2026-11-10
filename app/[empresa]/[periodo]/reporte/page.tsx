@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MOSTRAR_PENDIENTES_EN_REPORTE, PERIODO_POR_DEFECTO } from "@/lib/config";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { puedeCargarRealEmpresa } from "@/lib/cargaRealEmpresa";
+import { puedeVerSubidaExtractoEmpresa } from "@/lib/extractos/pantallaExtractoEmpresa";
 import {
   requireAccesoEmpresa,
   AccesoDenegadoError,
@@ -413,6 +414,7 @@ async function ReportePorPlantilla({
       verPendientes={verPendientes}
       verControl={verControl}
       mostrarLinkCarga={edicion.linkCarga}
+      mostrarLinkExtracto={puedeVerSubidaExtractoEmpresa(empresaSlug, puedeCargarReal) && esPeriodoHabilitado(periodo)}
       flujo={flujo}
       carga={carga}
       tipeo={tipeo}

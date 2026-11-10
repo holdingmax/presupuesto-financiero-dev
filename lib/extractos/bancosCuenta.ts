@@ -1,3 +1,4 @@
+import { normalizarTexto } from "@/lib/texto";
 import { BANCOS_EXTRACTO, NOMBRE_BANCO } from "./tipos";
 
 // Bancos que pueden tener una CuentaBancaria. Son los 6 de los lectores de extractos crudos (BANCOS_EXTRACTO,
@@ -18,3 +19,13 @@ export function esBancoCuenta(valor: string): valor is BancoCuenta {
 // Las dos cuentas de BBVA Perú (una por moneda). Nombres canónicos con tilde, como los pidió Kike; la
 // comparación con lo cargado siempre pasa por normalizarCuenta (sin tildes ni mayúsculas).
 export const CUENTAS_BBVA_PERU = { PEN: "BBVA PERÚ SOLES", USD: "BBVA PERÚ USD" } as const;
+
+// Moneda de cada cuenta de BBVA Perú, por su nombre: la pantalla de cuentas no pide moneda y el default de la
+// base es ARS, que la carga por extracto rechazaría. null = no es una de las dos cuentas.
+export function monedaDeCuentaBbvaPeru(nombre: string): "PEN" | "USD" | null {
+  const clave = normalizarTexto(nombre);
+  for (const [moneda, canonico] of Object.entries(CUENTAS_BBVA_PERU)) {
+    if (normalizarTexto(canonico) === clave) return moneda as "PEN" | "USD";
+  }
+  return null;
+}

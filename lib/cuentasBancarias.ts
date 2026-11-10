@@ -1,6 +1,6 @@
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { BANCOS_EXTRACTO, esBancoExtracto, NOMBRE_BANCO, type BancoExtracto } from "@/lib/extractos/tipos";
-import { BANCO_BBVA_PERU, BANCOS_CUENTA, CUENTAS_BBVA_PERU, type BancoCuenta } from "@/lib/extractos/bancosCuenta";
+import { BANCO_BBVA_PERU, BANCOS_CUENTA, CUENTAS_BBVA_PERU, monedaDeCuentaBbvaPeru, type BancoCuenta } from "@/lib/extractos/bancosCuenta";
 
 // Reglas de la lista de cuentas bancarias por empresa (plan docs/lector_bancos_plan.md
 // §4.1). Funciones puras, sin base de datos: las usa la pantalla /admin/cuentas-bancarias
@@ -14,7 +14,8 @@ export type CuentaExistente = { id: string; nombre: string; activa: boolean };
 
 export type DatosCuenta = { nombre: string; banco: string; terminacion: string };
 
-export type CuentaValidada = { nombre: string; banco: BancoCuenta; terminacion: string };
+// moneda: solo la fijan las cuentas de BBVA Perú (por su nombre); en los demás bancos no viene y queda el default.
+export type CuentaValidada = { nombre: string; banco: BancoCuenta; terminacion: string; moneda?: "PEN" | "USD" };
 
 export type ResultadoValidacionCuenta =
   | { ok: true; cuenta: CuentaValidada }
@@ -95,7 +96,7 @@ function validarCuentaBbvaPeru(datos: DatosCuenta, existentes: CuentaExistente[]
       ? { ok: false, error: `Ya existe la cuenta ${canonico}.` }
       : { ok: false, error: `Ya existe la cuenta ${canonico}, pero está inactiva. Reactivala en vez de crear otra.`, reactivarId: repetida.id };
   }
-  return { ok: true, cuenta: { nombre: canonico, banco: BANCO_BBVA_PERU, terminacion } };
+  return { ok: true, cuenta: { nombre: canonico, banco: BANCO_BBVA_PERU, terminacion, moneda: monedaDeCuentaBbvaPeru(canonico) ?? undefined } };
 }
 
 // El selector de subida muestra solo las activas; las inactivas siguen existiendo (no se

@@ -59,6 +59,8 @@ type Props = {
   verControl: boolean;
   // Link «Cargar valores del mes» (/reporte/carga): false en la vista histórica del mes en curso (solo lectura).
   mostrarLinkCarga: boolean;
+  // Link «Subir extracto» (/reporte/extracto): solo empresas con extracto propio y quien puede cargar su Real.
+  mostrarLinkExtracto?: boolean;
   // Estado del Presupuesto del mes de la URL y botones del flujo; null = no se muestran
   // (ver mostrarFlujoEnReporte en lib/estadoPresupuesto.ts).
   flujo: EstadoFlujo | null;
@@ -109,6 +111,7 @@ export default function ReportePlantilla({
   verPendientes,
   verControl,
   mostrarLinkCarga,
+  mostrarLinkExtracto = false,
   flujo,
   carga,
   tipeo,
@@ -148,7 +151,7 @@ export default function ReportePlantilla({
 
       <div className="mb-3 flex flex-wrap items-stretch gap-3">
         {controlVista}
-        {(mostrarLinkCarga || carga || tipeo) && (
+        {(mostrarLinkCarga || mostrarLinkExtracto || carga || tipeo) && (
           <div
             role="group"
             aria-label="Acciones del reporte"
@@ -160,6 +163,14 @@ export default function ReportePlantilla({
                 className="inline-flex h-9 items-center rounded-md border border-line-strong bg-paper-raised px-4 text-xs font-medium text-ink transition hover:border-marino hover:text-marino-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marino"
               >
                 Cargar valores del mes
+              </Link>
+            )}
+            {mostrarLinkExtracto && (
+              <Link
+                href={`/${empresaSlug}/${periodo}/reporte/extracto`}
+                className="inline-flex h-9 items-center rounded-md border border-line-strong bg-paper-raised px-4 text-xs font-medium text-ink transition hover:border-marino hover:text-marino-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marino"
+              >
+                Subir extracto
               </Link>
             )}
             {carga && <BarraGuardarPresupuesto />}

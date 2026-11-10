@@ -330,7 +330,7 @@ test("BBVA Perú se suma a la lista de bancos de las cuentas sin tocar los 6 de 
 
 test("cuentas: BBVA PERÚ SOLES y USD se validan; otro nombre o repetida no", () => {
   const ok = validarCuenta({ nombre: "bbva peru soles", banco: BANCO_BBVA_PERU, terminacion: "" }, []);
-  assert.deepEqual(ok, { ok: true, cuenta: { nombre: CUENTAS_BBVA_PERU.PEN, banco: BANCO_BBVA_PERU, terminacion: "" } });
+  assert.deepEqual(ok, { ok: true, cuenta: { nombre: CUENTAS_BBVA_PERU.PEN, banco: BANCO_BBVA_PERU, terminacion: "", moneda: "PEN" } });
   assert.ok(validarCuenta({ nombre: "BBVA PERÚ USD", banco: BANCO_BBVA_PERU, terminacion: "1234" }, []).ok);
   assert.ok(!validarCuenta({ nombre: "BBVA PERÚ EUR", banco: BANCO_BBVA_PERU, terminacion: "" }, []).ok);
   assert.ok(!validarCuenta({ nombre: "BBVA PERÚ SOLES", banco: BANCO_BBVA_PERU, terminacion: "12" }, []).ok);
