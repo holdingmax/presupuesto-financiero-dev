@@ -8,11 +8,15 @@
 // hay más de un orden posible (empate), el grupo queda como venía. El orden entre fechas y entre
 // cuentas distintas no cambia: cada grupo reutiliza las posiciones que ya ocupaba.
 
+import { monedaParaClave } from "@/lib/conteoMovimientos";
+
 export type FilaOrdenable = {
   fecha: string; // AAAA-MM-DD
   bancoYCuenta: string;
   importeCentavos: number;
   saldoCentavos: number | null;
+  // Sin dato o "ARS": se agrupa como siempre. Otra moneda es una cadena de saldo aparte.
+  moneda?: string | null;
 };
 
 // Tope de pasos de la búsqueda por grupo: con saldos repetidos puede haber muchas ramas; si se
@@ -85,7 +89,7 @@ function cadenaUnica(importes: number[], saldos: number[]): number[] | null {
 export function ordenarPorCadenaDeSaldo<T extends FilaOrdenable>(filas: T[]): T[] {
   const grupos = new Map<string, number[]>();
   filas.forEach((f, i) => {
-    const clave = `${f.fecha}\u0000${f.bancoYCuenta}`;
+    const clave = [f.fecha, f.bancoYCuenta, ...monedaParaClave(f.moneda)].join("\u0000");
     const g = grupos.get(clave);
     if (g) g.push(i);
     else grupos.set(clave, [i]);

@@ -1,4 +1,5 @@
 import { normalizarTexto } from "@/lib/texto";
+import { monedaParaClave } from "@/lib/conteoMovimientos";
 
 // Control de continuidad de saldo, en CUALQUIER orden (decisión 2026-10-15, plan
 // docs/lector_bancos_plan.md §5.1). Antes asumía que el archivo venía de la fila más
@@ -15,6 +16,8 @@ export type FilaContinuidad = {
   importe: number;
   saldo: number | null;
   bancoYCuenta: string;
+  // Sin dato o "ARS": la cuenta se agrupa como siempre. Otra moneda es una cadena de saldo aparte.
+  moneda?: string | null;
 };
 
 export type Ruptura = {
@@ -102,7 +105,7 @@ function evaluar(
 export function analizarContinuidad(filas: FilaContinuidad[]): AnalisisContinuidad[] {
   const porCuenta = new Map<string, FilaContinuidad[]>();
   for (const fila of filas) {
-    const clave = normalizarTexto(fila.bancoYCuenta);
+    const clave = [normalizarTexto(fila.bancoYCuenta), ...monedaParaClave(fila.moneda)].join("\u0000");
     const grupo = porCuenta.get(clave);
     if (grupo) grupo.push(fila);
     else porCuenta.set(clave, [fila]);

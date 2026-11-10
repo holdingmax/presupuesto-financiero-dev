@@ -236,6 +236,10 @@ model MovimientoBancario {
   importe         Decimal  @db.Decimal(18, 2)
   saldo           Decimal? @db.Decimal(18, 2)
   bancoYCuenta    String   // ej "MACRO 599", "GALICIA 891"
+  // Moneda del movimiento: código ISO ("ARS", "PEN", "USD"...). Todo lo cargado hasta ahora es pesos
+  // argentinos, de ahí el default. El Real del Reporte, los chequeos de suma cero y la continuidad de
+  // saldo no mezclan monedas (lib/conteoMovimientos.ts: MONEDA_PREDETERMINADA).
+  moneda          String   @default("ARS")
   clasificacion   String   // ej COBRANZAS, PROV Y SERV, SUELDOS, IMP Y PREVISIONALES...
   clasificacion2  String?
   // true mientras `clasificacion` fue propuesta por el sistema (motor de
@@ -415,6 +419,8 @@ model CuentaBancaria {
   nombre      String   @unique // canónico, único global, el mismo que bancoYCuenta: "MACRO 599"
   banco       String   // MACRO | GALICIA | FRANCES | BNA | SANTANDER | BSE
   terminacion String   // dígitos finales con los que se valida el número del archivo: "599"
+  // Moneda por defecto de los movimientos de la cuenta (código ISO). Hoy ningún lector la usa todavía.
+  moneda      String   @default("ARS")
   activa      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

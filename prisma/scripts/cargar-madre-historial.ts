@@ -30,6 +30,7 @@ import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import {
   centavosDeNumero,
   centavosDeDecimalTexto,
+  monedaParaClave,
   decimalTextoDeCentavos,
   claveMovimiento,
   contarPorClave,
@@ -89,6 +90,7 @@ type FilaClaveDb = {
   concepto: string;
   nroReferencia: string | null;
   saldo: string | null;
+  moneda: string;
 };
 
 function claveDeFilaDb(m: FilaClaveDb) {
@@ -99,15 +101,17 @@ function claveDeFilaDb(m: FilaClaveDb) {
     concepto: m.concepto,
     nroReferencia: m.nroReferencia,
     saldoCentavos: m.saldo === null ? null : centavosDeDecimalTexto(m.saldo),
+    moneda: m.moneda,
   });
 }
 
 // Copiado de actions.ts, mantener sincronizado: claveFechaImporteCuenta
-function claveFechaImporteCuenta(fecha: Date, importeCentavos: number, bancoYCuenta: string) {
+function claveFechaImporteCuenta(fecha: Date, importeCentavos: number, bancoYCuenta: string, moneda?: string | null) {
   return JSON.stringify([
     fecha.toISOString().slice(0, 10),
     importeCentavos,
     normalizarCuenta(bancoYCuenta),
+    ...monedaParaClave(moneda),
   ]);
 }
 
@@ -251,7 +255,7 @@ async function reconocerNuevas(db: Db, filasConClave: FilaConClave[]) {
 
   const existentes = await db.$queryRaw<FilaClaveDb[]>`
     SELECT mb.fecha, mb.importe::text AS importe, mb."bancoYCuenta", mb.concepto,
-           mb."nroReferencia", mb.saldo::text AS saldo
+           mb."nroReferencia", mb.saldo::text AS saldo, mb.moneda
     FROM "MovimientoBancario" mb
     WHERE mb.fecha >= ${desde.toISOString().slice(0, 10)}::date
       AND mb.fecha < (${hasta.toISOString().slice(0, 10)}::date + 1)
@@ -261,7 +265,7 @@ async function reconocerNuevas(db: Db, filasConClave: FilaConClave[]) {
   const { nuevas, cantidadYaCargadas } = separarNuevas(filasConClave, (f) => f.clave, yaCargadas);
 
   const fechaImporteCuenta = new Set(
-    existentes.map((m) => claveFechaImporteCuenta(m.fecha, centavosDeDecimalTexto(m.importe), m.bancoYCuenta))
+    existentes.map((m) => claveFechaImporteCuenta(m.fecha, centavosDeDecimalTexto(m.importe), m.bancoYCuenta, m.moneda))
   );
   const casiDuplicados = nuevas.filter((n) =>
     fechaImporteCuenta.has(claveFechaImporteCuenta(n.fila.fecha, n.importeCentavos, n.fila.bancoYCuenta))

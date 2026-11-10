@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
+import { centavosDeDecimalTexto, MONEDA_PREDETERMINADA } from "@/lib/conteoMovimientos";
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { armarIndiceRubros, rubroDe } from "@/lib/rubros";
 import { claveEquivalencia } from "@/lib/reporte/motor";
@@ -46,13 +46,17 @@ async function clasificacionesDeRubros(periodo: string, rubros: readonly string[
   return filas.map((f) => f.clasificacion).filter((c) => rubroDe(indice, c) !== null);
 }
 
+// Las tres sumas de este archivo (por rubro, por clasificación y "no asignado") son de UNA moneda: la que se
+// pasa en `moneda` (por defecto pesos, MONEDA_PREDETERMINADA). Los movimientos de otra moneda no se mezclan.
+//
 // Centavos (con signo) por RUBRO — ya agrupados con la tabla de equivalencias
 // (ej. "COM Y GTOS BRIOS" suma en "Gastos bancarios"). El llamador decide cómo
 // mostrarlos.
 export async function calcularRealPorRubro(
   periodo: string,
   unidades: string[],
-  rubros: readonly string[]
+  rubros: readonly string[],
+  moneda: string = MONEDA_PREDETERMINADA
 ): Promise<Map<string, number>> {
   if (unidades.length === 0) return new Map();
   const crudas = await clasificacionesDeRubros(periodo, rubros);
@@ -64,6 +68,7 @@ export async function calcularRealPorRubro(
       JOIN "EjecucionSemanal" es ON mb."ejecucionId" = es.id
         WHERE es.periodo = ${periodo} AND es.estado = 'CERRADA' AND NOT mb.ignorado
         AND mb.clasificacion = ANY(${crudas}::text[])
+        AND mb.moneda = ${moneda}
     )
     SELECT x.clasificacion, SUM(x.importe)::text AS total FROM (
       SELECT m.clasificacion, m.importe FROM mov m
@@ -102,7 +107,8 @@ export type RealDelMes = {
 export async function calcularRealPorClasificacion(
   periodos: string[],
   unidades: string[],
-  clasificaciones: string[]
+  clasificaciones: string[],
+  moneda: string = MONEDA_PREDETERMINADA
 ): Promise<Map<string, RealDelMes>> {
   const vacio = (): RealDelMes => ({ neto: new Map(), creditos: new Map(), debitos: new Map() });
   const resultado = new Map<string, RealDelMes>(periodos.map((p) => [p, vacio()]));
@@ -125,6 +131,7 @@ export async function calcularRealPorClasificacion(
       JOIN "EjecucionSemanal" es ON mb."ejecucionId" = es.id
         WHERE es.periodo = ANY(${periodos}::text[]) AND es.estado = 'CERRADA' AND NOT mb.ignorado
         AND mb.clasificacion = ANY(${crudas}::text[])
+        AND mb.moneda = ${moneda}
     )
     SELECT x.periodo, x.clasificacion, SUM(x.importe)::text AS total,
            SUM(CASE WHEN x.importe > 0 THEN x.importe ELSE 0 END)::text AS creditos,
@@ -176,7 +183,8 @@ export type NoAsignado = { unidad: string; centavos: number; movimientos: number
 export async function calcularNoAsignadoDelPeriodo(
   periodo: string,
   rubros: readonly string[],
-  unidadesConEmpresa: string[]
+  unidadesConEmpresa: string[],
+  moneda: string = MONEDA_PREDETERMINADA
 ): Promise<{ porUnidad: NoAsignado[]; semanas: number[] }> {
   const crudas = await clasificacionesDeRubros(periodo, rubros);
   if (crudas.length === 0) return { porUnidad: [], semanas: [] };
@@ -190,6 +198,7 @@ export async function calcularNoAsignadoDelPeriodo(
       WHERE es.periodo = ${periodo}
         AND es.estado = 'CERRADA' AND NOT mb.ignorado
         AND mb.clasificacion = ANY(${crudas}::text[])
+        AND mb.moneda = ${moneda}
     )
     SELECT x.unidad, SUM(x.importe)::text AS total, COUNT(DISTINCT x.id)::int AS movimientos,
            array_agg(DISTINCT x."numeroSemana" ORDER BY x."numeroSemana") AS semanas

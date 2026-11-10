@@ -24,7 +24,7 @@ export async function idsEnOrdenDeVista(ejecucionId: string, soloSinClasificar: 
   const filas = await prisma.movimientoBancario.findMany({
     where: { ejecucionId },
     orderBy: [{ fecha: "asc" }, { id: "asc" }],
-    select: { id: true, fecha: true, bancoYCuenta: true, importe: true, saldo: true, clasificacion: true },
+    select: { id: true, fecha: true, bancoYCuenta: true, moneda: true, importe: true, saldo: true, clasificacion: true },
   });
   const ordenadas = ordenarPorCadenaDeSaldo(
     filas.map((m) => ({
@@ -32,6 +32,7 @@ export async function idsEnOrdenDeVista(ejecucionId: string, soloSinClasificar: 
       clasificacion: m.clasificacion,
       fecha: m.fecha.toISOString().slice(0, 10),
       bancoYCuenta: m.bancoYCuenta,
+      moneda: m.moneda,
       importeCentavos: centavosDeDecimalTexto(m.importe.toFixed(2)),
       saldoCentavos: m.saldo === null ? null : centavosDeDecimalTexto(m.saldo.toFixed(2)),
     }))
@@ -55,6 +56,7 @@ export async function vistaDeLaSemana(ejecucionId: string, filtros: FiltrosEjecu
         fecha: true,
         concepto: true,
         bancoYCuenta: true,
+        moneda: true,
         importe: true,
         saldo: true,
         clasificacion: true,
@@ -82,6 +84,7 @@ export async function vistaDeLaSemana(ejecucionId: string, filtros: FiltrosEjecu
       fecha: m.fecha.toISOString().slice(0, 10),
       concepto: m.concepto,
       bancoYCuenta: m.bancoYCuenta,
+      moneda: m.moneda,
       clasificacion: m.clasificacion,
       unidadNegocio: m.unidadNegocio,
       unidadesDesglose: unidadesDesglose.get(m.id) ?? [],

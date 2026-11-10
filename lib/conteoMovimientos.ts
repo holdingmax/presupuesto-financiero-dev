@@ -50,6 +50,17 @@ export function decimalTextoDeCentavos(centavos: number): string {
   return `${centavos < 0 ? "-" : ""}${pesos}.${cent}`;
 }
 
+// Moneda de todo lo cargado antes de que existiera la columna (MovimientoBancario.moneda, default de la base).
+export const MONEDA_PREDETERMINADA = "ARS";
+
+// La moneda entra en una clave SOLO cuando no es la predeterminada: así las claves de los movimientos en
+// pesos (todo lo ya cargado) quedan byte a byte iguales a las de antes y nada se vuelve a cargar. Vacía
+// o sin dato = pesos. Devuelve lo que se agrega al final de la clave ([] para pesos).
+export function monedaParaClave(moneda: string | null | undefined): string[] {
+  const m = (moneda ?? "").trim().toUpperCase();
+  return m === "" || m === MONEDA_PREDETERMINADA ? [] : [m];
+}
+
 export type CamposClave = {
   fecha: Date;
   importeCentavos: number;
@@ -57,6 +68,8 @@ export type CamposClave = {
   concepto: string;
   nroReferencia: string | null;
   saldoCentavos: number | null; // null es un valor más de la clave
+  // Sin dato o "ARS": no entra en la clave (ver monedaParaClave).
+  moneda?: string | null;
 };
 
 // fecha (día) + importe + cuenta normalizada + concepto normalizado + nro de
@@ -72,6 +85,7 @@ export function claveMovimiento(m: CamposClave): string {
     normalizarTexto(m.concepto),
     (m.nroReferencia ?? "").trim(),
     m.saldoCentavos,
+    ...monedaParaClave(m.moneda),
   ]);
 }
 

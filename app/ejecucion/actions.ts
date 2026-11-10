@@ -88,6 +88,8 @@ import { obtenerUnidadesConEmpresa, contarSinUnidadEnSemana } from "@/lib/report
 import {
   centavosDeNumero,
   centavosDeDecimalTexto,
+  monedaParaClave,
+  MONEDA_PREDETERMINADA,
   decimalTextoDeCentavos,
   claveMovimiento,
   contarPorClave,
@@ -342,7 +344,8 @@ async function chequeosSumaCeroDeEjecucion(ejecucionId: string): Promise<Resulta
   const resultados: ResultadoChequeo[] = [];
   for (const def of CHEQUEOS_SUMA_CERO) {
     const movimientos = await prisma.movimientoBancario.findMany({
-      where: { ejecucionId, clasificacion: def.clasificacion, ignorado: false },
+      // Solo pesos: un movimiento de otra moneda no se netea contra uno en pesos.
+      where: { ejecucionId, clasificacion: def.clasificacion, ignorado: false, moneda: MONEDA_PREDETERMINADA },
       orderBy: [{ fecha: "asc" }, { id: "asc" }],
     });
     resultados.push(armarChequeo(def, movimientos));
@@ -608,6 +611,7 @@ type FilaClaveDb = {
   concepto: string;
   nroReferencia: string | null;
   saldo: string | null;
+  moneda: string;
 };
 
 function claveDeFilaDb(m: FilaClaveDb) {
@@ -618,14 +622,16 @@ function claveDeFilaDb(m: FilaClaveDb) {
     concepto: m.concepto,
     nroReferencia: m.nroReferencia,
     saldoCentavos: m.saldo === null ? null : centavosDeDecimalTexto(m.saldo),
+    moneda: m.moneda,
   });
 }
 
-function claveFechaImporteCuenta(fecha: Date, importeCentavos: number, bancoYCuenta: string) {
+function claveFechaImporteCuenta(fecha: Date, importeCentavos: number, bancoYCuenta: string, moneda?: string | null) {
   return JSON.stringify([
     fecha.toISOString().slice(0, 10),
     importeCentavos,
     normalizarCuenta(bancoYCuenta),
+    ...monedaParaClave(moneda),
   ]);
 }
 
@@ -893,7 +899,7 @@ export async function subirExtracto(
       // importe/saldo como texto: se pasan a centavos sin float.
       const existentes = await tx.$queryRaw<FilaClaveDb[]>`
         SELECT mb.fecha, mb.importe::text AS importe, mb."bancoYCuenta", mb.concepto,
-               mb."nroReferencia", mb.saldo::text AS saldo
+               mb."nroReferencia", mb.saldo::text AS saldo, mb.moneda
         FROM "MovimientoBancario" mb
         WHERE mb.fecha >= ${desde.toISOString().slice(0, 10)}::date
           AND mb.fecha < (${hasta.toISOString().slice(0, 10)}::date + 1)
@@ -905,7 +911,7 @@ export async function subirExtracto(
       // Cuenta + fecha + importe de lo ya cargado en el rango: alimenta el aviso de
       // casi-duplicados y el control de "un solo camino".
       const fechaImporteCuenta = new Set(
-        existentes.map((m) => claveFechaImporteCuenta(m.fecha, centavosDeDecimalTexto(m.importe), m.bancoYCuenta))
+        existentes.map((m) => claveFechaImporteCuenta(m.fecha, centavosDeDecimalTexto(m.importe), m.bancoYCuenta, m.moneda))
       );
 
       // Casi-duplicados: solo entre las NUEVAS (las coincidencias exactas ya
@@ -933,7 +939,7 @@ export async function subirExtracto(
         const delRango = new Set(
           existentes
             .filter((m) => normalizarCuenta(m.bancoYCuenta) === cuentaNormalizada)
-            .map((m) => claveFechaImporteCuenta(m.fecha, centavosDeDecimalTexto(m.importe), m.bancoYCuenta))
+            .map((m) => claveFechaImporteCuenta(m.fecha, centavosDeDecimalTexto(m.importe), m.bancoYCuenta, m.moneda))
         );
         const parecidas = nuevas.filter((n) =>
           delRango.has(claveFechaImporteCuenta(n.fila.fecha, n.importeCentavos, n.fila.bancoYCuenta))
@@ -1177,7 +1183,7 @@ async function calcularCargaMadre(db: DbLectura, filasConClave: FilaConClaveMadr
 
   const existentes = await db.$queryRaw<FilaClaveDb[]>`
     SELECT mb.fecha, mb.importe::text AS importe, mb."bancoYCuenta", mb.concepto,
-           mb."nroReferencia", mb.saldo::text AS saldo
+           mb."nroReferencia", mb.saldo::text AS saldo, mb.moneda
     FROM "MovimientoBancario" mb
     WHERE mb.fecha >= ${desde.toISOString().slice(0, 10)}::date
       AND mb.fecha < (${hasta.toISOString().slice(0, 10)}::date + 1)
@@ -1186,7 +1192,7 @@ async function calcularCargaMadre(db: DbLectura, filasConClave: FilaConClaveMadr
   const existentesCotejo = existentes.map((m) => ({
     cuenta: normalizarCuenta(m.bancoYCuenta),
     clave: claveDeFilaDb(m),
-    claveFIC: claveFechaImporteCuenta(m.fecha, centavosDeDecimalTexto(m.importe), m.bancoYCuenta),
+    claveFIC: claveFechaImporteCuenta(m.fecha, centavosDeDecimalTexto(m.importe), m.bancoYCuenta, m.moneda),
   }));
 
   const omitidas = cuentasCargadasPorOtroCamino(filasConClave, existentesCotejo);
