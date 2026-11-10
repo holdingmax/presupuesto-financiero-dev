@@ -131,7 +131,12 @@ export const EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE: readonly string[] = [
 // Ver lib/reporte/tipeoDirecto.ts.
 //
 // Tanda 1: solo flujo (Real manual de Ingresos/Egresos/de abajo). Sin filas extra y sin Disponibilidades.
-export const EMPRESAS_CON_TIPEO_DIRECTO: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio", "havanna", "conexion-logistica", "conexion-logistica-spp"];
+//
+// Bradenton, Plate Silver y Havanna Perú: todo su Real es manual (ninguna fila lee de la Ejecución). Se tipean las filas de
+// Ingresos, Egresos y de abajo; las Disponibilidades solo en Bradenton y Plate Silver (Havanna Perú no las ve: no está en
+// EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE y su «EFECTIVO DISPONIBLE» sigue cargándose en /reporte/carga). El Capital de
+// trabajo de las tres es una línea o un total, no una fila `capital`: no abre celda. Sin filas extra.
+export const EMPRESAS_CON_TIPEO_DIRECTO: readonly string[] = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio", "havanna", "conexion-logistica", "conexion-logistica-spp", "bradenton", "plate-silver", "havanna-peru"];
 
 // Filas extra del Reporte (las que agrega ADMIN/FINANZAS mientras revisa, lib/reporte/filasExtra.ts). Lista de
 // SLUGS de empresa; vacía = el Reporte no consulta ni muestra ninguna (ni siquiera lee la tabla) y no hay botón

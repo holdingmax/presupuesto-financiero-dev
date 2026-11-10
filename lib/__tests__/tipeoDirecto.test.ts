@@ -35,11 +35,11 @@ const ABIERTO = { abiertas: 1, cerradas: 0 };
 
 // ---- Configuración -------------------------------------------------------------------------------
 
-// Empresas con tipeo directo hoy: Brillante y la Tanda 1 (solo flujo). Fijada a propósito: activar otra empresa
-// tiene que obligar a tocar este test.
-const CON_TIPEO_HOY = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio", "havanna", "conexion-logistica", "conexion-logistica-spp"];
+// Empresas con tipeo directo hoy: Brillante, la Tanda 1 y Bradenton, Plate Silver y Havanna Perú (su detalle está en
+// tipeoDirectoBradentonPlateSilverPeru.test.ts). Fijada a propósito: activar otra empresa tiene que obligar a tocar este test.
+const CON_TIPEO_HOY = ["brillante", "fredy-publicidad", "hwc", "avianor", "mantenor", "radio", "havanna", "conexion-logistica", "conexion-logistica-spp", "bradenton", "plate-silver", "havanna-peru"];
 
-test("config: el interruptor es Brillante + Tanda 1, sin repetidos y con plantilla", () => {
+test("config: el interruptor es Brillante + Tanda 1 + Bradenton, Plate Silver y Havanna Perú, sin repetidos y con plantilla", () => {
   assert.ok(EMPRESAS_CON_TIPEO_DIRECTO.includes("brillante"));
   assert.deepEqual([...EMPRESAS_CON_TIPEO_DIRECTO], CON_TIPEO_HOY);
   assert.equal(new Set(EMPRESAS_CON_TIPEO_DIRECTO).size, EMPRESAS_CON_TIPEO_DIRECTO.length);
@@ -92,10 +92,12 @@ test("sin Disponibilidades visibles, solo las 8 de flujo y el Capital de trabajo
 });
 
 test("las empresas fuera del interruptor no tienen celdas editables", () => {
-  const fuera = SLUGS.filter((s) => !EMPRESAS_CON_TIPEO_DIRECTO.includes(s));
-  assert.ok(fuera.includes("plate-silver") && fuera.includes("bradenton"), "sanidad: el recorrido no está vacío");
+  // Hoy todas las plantillas están en el interruptor: se prueba con uno que deja afuera a todas menos Brillante.
+  const soloBrillante: InterruptoresTipeo = { tipeo: ["brillante"], disponibilidades: EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE };
+  const fuera = SLUGS.filter((s) => s !== "brillante");
+  assert.ok(fuera.includes("plate-silver") && fuera.includes("bradenton") && fuera.includes("havanna-peru"), "sanidad: el recorrido no está vacío");
   for (const slug of fuera) {
-    assert.deepEqual(camposTipeables(PLANTILLAS_POR_SLUG[slug], slug), [], slug);
+    assert.deepEqual(camposTipeables(PLANTILLAS_POR_SLUG[slug], slug, soloBrillante), [], slug);
   }
 });
 
