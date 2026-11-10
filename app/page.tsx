@@ -129,6 +129,13 @@ export default async function MisEmpresasPage() {
                         </Link>
                       </li>
                     )}
+                    {esAdminOFinanzas(usuario) && (
+                      <li>
+                        <Link href="/admin/reparto-expensas" className={PASTILLA}>
+                          Reparto de Expensas
+                        </Link>
+                      </li>
+                    )}
                   </ul>
                 </div>
               )}
