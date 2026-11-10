@@ -36,10 +36,10 @@ const ESPERADO: Record<
     ],
     abajo: ["ps.reembolsosPrestamos", "ps.dividendos", "ps.otroAbajo"],
   },
-  // Havanna Perú no ve Disponibilidades (no está en EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE): su «EFECTIVO DISPONIBLE»
-  // sigue cargándose en /reporte/carga.
+  // Havanna Perú ve Disponibilidades desde la segunda tanda de permisos del Real (decisión de Kike): su única fila es el
+  // «EFECTIVO DISPONIBLE (principios de mes)».
   "havanna-peru": {
-    disponibilidades: [],
+    disponibilidades: ["hp.dEfectivo"],
     ingresos: ["hp.cobranzaClientes", "hp.otrasOperaciones", "hp.ventaPropiedades", "hp.cobroCapitalPrestamos", "hp.prestamo", "hp.devolucionPercepcionIgv", "hp.otroIngreso"],
     egresos: [
       "hp.gratificaciones", "hp.sueldos", "hp.prestamos", "hp.tarjetas", "hp.adicionales", "hp.impuestos", "hp.expensas", "hp.gastosBancarios",
@@ -48,7 +48,7 @@ const ESPERADO: Record<
     abajo: ["hp.importacionHavanna", "hp.solesADolares", "hp.dividendos", "hp.implementacionLocales"],
   },
 };
-const CANTIDAD: Record<string, number> = { bradenton: 26, "plate-silver": 25, "havanna-peru": 22 };
+const CANTIDAD: Record<string, number> = { bradenton: 26, "plate-silver": 25, "havanna-peru": 23 };
 const SLUGS = Object.keys(ESPERADO);
 
 const ABIERTO = { abiertas: 1, cerradas: 0 };
@@ -67,14 +67,14 @@ function vista(slug: string, over: Partial<Parameters<typeof armarVistaTipeo>[0]
   });
 }
 
-test("config: las tres están en el interruptor de tipeo, sin filas extra, y Havanna Perú sin Disponibilidades", () => {
+test("config: las tres están en el interruptor de tipeo, sin filas extra, y las tres ven Disponibilidades", () => {
   for (const slug of SLUGS) {
     assert.ok(EMPRESAS_CON_TIPEO_DIRECTO.includes(slug), slug);
     assert.equal(EMPRESAS_CON_FILAS_EXTRA.includes(slug), false, `${slug} no tiene filas extra`);
   }
   assert.equal(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes("bradenton"), true);
   assert.equal(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes("plate-silver"), true);
-  assert.equal(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes("havanna-peru"), false);
+  assert.equal(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes("havanna-peru"), true);
 });
 
 for (const slug of SLUGS) {
@@ -144,20 +144,23 @@ for (const slug of SLUGS) {
   });
 }
 
-test("Bradenton y Plate Silver: sus Disponibilidades se bloquean con semanas cerradas en un mes pasado; Havanna Perú no tiene celda de Efectivo", () => {
+test("Bradenton y Plate Silver: sus Disponibilidades se bloquean con semanas cerradas en un mes pasado; Havanna Perú tiene la de Efectivo, con el mismo bloqueo", () => {
   for (const [slug, clave] of [["bradenton", "bd.dBanco"], ["plate-silver", "ps.dBanco"]] as const) {
     const pasado = { periodo: "2026-09", actual: "2026-10", semanas: CERRADO };
     assert.equal(vista(slug, { ...pasado, valoresReales: new Map([[clave, 100]]) })!.celdas.some((c) => c.clave === clave), false, slug);
     assert.equal(vista(slug, pasado)!.celdas.find((c) => c.clave === clave)!.avisoUnaVez, true, slug);
   }
   const peru = vista("havanna-peru")!;
-  assert.equal(peru.celdas.some((c) => c.clave === "hp.dEfectivo"), false);
-  assert.ok(
+  assert.equal(peru.celdas.some((c) => c.clave === "hp.dEfectivo"), true);
+  const pasadoPeru = { periodo: "2026-09", actual: "2026-10", semanas: CERRADO };
+  assert.equal(vista("havanna-peru", { ...pasadoPeru, valoresReales: new Map([["hp.dEfectivo", 100]]) })!.celdas.some((c) => c.clave === "hp.dEfectivo"), false);
+  assert.equal(
     motivoRechazoTipeo({
       empresaSlug: "havanna-peru",
       plantilla: PLANTILLAS_POR_SLUG["havanna-peru"],
       esAdminOFinanzas: true,
       entradas: [{ filaClave: "hp.dEfectivo", columna: "REAL", texto: "1.000,00" }],
-    })
+    }),
+    null
   );
 });

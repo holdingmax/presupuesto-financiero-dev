@@ -62,7 +62,8 @@ const CON_DISPONIBILIDADES_HOY = ["brillante", "fredy-publicidad", "hwc", "avian
 
 test("interruptores: Disponibilidades y Cierre en las mismas diez empresas (el alias de testing de Conexión y Havanna Perú, fuera)", () => {
   assert.ok(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes("brillante"));
-  assert.deepEqual([...EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE], CON_DISPONIBILIDADES_HOY);
+  // Havanna Perú se suma a Disponibilidades (segunda tanda de permisos del Real) pero no a Cierre.
+  assert.deepEqual([...EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE], [...CON_DISPONIBILIDADES_HOY, "havanna-peru"]);
   assert.deepEqual([...EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE], CON_DISPONIBILIDADES_HOY);
   for (const slug of ["conexion-logistica-spp", "havanna-peru"]) {
     assert.equal(EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE.includes(slug), false, slug);
@@ -73,10 +74,9 @@ test("interruptores: Disponibilidades y Cierre en las mismas diez empresas (el a
 
 const FUERA_DEL_INTERRUPTOR = Object.keys(PLANTILLAS_POR_SLUG).filter((s) => !EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes(s));
 
-test("las empresas que siguen fuera incluyen al alias de testing de Conexión y a Havanna Perú", () => {
-  for (const slug of ["conexion-logistica-spp", "havanna-peru"]) {
-    assert.ok(FUERA_DEL_INTERRUPTOR.includes(slug), slug);
-  }
+test("las empresas que siguen fuera incluyen al alias de testing de Conexión (Havanna Perú ya no)", () => {
+  assert.ok(FUERA_DEL_INTERRUPTOR.includes("conexion-logistica-spp"));
+  assert.ok(!FUERA_DEL_INTERRUPTOR.includes("havanna-peru"));
 });
 
 for (const slug of FUERA_DEL_INTERRUPTOR) {

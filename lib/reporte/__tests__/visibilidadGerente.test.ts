@@ -138,9 +138,11 @@ test("config real: Cierre prendido en las diez empresas con Disponibilidades; el
   for (const slug of EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE) {
     assert.deepEqual(accesoReservadosDelReporte(false, slug), { disponibilidades: true, cierre: true }, slug);
   }
-  for (const slug of ["conexion-logistica-spp", "havanna-peru", "expensas"]) {
+  for (const slug of ["conexion-logistica-spp", "expensas"]) {
     assert.equal(accesoReservadosDelReporte(false, slug), false, slug);
   }
+  // Havanna Perú ve Disponibilidades (segunda tanda de permisos del Real) pero no Cierre.
+  assert.deepEqual(accesoReservadosDelReporte(false, "havanna-peru"), { disponibilidades: true, cierre: false });
 });
 
 test("Cierre del gerente: Capital y Disponible solo con Presupuestado (como la planilla); el Saldo, con su Real", () => {

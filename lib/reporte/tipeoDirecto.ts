@@ -115,6 +115,10 @@ export type VistaTipeo = {
   celdas: CeldaTipeo[];
   // Cambia cuando cambian los valores guardados: la pantalla reemplaza lo tipeado por lo guardado.
   huella: string;
+  // El usuario puede tipear Disponibilidades (el Real de alguna de sus filas): el Reporte muestra ese bloque como lo ve
+  // un ADMIN (P y R, con el input en R) y no como el «Saldo» de solo lectura del gerente. Es por permiso, no por celdas
+  // que queden sin bloquear: no cambia a mitad de bloque cuando un mes cerrado deja algunas filas en solo lectura.
+  disponibilidades: boolean;
 };
 
 export type EntradaVistaTipeo = {
@@ -138,6 +142,15 @@ export type EntradaVistaTipeo = {
   interruptores?: InterruptoresTipeo;
 };
 
+// ¿Disponibilidades se dibuja como el «Saldo» de solo lectura del gerente? Sí cuando el Reporte se armó sin acceso completo
+// a los bloques reservados, salvo que el usuario pueda tipear Disponibilidades: ahí se ve como lo ve un ADMIN.
+export function disponibilidadesComoSaldo(
+  sinBloquesReservados: boolean,
+  tipeo: Pick<VistaTipeo, "disponibilidades"> | null
+): boolean {
+  return sinBloquesReservados && tipeo?.disponibilidades !== true;
+}
+
 // null = el Reporte no lleva ninguna celda editable de este tipo. Quien no puede cargar el Real de la empresa recibe
 // null SIEMPRE, con el interruptor que sea: ni celdas, ni claves, ni valores. Quien puede sin ser ADMIN ni FINANZAS
 // (gerente con permiso) recibe solo las celdas de Real.
@@ -145,7 +158,9 @@ export function armarVistaTipeo(e: EntradaVistaTipeo): VistaTipeo | null {
   if (!(e.puedeCargarReal ?? e.esAdminOFinanzas)) return null;
   const soloReal = !e.esAdminOFinanzas;
   const celdas: CeldaTipeo[] = [];
-  for (const c of camposTipeables(e.plantilla, e.empresaSlug, e.interruptores)) {
+  const tipeables = camposTipeables(e.plantilla, e.empresaSlug, e.interruptores);
+  const disponibilidades = tipeables.some((c) => c.bloque === "DISPONIBILIDADES" && c.columna === "REAL");
+  for (const c of tipeables) {
     if (soloReal && c.columna !== "REAL") continue;
     const existente = (c.columna === "REAL" ? e.valoresReales : e.valoresPresupuesto)?.get(c.clave);
     const bloqueo = motivoBloqueo({
@@ -171,7 +186,7 @@ export function armarVistaTipeo(e: EntradaVistaTipeo): VistaTipeo | null {
     });
   }
   if (celdas.length === 0) return null;
-  return { celdas, huella: celdas.map((c) => `${c.id}=${c.centavos ?? ""}`).join("|") };
+  return { celdas, huella: celdas.map((c) => `${c.id}=${c.centavos ?? ""}`).join("|"), disponibilidades };
 }
 
 // ¿Lo tipeado cambia el valor guardado? El texto mostrado va en pesos enteros, así que no alcanza comparar textos: un valor

@@ -203,9 +203,11 @@ test("accesoReservadosDelReporte: vale solo para el slug exacto, no para otro pa
     assert.deepEqual(accesoReservadosDelReporte(false, slug), { disponibilidades: true, cierre: true }, slug);
     assert.equal(accesoReservadosDelReporte(false, `${slug}-peru`), false);
   }
-  for (const otra of ["conexion-logistica-spp", "havanna-peru", "empresa-inventada"]) {
+  for (const otra of ["conexion-logistica-spp", "empresa-inventada"]) {
     assert.equal(accesoReservadosDelReporte(false, otra), false, otra);
   }
+  // Havanna Perú: Disponibilidades sí (su gerente carga el Efectivo), Cierre no.
+  assert.deepEqual(accesoReservadosDelReporte(false, "havanna-peru"), { disponibilidades: true, cierre: false });
   assert.equal(accesoReservadosDelReporte(true, "havanna-peru"), true, "ADMIN y FINANZAS ven todo");
 });
 

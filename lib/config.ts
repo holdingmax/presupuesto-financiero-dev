@@ -104,6 +104,9 @@ export const EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE: readonly string[] = [
   "conexion-logistica",
   "bradenton",
   "plate-silver",
+  // Havanna Perú (decisión de Kike, 2026-11): su gerente carga el «EFECTIVO DISPONIBLE (principios de mes)», la única fila
+  // de su bloque (sin BANCO ni CHEQUES, sin total). No está en la lista de Cierre: no ve Posición, Capital ni Excedente.
+  "havanna-peru",
 ];
 // Cierre: Saldo, Capital de trabajo y Disponible (NO «Disponible antes de gastos»), al pie de la tabla como en la hoja
 // «PRESUPUESTO MES A MES». Se calculan con el total de Disponibilidades: una empresa solo puede estar acá si también está

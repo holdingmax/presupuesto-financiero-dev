@@ -10,7 +10,7 @@ import type { VistaCarga } from "@/lib/reporte/cargaGerente";
 import { BarraGuardarPresupuesto, CeldaPresupuestoEditable, ProveedorCarga } from "./CargaPresupuesto";
 import { BarraGuardarTipeo, CeldaTipeoEditable, ConTipeo } from "./TipeoDirecto";
 import { AgregarFila, BorrarFila } from "./FilasExtra";
-import type { VistaTipeo } from "@/lib/reporte/tipeoDirecto";
+import { disponibilidadesComoSaldo, type VistaTipeo } from "@/lib/reporte/tipeoDirecto";
 import type { VistaFilasExtra } from "@/lib/reporte/accionesFilasExtra";
 import { bloqueDeRolTotal, idDeClaveExtra, type BloqueExtra } from "@/lib/reporte/filasExtra";
 import { Fragment, type ReactNode } from "react";
@@ -122,6 +122,7 @@ export default function ReportePlantilla({
   const { periodos, sinPresupuesto, sinEjecucion } = reporte;
   const idsEditables = new Set(carga?.celdas.map((c) => c.id));
   const idsTipeables = new Set(tipeo?.celdas.map((c) => c.id));
+  const dispComoSaldo = disponibilidadesComoSaldo(reporte.sinBloquesReservados, tipeo);
   // Meses que no se editan desde acá: los anteriores al último, y el último si el mes está en solo
   // lectura (cartel). Se marcan con la etiqueta «Solo lectura» y el fondo atenuado.
   // Con celdas de Real para cargar (gerente con permiso), el último mes no se atenúa aunque el cartel diga que el
@@ -269,6 +270,7 @@ export default function ReportePlantilla({
                   carga={carga}
                   idsEditables={idsEditables}
                   idsTipeables={idsTipeables}
+                  dispComoSaldo={dispComoSaldo}
                   filasExtra={filasExtra}
                   empresaSlug={empresaSlug}
                   periodo={periodo}
@@ -349,6 +351,7 @@ function FilaConControl({
   carga,
   idsEditables,
   idsTipeables,
+  dispComoSaldo,
   filasExtra,
   empresaSlug,
   periodo,
@@ -361,6 +364,8 @@ function FilaConControl({
   carga: VistaCarga | null;
   idsEditables: Set<string>;
   idsTipeables: Set<string>;
+  // Disponibilidades como «Saldo» de solo lectura (gerente sin permiso de tipearlas). Con permiso se ve como lo ve un ADMIN.
+  dispComoSaldo: boolean;
   filasExtra: VistaFilasExtra | null;
   empresaSlug: string;
   periodo: string;
@@ -392,7 +397,7 @@ function FilaConControl({
         empresaSlug={empresaSlug}
         periodo={periodo}
         soloLecturaPorMes={soloLecturaPorMes}
-        soloSaldo={reporte.sinBloquesReservados}
+        soloSaldo={dispComoSaldo}
       />
       {verControl && fila.tipo === "total" && fila.rol === "totalDisponibilidades" && (
         <tr className="h-5 bg-paper-cool text-[8.5pt] italic text-ink-secondary">
