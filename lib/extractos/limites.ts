@@ -81,3 +81,26 @@ export function verificarCantidadFilasMadre(filas: number): ResultadoLimite {
     error: `El archivo madre tiene ${formatearFilas(filas)} filas y por la web el máximo es ${formatearFilas(MAX_FILAS_MADRE)}. ${MENSAJE_MADRE_DIVIDIR}`,
   };
 }
+
+// --- Extracto crudo de Havanna Perú (Etapa 2) ----------------------------------------------
+// Camino propio (lib/extractos/havannaPeru*.ts): el archivo es un libro "PF" completo con ~40
+// pestañas (el real de noviembre 2026 pesa ~2,1 MB) y la pestaña del mes trae ~1.400 filas.
+// Topes PROPIOS: no tocan los de arriba (extracto de banco / madre).
+export const MAX_BYTES_HAVANNA_PERU = 4 * 1024 * 1024; // 4 MB
+export const MAX_FILAS_HAVANNA_PERU = 3000; // filas de movimientos de UN mes
+
+export function verificarTamanoHavannaPeru(bytes: number): ResultadoLimite {
+  if (bytes <= MAX_BYTES_HAVANNA_PERU) return OK;
+  return {
+    ok: false,
+    error: `El archivo pesa ${formatearTamano(bytes)} y por este camino el máximo es ${formatearTamano(MAX_BYTES_HAVANNA_PERU)}.`,
+  };
+}
+
+export function verificarCantidadFilasHavannaPeru(filas: number): ResultadoLimite {
+  if (filas <= MAX_FILAS_HAVANNA_PERU) return OK;
+  return {
+    ok: false,
+    error: `La pestaña tiene ${formatearFilas(filas)} movimientos y por este camino el máximo es ${formatearFilas(MAX_FILAS_HAVANNA_PERU)} por mes. Revisá que sea la pestaña de un solo mes.`,
+  };
+}
