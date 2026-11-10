@@ -124,7 +124,12 @@ export default function ReportePlantilla({
   const idsTipeables = new Set(tipeo?.celdas.map((c) => c.id));
   // Meses que no se editan desde acá: los anteriores al último, y el último si el mes está en solo
   // lectura (cartel). Se marcan con la etiqueta «Solo lectura» y el fondo atenuado.
-  const soloLecturaPorMes = periodos.map((_, i) => i < periodos.length - 1 || avisoSoloLectura !== null);
+  // Con celdas de Real para cargar (gerente con permiso), el último mes no se atenúa aunque el cartel diga que el
+  // Presupuestado está en solo lectura: el cartel (avisoPeriodoSoloLectura) aclara qué sí se puede cargar.
+  const hayRealCargable = (tipeo?.celdas.length ?? 0) > 0;
+  const soloLecturaPorMes = periodos.map(
+    (_, i) => i < periodos.length - 1 || (avisoSoloLectura !== null && !hayRealCargable)
+  );
   return (
     <div className={`w-full px-3 py-2 ${poppinsReporte.variable}`}>
       <ConTipeo tipeo={tipeo} empresaSlug={empresaSlug} periodo={periodo}>

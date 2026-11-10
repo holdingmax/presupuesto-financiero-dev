@@ -1,6 +1,7 @@
 "use server";
 
 import { requireUsuarioAlDia, esAdminOFinanzas } from "@/lib/auth";
+import { errorPeriodoNoHabilitado } from "@/lib/periodosHabilitados";
 import { requireCargaRealEmpresa } from "@/lib/cargaRealEmpresa";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { plantillaDeEmpresaConExtras } from "@/lib/reporte/plantillaConExtras";
@@ -22,6 +23,9 @@ export async function guardarTipeoDelReporte(
   // Sin sesión no se mira nada; el permiso de cargar el Real SE VALIDA ACÁ, en el servidor, por empresa.
   await requireUsuarioAlDia();
   if (!FORMATO_PERIODO.test(periodo)) return { ok: false, error: "Período inválido." };
+  // Fuera de PERIODOS_HABILITADOS no se escribe nada, para ningún rol (lib/periodosHabilitados.ts).
+  const noHabilitado = errorPeriodoNoHabilitado(periodo);
+  if (noHabilitado) return { ok: false, error: noHabilitado };
   const empresa = await resolverEmpresaPorSlug(empresaSlug);
   if (!empresa) return { ok: false, error: "No encontré esa empresa." };
   // ADMIN y FINANZAS, o un GERENTE con puedeOperarEjecucion en ESTA empresa (lib/permisosReal.ts).

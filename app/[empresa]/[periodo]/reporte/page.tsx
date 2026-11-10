@@ -383,6 +383,14 @@ async function ReportePorPlantilla({
     });
   }
 
+  // Cartel final: si el mes es de solo lectura para el Presupuestado pero el usuario tiene celdas de Real para
+  // cargar (tipeo con celdas), el texto lo dice. Solo cambia el texto: que haya cartel (y por lo tanto la carga del
+  // Presupuestado de más arriba) sale de avisoSoloLectura, sin tocar.
+  const avisoParaPantalla =
+    avisoSoloLectura !== null && !edicion.historial && tipeo !== null
+      ? avisoPeriodoSoloLectura(periodo, esAdminOFinanzas(usuario), undefined, true)
+      : avisoSoloLectura;
+
   return (
     <>
       {/* Botones de mes solo en «Todos los meses»; en «Mes en curso» no hay ningún otro mes (lib/reporte/vistaReporte.ts). */}
@@ -409,7 +417,7 @@ async function ReportePorPlantilla({
       carga={carga}
       tipeo={tipeo}
       filasExtra={filasExtra}
-      avisoSoloLectura={avisoSoloLectura}
+      avisoSoloLectura={avisoParaPantalla}
       sinUnidades={unidadesEmpresa.length === 0}
       noAsignado={noAsignado.porUnidad.map((n) => ({
         unidad: n.unidad,

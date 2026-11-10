@@ -10,6 +10,14 @@ export function esPeriodoHabilitado(periodo: string, habilitados: readonly strin
   return habilitados.includes(periodo);
 }
 
+// Guarda de las Server Actions que escriben el Real (guardarValoresManuales y guardarTipeoDelReporte): fuera de los
+// períodos habilitados no escribe nadie, tampoco ADMIN ni FINANZAS (mismo criterio que la pantalla /reporte/carga).
+// null = se puede seguir.
+export const ERROR_PERIODO_NO_HABILITADO = "El reporte de este mes todavía no está habilitado.";
+export function errorPeriodoNoHabilitado(periodo: string, habilitados: readonly string[] = PERIODOS_HABILITADOS): string | null {
+  return esPeriodoHabilitado(periodo, habilitados) ? null : ERROR_PERIODO_NO_HABILITADO;
+}
+
 // Quién puede abrir un período: TODOS los roles, ADMIN y FINANZAS incluidos, solo los habilitados. Va antes
 // de obtenerOCrearPresupuesto, así un período oculto no crea ninguna cabecera vacía.
 export function puedeVerPeriodo(periodo: string, habilitados: readonly string[] = PERIODOS_HABILITADOS): boolean {
@@ -43,12 +51,20 @@ export function mensajePeriodoSoloLectura(enCarga: string = PERIODO_EN_CARGA_GER
 // Cartel de las pantallas (Presupuesto y Reporte): null = el período es editable para este usuario;
 // un texto = solo lectura. Un único valor hace de flag y de mensaje, y sale de la misma regla que
 // usa el servidor (puedeEditarPeriodoComoGerente), así que no pueden divergir.
+//
+// `conRealCargable`: el usuario tiene celdas de Real para cargar en este mes (gerente con permiso de cargar el Real
+// de su empresa, lib/permisosReal.ts). El mes sigue siendo de solo lectura para el Presupuestado, pero el cartel no
+// puede decir que todo está en solo lectura. Sin él, el texto es el de siempre.
 export function avisoPeriodoSoloLectura(
   periodo: string,
   esAdminOFinanzas: boolean,
-  enCarga: string = PERIODO_EN_CARGA_GERENTE
+  enCarga: string = PERIODO_EN_CARGA_GERENTE,
+  conRealCargable: boolean = false
 ): string | null {
   if (puedeEditarPeriodoComoGerente(periodo, esAdminOFinanzas, enCarga)) return null;
+  if (conRealCargable) {
+    return `Solo se puede cargar el Presupuestado del mes en curso (${nombreLegibleDePeriodo(enCarga)}). En este mes podés cargar el Real de las celdas habilitadas.`;
+  }
   return `Solo se puede cargar el mes en curso (${nombreLegibleDePeriodo(enCarga)}). Este mes está en solo lectura.`;
 }
 

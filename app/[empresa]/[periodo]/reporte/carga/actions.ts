@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUsuarioAlDia, esAdminOFinanzas } from "@/lib/auth";
+import { errorPeriodoNoHabilitado } from "@/lib/periodosHabilitados";
 import { requireCargaRealEmpresa } from "@/lib/cargaRealEmpresa";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { decimalTextoDeCentavos, centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
@@ -30,6 +31,9 @@ export async function guardarValoresManuales(
 ): Promise<ResultadoCarga> {
   await requireUsuarioAlDia();
   if (!FORMATO_PERIODO.test(periodo)) return { ok: false, error: "Período inválido." };
+  // Fuera de PERIODOS_HABILITADOS no se escribe nada, para ningún rol (lib/periodosHabilitados.ts).
+  const noHabilitado = errorPeriodoNoHabilitado(periodo);
+  if (noHabilitado) return { ok: false, error: noHabilitado };
   const empresa = await resolverEmpresaPorSlug(empresaSlug);
   if (!empresa) return { ok: false, error: "No encontré esa empresa." };
   // ADMIN y FINANZAS, o un GERENTE con puedeOperarEjecucion en ESTA empresa (lib/permisosReal.ts).
