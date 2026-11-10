@@ -201,6 +201,8 @@ export type MovimientoTabla = {
   detalle: string;
   ignorado: boolean;
   desglose: { id: string; unidadNegocio: string; importe: number }[];
+  // Solo en la vista "Todo el mes" de la empresa: a qué semana pertenece el movimiento.
+  semana?: number;
 };
 
 type Props = {
@@ -209,6 +211,8 @@ type Props = {
   soloLectura?: boolean;
   // Columna Saldo: solo para quien ve todo Ejecución (el servidor ya decidió si los datos la traen).
   mostrarSaldo?: boolean;
+  // Columna Semana (vista "Todo el mes" de la empresa).
+  mostrarSemana?: boolean;
   deshabilitado?: boolean;
   clasificacionesDisponibles?: string[];
   onCambiarClasificacion?: (id: string, valor: string) => void;
@@ -225,6 +229,7 @@ export default function TablaMovimientos({
   numeroSemana,
   soloLectura = false,
   mostrarSaldo = false,
+  mostrarSemana = false,
   deshabilitado = false,
   clasificacionesDisponibles = [],
   onCambiarClasificacion,
@@ -235,7 +240,7 @@ export default function TablaMovimientos({
   const router = useRouter();
   const { periodo } = useParams<{ periodo: string }>();
   const [desgloseAbiertoId, setDesgloseAbiertoId] = useState<string | null>(null);
-  const totalColumnas = (soloLectura ? 7 : 8) + (mostrarSaldo ? 1 : 0);
+  const totalColumnas = (soloLectura ? 7 : 8) + (mostrarSaldo ? 1 : 0) + (mostrarSemana ? 1 : 0);
 
   // Tilde de la columna Prorrateo (pedido de Kike, 2026-10-06): tildarlo abre el panel;
   // destildarlo cierra el panel si todavía no se guardó nada, o — si ya hay un
@@ -270,6 +275,7 @@ export default function TablaMovimientos({
       <thead>
         <tr className="text-xs text-ink-faint uppercase tracking-wide">
           <th className={`${th} text-left pr-3`}>Fecha</th>
+          {mostrarSemana && <th className={`${th} text-left pr-3`}>Semana</th>}
           <th className={`${th} text-left pr-3`}>Banco y cuenta</th>
           <th className={`${th} text-left pr-3`}>Concepto</th>
           <th className={`${th} text-right pr-3`}>Importe</th>
@@ -300,6 +306,7 @@ export default function TablaMovimientos({
             }`}
           >
             <td className="py-1 pr-3 whitespace-nowrap text-ink-secondary">{m.fecha}</td>
+            {mostrarSemana && <td className="py-1 pr-3 whitespace-nowrap text-ink-secondary">{m.semana}</td>}
             <td className="py-1 pr-3 whitespace-nowrap text-ink-secondary">
               {m.bancoYCuenta}
             </td>

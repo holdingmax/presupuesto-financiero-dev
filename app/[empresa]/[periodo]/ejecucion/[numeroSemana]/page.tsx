@@ -135,6 +135,12 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
               Semana {s.numeroSemana} · {s.estado === "CERRADA" ? "cerrada" : "abierta"}
             </Link>
           ))}
+          <Link
+            href={hrefConFiltro(`/${empresa}/${periodo}/ejecucion/mes`, clasificacion)}
+            className="rounded-md px-2.5 py-1 transition text-ink-secondary hover:bg-paper-cool"
+          >
+            Todo el mes
+          </Link>
         </nav>
       )}
 

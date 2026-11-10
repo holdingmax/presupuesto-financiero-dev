@@ -6,6 +6,7 @@ import { FILAS_POR_PAGINA, filtroDeUnidades, mapearMovimiento, sumarImporteDeUni
 import { opcionesDeClasificacion, whereMovimientosDeEmpresa } from "@/lib/filtroClasificacionEmpresa";
 import { obtenerValoresOcultos } from "@/lib/ocultasGerenteDb";
 import { slugDeEmpresa } from "@/lib/slug";
+import { avisoSemanasAbiertas, sumarTotalesSemanales, whereMovimientosDelMes } from "@/lib/ejecucionMes";
 
 // Pestaña "Ejecución financiera" de cada empresa (docs/ejecucion_global_plan.md §3.4 y §6): SOLO
 // LECTURA y filtrada. Ejecución se opera en el módulo global (/ejecucion); acá se ve, de cada
@@ -123,4 +124,78 @@ export async function obtenerDatosSemanaDeEmpresa(
 export async function puedeIrAlModuloGlobal(empresaSlug: string, periodo: string) {
   const { usuario } = await resolverEmpresaParaLeer(empresaSlug, periodo);
   return veTodoEjecucion(usuario);
+}
+
+// Vista "Todo el mes": los movimientos de TODAS las semanas del período, con las mismas reglas que
+// obtenerDatosSemanaDeEmpresa (permiso por empresa, unidades de la empresa, sin saldo, clasificaciones
+// ocultas, filtro de Clasificación, paginación), sin los movimientos ignorados. El Total es la suma de
+// los totales de cada semana (la misma consulta de siempre, una vez por semana). null si el período no
+// tiene semanas.
+export async function obtenerDatosMesDeEmpresa(
+  empresaSlug: string,
+  periodo: string,
+  pagina: number = 1,
+  clasificacion?: string
+) {
+  const { empresa, usuario } = await resolverEmpresaParaLeer(empresaSlug, periodo);
+  const semanas = await prisma.ejecucionSemanal.findMany({
+    where: { periodo },
+    orderBy: { numeroSemana: "asc" },
+    select: { id: true, numeroSemana: true, estado: true },
+  });
+  if (semanas.length === 0) return null;
+
+  const unidades = empresa.unidadesNegocio;
+  const slug = slugDeEmpresa(empresa.nombre);
+  // Las ocultas se calculan por semana (como siempre) y se juntan: solo pueden ser variantes guardadas de
+  // las clasificaciones que ESTE usuario no ve, así que aplicarlas a todo el mes no oculta nada de más.
+  const ocultasPorSemana = await Promise.all(semanas.map((s) => obtenerValoresOcultos(s.id, slug, usuario)));
+  const ocultas = Array.from(new Set(ocultasPorSemana.flat()));
+  const ids = semanas.map((s) => s.id);
+  const where = whereMovimientosDelMes(ids, unidades, clasificacion, ocultas);
+
+  const [totalMovimientos, totalesSemanales, clasificacionesDeLaEmpresa, cantidadOcultos] = await Promise.all([
+    prisma.movimientoBancario.count({ where }),
+    Promise.all(semanas.map((s, i) => sumarImporteDeUnidades(s.id, unidades, clasificacion, ocultasPorSemana[i]))),
+    unidades.length === 0
+      ? Promise.resolve([])
+      : prisma.movimientoBancario.groupBy({
+          by: ["clasificacion"],
+          where: whereMovimientosDelMes(ids, unidades, undefined, ocultas),
+        }),
+    // Solo para la nota «No incluye movimientos reservados» (igual que por semana).
+    ocultas.length === 0 || unidades.length === 0
+      ? Promise.resolve(0)
+      : prisma.movimientoBancario.count({
+          where: { ejecucionId: { in: ids }, ...filtroDeUnidades(unidades), ignorado: false, clasificacion: { in: ocultas } },
+        }),
+  ]);
+  const totalPaginas = Math.max(1, Math.ceil(totalMovimientos / FILAS_POR_PAGINA));
+  const paginaEfectiva = Math.min(Math.max(1, pagina), totalPaginas);
+
+  const movimientos = await prisma.movimientoBancario.findMany({
+    where,
+    orderBy: [{ fecha: "asc" }, { id: "asc" }],
+    skip: (paginaEfectiva - 1) * FILAS_POR_PAGINA,
+    take: FILAS_POR_PAGINA,
+    include: { desglose: { orderBy: { createdAt: "asc" } } },
+  });
+  const semanaDe = new Map(semanas.map((s) => [s.id, s.numeroSemana]));
+
+  return {
+    empresaNombre: empresa.nombre,
+    puedeIrAlModuloGlobal: puedeOperarEjecucionGlobal(usuario) || veTodoEjecucion(usuario),
+    semanas: semanas.map((s) => ({ numeroSemana: s.numeroSemana, estado: s.estado })),
+    todasCerradas: semanas.every((s) => s.estado === "CERRADA"),
+    avisoAbiertas: avisoSemanasAbiertas(semanas),
+    sinUnidades: unidades.length === 0,
+    movimientos: movimientos.map((m) => ({ ...mapearMovimiento(m, unidades), semana: semanaDe.get(m.ejecucionId) })),
+    totalMovimientos,
+    totalImporte: sumarTotalesSemanales(totalesSemanales),
+    hayReservados: cantidadOcultos > 0,
+    pagina: paginaEfectiva,
+    totalPaginas,
+    clasificacion: clasificacion ?? null,
+    clasificacionesDisponibles: opcionesDeClasificacion(clasificacionesDeLaEmpresa.map((c) => c.clasificacion)),
+  };
 }

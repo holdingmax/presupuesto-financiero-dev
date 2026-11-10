@@ -8,15 +8,17 @@ import type { mapearMovimiento } from "@/lib/ejecucionVista";
 
 export const TIPO_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-type MovimientoVista = ReturnType<typeof mapearMovimiento>;
+// `semana` solo viaja en la vista "Todo el mes" de la empresa (columna extra con `conSemana`).
+type MovimientoVista = ReturnType<typeof mapearMovimiento> & { semana?: number };
 
-export async function construirExcelMovimientos(movimientos: MovimientoVista[], conSaldo: boolean) {
+export async function construirExcelMovimientos(movimientos: MovimientoVista[], conSaldo: boolean, conSemana = false) {
   const workbook = new ExcelJS.Workbook();
   const hoja = workbook.addWorksheet("Movimientos", { views: [{ state: "frozen", ySplit: 1 }] });
 
   const FORMATO_IMPORTE = "#,##0.00;[Red]-#,##0.00";
   hoja.columns = [
     { header: "Fecha", key: "fecha", width: 12, style: { numFmt: "dd/mm/yyyy" } },
+    ...(conSemana ? [{ header: "Semana", key: "semana", width: 9 }] : []),
     { header: "Banco y cuenta", key: "bancoYCuenta", width: 28 },
     { header: "Concepto", key: "concepto", width: 48 },
     { header: "Importe", key: "importe", width: 16, style: { numFmt: FORMATO_IMPORTE } },
@@ -33,6 +35,7 @@ export async function construirExcelMovimientos(movimientos: MovimientoVista[], 
     hoja.addRow({
       // Medianoche UTC: ExcelJS serializa en UTC, así el día no se corre por la zona horaria.
       fecha: new Date(`${m.fecha}T00:00:00Z`),
+      semana: m.semana ?? null,
       bancoYCuenta: m.bancoYCuenta,
       concepto: m.concepto,
       importe: m.importe,
