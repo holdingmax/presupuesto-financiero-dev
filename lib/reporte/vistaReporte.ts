@@ -105,16 +105,20 @@ export function edicionDelReporte(args: {
   periodo: string;
   marca: MarcaModo;
   esAdminOFinanzas: boolean;
+  // Puede cargar el Real de ESTA empresa (lib/permisosReal.ts): habilita el tipeo y el link «Cargar valores del
+  // mes». Sin definir = esAdminOFinanzas. Las filas extra siguen solo para ADMIN y FINANZAS.
+  puedeCargarReal?: boolean;
   enCarga?: string;
 }): EdicionDelReporte {
+  const puedeCargarReal = args.puedeCargarReal ?? args.esAdminOFinanzas;
   const historial = esHistorialDelMesEnCurso(args.periodo, args.marca, args.enCarga);
   return {
     historial,
     flujo: !historial,
     carga: !historial,
-    tipeo: !historial && args.esAdminOFinanzas,
+    tipeo: !historial && puedeCargarReal,
     filasExtra: !historial && args.esAdminOFinanzas,
-    linkCarga: !historial && args.esAdminOFinanzas,
+    linkCarga: !historial && puedeCargarReal,
   };
 }
 

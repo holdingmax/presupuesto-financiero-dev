@@ -34,7 +34,7 @@ function advertenciaSinEmpresas(datos: DatosUsuario) {
 }
 
 // Permisos por empresa que manda el formulario (EmpresasYPermisos): por cada
-// empresa tildada, "Opera Ejecución" / "Revisa presupuesto". Solo se aplican si
+// empresa tildada, "Puede cargar Real de esta empresa" (campo puedeOperarEjecucion) / "Revisa presupuesto". Solo se aplican si
 // el formulario los incluye (campo permisosIncluidos) — así un envío sin esos
 // campos nunca los pone en false de rebote.
 function leerPermisos(formData: FormData) {

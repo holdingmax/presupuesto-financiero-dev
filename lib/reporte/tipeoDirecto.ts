@@ -14,6 +14,9 @@ import {
 } from "@/lib/reporte/bloqueo";
 import { leerCuenta } from "@/lib/importes";
 import { esClaveDeFilaExtra } from "@/lib/reporte/filasExtra";
+import { ERROR_SIN_PERMISO_DE_CARGAR_REAL } from "@/lib/permisosReal";
+
+export const ERROR_SOLO_REAL = "Con tu permiso solo podés cargar el Real; el Presupuestado va por su flujo.";
 
 // Tipeo directo en el Reporte (ADMIN y FINANZAS): el Real manual de las filas de la plantilla, el Presupuestado de las
 // que lo tienen pisable, el del Capital de trabajo y, en las filas extra, también el Presupuestado. Puro: sin Prisma ni next/*, para poder probarlo. Define qué celdas se pueden
@@ -119,6 +122,9 @@ export type EntradaVistaTipeo = {
   // La plantilla del REPORTE: con las filas extra del mes, si la empresa las tiene.
   plantilla: Plantilla;
   esAdminOFinanzas: boolean;
+  // Puede cargar el Real de ESTA empresa (lib/permisosReal.ts). Sin definir = esAdminOFinanzas. Un GERENTE con permiso
+  // (esAdminOFinanzas false, puedeCargarReal true) recibe SOLO las celdas de Real.
+  puedeCargarReal?: boolean;
   // Mes de la URL (la última columna) y mes de hoy.
   periodo: string;
   actual: string;
@@ -132,12 +138,15 @@ export type EntradaVistaTipeo = {
   interruptores?: InterruptoresTipeo;
 };
 
-// null = el Reporte no lleva ninguna celda editable de este tipo. Quien no es ADMIN ni FINANZAS recibe
-// null SIEMPRE, con el interruptor que sea: ni celdas, ni claves, ni valores.
+// null = el Reporte no lleva ninguna celda editable de este tipo. Quien no puede cargar el Real de la empresa recibe
+// null SIEMPRE, con el interruptor que sea: ni celdas, ni claves, ni valores. Quien puede sin ser ADMIN ni FINANZAS
+// (gerente con permiso) recibe solo las celdas de Real.
 export function armarVistaTipeo(e: EntradaVistaTipeo): VistaTipeo | null {
-  if (!e.esAdminOFinanzas) return null;
+  if (!(e.puedeCargarReal ?? e.esAdminOFinanzas)) return null;
+  const soloReal = !e.esAdminOFinanzas;
   const celdas: CeldaTipeo[] = [];
   for (const c of camposTipeables(e.plantilla, e.empresaSlug, e.interruptores)) {
+    if (soloReal && c.columna !== "REAL") continue;
     const existente = (c.columna === "REAL" ? e.valoresReales : e.valoresPresupuesto)?.get(c.clave);
     const bloqueo = motivoBloqueo({
       periodo: e.periodo,
@@ -185,10 +194,17 @@ export function motivoRechazoTipeo(args: {
   // La plantilla del REPORTE del mes (con las filas extra).
   plantilla: Plantilla;
   esAdminOFinanzas: boolean;
+  // Puede cargar el Real de ESTA empresa (lib/permisosReal.ts). Sin definir = esAdminOFinanzas.
+  puedeCargarReal?: boolean;
   entradas: readonly EntradaTipeo[];
   interruptores?: InterruptoresTipeo;
 }): string | null {
-  if (!args.esAdminOFinanzas) return "Solo ADMIN y FINANZAS pueden cargar valores desde el Reporte.";
+  if (!(args.puedeCargarReal ?? args.esAdminOFinanzas)) return ERROR_SIN_PERMISO_DE_CARGAR_REAL;
+  // Un gerente con permiso carga solo Real: el Presupuestado va por su flujo.
+  if (!args.esAdminOFinanzas) {
+    const p = args.entradas.find((e) => e.columna !== "REAL");
+    if (p) return ERROR_SOLO_REAL;
+  }
   if (!tipeoDirectoActivo(args.empresaSlug, args.interruptores)) {
     return "El tipeo directo en el Reporte no está habilitado para esta empresa.";
   }

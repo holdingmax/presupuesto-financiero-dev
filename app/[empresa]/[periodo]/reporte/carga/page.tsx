@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
-import { AccesoDenegadoError, PermisoDenegadoError, requireAccesoEmpresa, requireAdminOFinanzas } from "@/lib/auth";
+import { AccesoDenegadoError, PermisoDenegadoError, esAdminOFinanzas } from "@/lib/auth";
+import { requireCargaRealEmpresa } from "@/lib/cargaRealEmpresa";
 import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
 import { nombreDePeriodo } from "@/lib/ejecucionSemanas";
 import { esPeriodoHabilitado } from "@/lib/periodosHabilitados";
+import { camposRealDelGerente } from "@/lib/reporte/camposRealGerente";
+import { EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE } from "@/lib/config";
 import { armarReporte, camposManuales, periodosHasta, type DatosMes } from "@/lib/reporte/motor";
 import { plantillaDeEmpresa } from "@/lib/reporte/plantillas";
 import { cargarDatosMeses } from "@/lib/reporte/cargarMeses";
@@ -20,8 +23,8 @@ function Aviso({ texto }: { texto: string }) {
   return <p className="mx-auto max-w-3xl px-6 py-10 text-sm text-ink-secondary">{texto}</p>;
 }
 
-// Pantalla de carga de los valores que Macchi tipea a mano (plan 2b §7.4): solo ADMIN y
-// FINANZAS. Muestra todos los campos manuales de la plantilla del mes de la URL, agrupados por
+// Pantalla de carga de los valores que Macchi tipea a mano (plan 2b §7.4): ADMIN y
+// FINANZAS, o un gerente con permiso de cargar el Real de la empresa (solo Real). Muestra todos los campos manuales de la plantilla del mes de la URL, agrupados por
 // bloque, con el valor actual, quién lo cargó y los bloqueos de la regla de "lo cerrado no se
 // modifica para atrás".
 export default async function CargaPage({ params }: Props) {
@@ -29,9 +32,10 @@ export default async function CargaPage({ params }: Props) {
   if (!FORMATO_PERIODO.test(periodo)) return null;
   const empresa = await resolverEmpresaPorSlug(slug);
   if (!empresa) return null;
+  let adminOFinanzas = false;
   try {
-    await requireAdminOFinanzas();
-    await requireAccesoEmpresa(empresa.id);
+    // ADMIN y FINANZAS, o un GERENTE con permiso de cargar el Real de ESTA empresa.
+    adminOFinanzas = esAdminOFinanzas(await requireCargaRealEmpresa(empresa.id));
   } catch (error) {
     if (error instanceof AccesoDenegadoError || error instanceof PermisoDenegadoError) {
       return <Aviso texto="No tenés permisos para cargar valores del reporte." />;
@@ -75,7 +79,9 @@ export default async function CargaPage({ params }: Props) {
 
   const porClave = new Map(valores.map((v) => [`${v.filaClave}|${v.columna}`, v]));
   const filaPorClave = new Map(plantilla.filas.map((f) => [f.clave, f]));
-  const campos: CampoVista[] = camposManuales(plantilla).map((c) => {
+  // El gerente con permiso ve y carga solo el Real de los bloques que su empresa le muestra (lo mismo que valida el servidor).
+  const camposDelUsuario = adminOFinanzas ? camposManuales(plantilla) : camposRealDelGerente(plantilla, slug);
+  const campos: CampoVista[] = camposDelUsuario.map((c) => {
     const v = porClave.get(`${c.clave}|${c.columna}`);
     const fila = filaPorClave.get(c.clave)!;
     const regla = reglaCapital.filas.find((f) => f.fila.clave === c.clave)?.celdas[0].presupuestado ?? null;
@@ -124,7 +130,11 @@ export default async function CargaPage({ params }: Props) {
         empresaSlug={slug}
         periodo={periodo}
         campos={campos}
-        cierreRealAnterior={arrastre?.cierreRealAnterior ?? null}
+        cierreRealAnterior={
+          adminOFinanzas || EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes(slug)
+            ? (arrastre?.cierreRealAnterior ?? null)
+            : null
+        }
       />
     </div>
   );

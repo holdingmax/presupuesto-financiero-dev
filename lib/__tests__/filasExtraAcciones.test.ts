@@ -491,9 +491,9 @@ test("crear: la fila nace con el mes de la URL como «desde», sin «hasta» y a
   assert.equal(readFileSync(new URL("../../app/[empresa]/[periodo]/reporte/FilasExtra.tsx", import.meta.url), "utf-8").includes("hastaPeriodo"), false);
 });
 
-test("guardado del tipeo: la acción usa la plantilla del mes con las filas extra y sigue pidiendo ADMIN/FINANZAS primero", () => {
+test("guardado del tipeo: la acción usa la plantilla del mes con las filas extra y sigue pidiendo el permiso de cargar el Real primero", () => {
   const fuente = leerFuente("actionsTipeo.ts");
-  const exige = fuente.indexOf("await requireAdminOFinanzas()");
+  const exige = fuente.indexOf("await requireCargaRealEmpresa(");
   const resuelve = fuente.indexOf("plantillaDeEmpresaConExtras(empresa.id, empresaSlug, periodo)");
   const motivo = fuente.indexOf("motivoRechazoTipeo(");
   const guarda = fuente.indexOf("return guardarValoresManuales(");
@@ -503,13 +503,15 @@ test("guardado del tipeo: la acción usa la plantilla del mes con las filas extr
 test("pantalla: los botones y el borrado solo se arman para ADMIN/FINANZAS; al componente le llega null para el gerente", () => {
   const page = leerFuente("page.tsx").replace(/\r\n/g, "\n");
   // Las dos vistas nacen null y solo se asignan dentro del if de tipeo directo, que exige `edicion.tipeo`
-  // (lib/reporte/vistaReporte.ts, edicionDelReporte: ADMIN/FINANZAS y fuera de la vista histórica del mes en curso).
+  // (lib/reporte/vistaReporte.ts, edicionDelReporte: ADMIN/FINANZAS o gerente con permiso de Real, y fuera de la vista histórica del mes en curso).
   const nace = page.indexOf("let filasExtra: VistaFilasExtra | null = null;");
   const si = page.indexOf("if (edicion.tipeo && tipeoDirectoActivo(empresaSlug)) {");
   const asigna = page.indexOf("filasExtra = armarVistaFilasExtra(");
   assert.ok(nace > 0 && si > nace && asigna > si);
   // El rol sigue entrando por ese helper: `edicion` se arma con el rol del usuario.
-  assert.match(page, /edicionDelReporte\(\{ periodo, marca: marcaModo, esAdminOFinanzas: esAdminOFinanzas\(usuario\) \}\)/);
+  assert.match(page, /edicionDelReporte\(\{ periodo, marca: marcaModo, esAdminOFinanzas: esAdminOFinanzas\(usuario\), puedeCargarReal \}\)/);
+  // Las filas extra siguen solo para ADMIN/FINANZAS aunque el gerente tenga tipeo: la vista no recibe el permiso de Real.
+  assert.match(page, /plantillaReporte,\n\s+\/\/[^\n]*\n\s+esAdminOFinanzas: esAdminOFinanzas\(usuario\),\n\s+periodo,/);
   assert.match(page, /filasExtra=\{filasExtra\}/);
   // El componente muestra el botón y la «×» solo con la vista.
   const tabla = leerFuente("ReportePlantilla.tsx");

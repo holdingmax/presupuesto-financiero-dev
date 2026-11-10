@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { MOSTRAR_PENDIENTES_EN_REPORTE, PERIODO_POR_DEFECTO } from "@/lib/config";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
+import { puedeCargarRealEmpresa } from "@/lib/cargaRealEmpresa";
 import {
   requireAccesoEmpresa,
   AccesoDenegadoError,
@@ -268,7 +269,10 @@ async function ReportePorPlantilla({
   // lee: no crea el PresupuestoMensual del mes.
   // Vista histórica del mes en curso (?modo=anteriores en el mes en curso): solo lectura para todos los roles, sin
   // flujo, carga, tipeo, filas extra ni link a la carga. En cualquier otro caso `edicion` no cambia nada.
-  const edicion = edicionDelReporte({ periodo, marca: marcaModo, esAdminOFinanzas: esAdminOFinanzas(usuario) });
+  // Cargar el Real de ESTA empresa: ADMIN, FINANZAS o un gerente con el permiso en su fila de UsuarioEmpresa. Es solo
+  // para mostrar; el servidor lo vuelve a validar en cada guardado (lib/cargaRealEmpresa.ts).
+  const puedeCargarReal = await puedeCargarRealEmpresa(usuario, empresaId);
+  const edicion = edicionDelReporte({ periodo, marca: marcaModo, esAdminOFinanzas: esAdminOFinanzas(usuario), puedeCargarReal });
   const esRevisor = await puedeRevisarPresupuesto(usuario, empresaId);
   const flujo: EstadoFlujo | null = edicion.flujo && mostrarFlujoEnReporte({
     esAdminOFinanzas: esAdminOFinanzas(usuario),
@@ -357,7 +361,8 @@ async function ReportePorPlantilla({
     tipeo = armarVistaTipeo({
       empresaSlug,
       plantilla: plantillaReporte,
-      esAdminOFinanzas: true,
+      esAdminOFinanzas: esAdminOFinanzas(usuario),
+      puedeCargarReal,
       periodo,
       actual: periodoActual(),
       semanas: semanasDelMes,
@@ -369,7 +374,8 @@ async function ReportePorPlantilla({
       empresaSlug,
       plantillaEstatica: plantilla,
       plantillaReporte,
-      esAdminOFinanzas: true,
+      // Las filas extra siguen solo para ADMIN y FINANZAS (el gerente con permiso carga Real, no arma filas).
+      esAdminOFinanzas: esAdminOFinanzas(usuario),
       periodo,
       actual: periodoActual(),
       semanas: semanasDelMes,

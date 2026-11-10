@@ -215,12 +215,16 @@ for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
   });
 }
 
-test("guardarValoresManuales (la única acción que escribe Disponibilidades) exige ADMIN o FINANZAS antes que nada", () => {
+test("guardarValoresManuales (la única acción que escribe Disponibilidades) exige el permiso de cargar el Real (ADMIN, FINANZAS o gerente con permiso en la empresa) antes de escribir", () => {
   // Sin importar los saltos de línea del archivo (en Windows son CRLF).
   const fuente = readFileSync(new URL("../../../app/[empresa]/[periodo]/reporte/carga/actions.ts", import.meta.url), "utf-8").split("\r\n").join("\n");
   const cuerpo = fuente.slice(fuente.indexOf("export async function guardarValoresManuales"));
   const primera = cuerpo.slice(cuerpo.indexOf("{\n") + 2).trimStart();
-  assert.ok(primera.startsWith("const usuario = await requireAdminOFinanzas();"), "la primera sentencia tiene que ser la guarda");
+  assert.ok(primera.startsWith("await requireUsuarioAlDia();"), "la primera sentencia tiene que ser la sesión al día");
+  const guarda = cuerpo.indexOf("await requireCargaRealEmpresa(empresa.id)");
+  assert.ok(guarda > 0 && guarda < cuerpo.indexOf("plantillaDeEmpresaConExtras("), "la guarda del permiso va antes de leer la plantilla");
+  // Un gerente con permiso solo escribe el Real de lo que ve su empresa; ADMIN y FINANZAS, todo.
+  assert.ok(cuerpo.includes("camposRealDelGerente(plantilla, empresaSlug)"));
   // Y un gerente no ve los bloques reservados por rol (los interruptores solo agregan lectura).
   assert.equal(veBloquesReservadosDelReporte({ rol: "GERENTE" }), false);
   // El campo manual de una fila de Disponibilidades es REAL, y la carga del gerente solo escribe PRESUPUESTADO.

@@ -263,9 +263,9 @@ test("servidor: una sola entrada inválida frena todo el lote", () => {
 
 // La acción de servidor no se puede ejecutar sin sesión: se comprueba que exige ADMIN/FINANZAS ANTES de
 // cualquier otra cosa y que el guardado es el de siempre (guardarValoresManuales, sin tocar).
-test("acción del tipeo: pide requireAdminOFinanzas primero y delega en guardarValoresManuales", () => {
+test("acción del tipeo: pide el permiso de cargar el Real (requireCargaRealEmpresa) primero y delega en guardarValoresManuales", () => {
   const fuente = readFileSync(new URL("../../app/[empresa]/[periodo]/reporte/actionsTipeo.ts", import.meta.url), "utf-8");
-  const exige = fuente.indexOf("await requireAdminOFinanzas()");
+  const exige = fuente.indexOf("await requireCargaRealEmpresa(");
   const guarda = fuente.indexOf("return guardarValoresManuales(");
   assert.ok(exige > 0 && guarda > exige);
   assert.ok(fuente.indexOf("motivoRechazoTipeo(") > exige && fuente.indexOf("motivoRechazoTipeo(") < guarda);

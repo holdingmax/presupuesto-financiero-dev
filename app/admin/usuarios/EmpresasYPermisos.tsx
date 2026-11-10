@@ -5,8 +5,8 @@ import { useState } from "react";
 type Empresa = { id: string; nombre: string };
 export type PermisosPorEmpresa = Record<string, { opera: boolean; revisa: boolean }>;
 
-// Casilleros "Empresas que puede ver" + permisos por empresa tildada ("Opera
-// Ejecución" / "Revisa presupuesto"), compartidos por el alta y la edición de
+// Casilleros "Empresas que puede ver" + permisos por empresa tildada ("Puede cargar
+// Real de esta empresa" / "Revisa presupuesto"), compartidos por el alta y la edición de
 // usuario. Manda empresaIds, opera_<id>, revisa_<id> y la marca permisosIncluidos
 // (ver crearUsuario / actualizarUsuario: sin esa marca no se tocan los permisos).
 export default function EmpresasYPermisos({
@@ -68,7 +68,7 @@ export default function EmpresasYPermisos({
                       checked={permiso.opera}
                       onChange={() => alternarPermiso(empresa.id, "opera")}
                     />
-                    Opera Ejecución
+                    Puede cargar Real de esta empresa
                   </label>
                   <label className="flex items-center gap-1.5">
                     <input

@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdminOFinanzas, requireAccesoEmpresa } from "@/lib/auth";
+import { requireUsuarioAlDia, esAdminOFinanzas } from "@/lib/auth";
+import { requireCargaRealEmpresa } from "@/lib/cargaRealEmpresa";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { decimalTextoDeCentavos, centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
 import { camposManuales } from "@/lib/reporte/motor";
+import { camposRealDelGerente } from "@/lib/reporte/camposRealGerente";
 import { plantillaDeEmpresaConExtras } from "@/lib/reporte/plantillaConExtras";
 import { motivoBloqueo, motivoRechazoCambio, periodoActual } from "@/lib/reporte/bloqueo";
 import { leerCuenta } from "@/lib/importes";
@@ -16,8 +18,8 @@ export type ResultadoCarga = { ok: true; guardados: number; borrados: number } |
 
 const FORMATO_PERIODO = /^\d{4}-\d{2}$/;
 
-// Guarda los valores manuales del Reporte de UNA empresa y mes (plan 2b §7.4). Solo
-// ADMIN/FINANZAS con acceso a la empresa. Valida cada fila contra la plantilla, aplica la
+// Guarda los valores manuales del Reporte de UNA empresa y mes (plan 2b §7.4). ADMIN/FINANZAS con acceso a la
+// empresa (todos los campos) o un GERENTE con permiso de cargar el Real de ESA empresa (solo Real). Valida cada fila contra la plantilla, aplica la
 // regla de bloqueo (lo cerrado no se modifica para atrás; la primera carga sí) sobre lo que CAMBIA, y hace todo en
 // una transacción: texto vacío borra el valor; una cuenta ("a+b-c") se guarda resuelta y la
 // cuenta va a `nota`.
@@ -26,15 +28,20 @@ export async function guardarValoresManuales(
   periodo: string,
   entradas: EntradaCarga[]
 ): Promise<ResultadoCarga> {
-  const usuario = await requireAdminOFinanzas();
+  await requireUsuarioAlDia();
   if (!FORMATO_PERIODO.test(periodo)) return { ok: false, error: "Período inválido." };
   const empresa = await resolverEmpresaPorSlug(empresaSlug);
   if (!empresa) return { ok: false, error: "No encontré esa empresa." };
-  await requireAccesoEmpresa(empresa.id);
+  // ADMIN y FINANZAS, o un GERENTE con puedeOperarEjecucion en ESTA empresa (lib/permisosReal.ts).
+  const usuario = await requireCargaRealEmpresa(empresa.id);
   const plantilla = await plantillaDeEmpresaConExtras(empresa.id, empresaSlug, periodo);
   if (!plantilla) return { ok: false, error: "Esta empresa no tiene reporte por plantilla." };
 
-  const campos = new Map(camposManuales(plantilla).map((c) => [`${c.clave}|${c.columna}`, c]));
+  // ADMIN y FINANZAS: todos los campos manuales. Gerente con permiso: solo el Real de los bloques que ve su empresa.
+  const camposPermitidos = esAdminOFinanzas(usuario)
+    ? camposManuales(plantilla)
+    : camposRealDelGerente(plantilla, empresaSlug);
+  const campos = new Map(camposPermitidos.map((c) => [`${c.clave}|${c.columna}`, c]));
   const vistos = new Set<string>();
   const cambios: { filaClave: string; columna: "PRESUPUESTADO" | "REAL"; centavos: number | null; nota: string | null }[] = [];
   for (const e of entradas) {
