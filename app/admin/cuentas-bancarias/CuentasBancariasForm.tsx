@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BANCOS_EXTRACTO, NOMBRE_BANCO } from "@/lib/extractos/tipos";
+import { BANCOS_CUENTA, NOMBRE_BANCO_CUENTA } from "@/lib/extractos/bancosCuenta";
 import {
   cambiarEstadoCuentaBancaria,
   crearCuentaBancaria,
@@ -100,9 +100,9 @@ export default function CuentasBancariasForm({ cuentasIniciales, empresas }: Pro
 
   const selectorBanco = (valor: string, onChange: (v: string) => void) => (
     <select value={valor} onChange={(e) => onChange(e.target.value)} className={campo} aria-label="Banco">
-      {BANCOS_EXTRACTO.map((b) => (
+      {BANCOS_CUENTA.map((b) => (
         <option key={b} value={b}>
-          {b} · {NOMBRE_BANCO[b]}
+          {b} · {NOMBRE_BANCO_CUENTA[b]}
         </option>
       ))}
     </select>
@@ -199,7 +199,7 @@ export default function CuentasBancariasForm({ cuentasIniciales, empresas }: Pro
                   <tr key={c.id} className={c.activa ? "" : "opacity-50"}>
                     <td className="py-2 font-medium">{c.nombre}</td>
                     <td className="py-2 text-xs text-ink-muted">
-                      {NOMBRE_BANCO[c.banco as keyof typeof NOMBRE_BANCO] ?? c.banco}
+                      {NOMBRE_BANCO_CUENTA[c.banco as keyof typeof NOMBRE_BANCO_CUENTA] ?? c.banco}
                     </td>
                     <td className="py-2 text-xs text-ink-muted">{c.terminacion}</td>
                     <td className="py-2 text-xs text-ink-secondary">{nombreEmpresa(c.empresaId) ?? "—"}</td>

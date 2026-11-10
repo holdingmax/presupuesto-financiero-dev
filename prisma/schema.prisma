@@ -69,6 +69,7 @@ model Usuario {
   sesiones Sesion[]
   valoresManualesReporte ValorManualReporte[]
   filasExtraReporte      FilaExtraReporte[]
+  tiposCambio            TipoCambio[]
 }
 
 // Sesión en base (no JWT sin estado): borrar la fila invalida esa sesión al
@@ -426,6 +427,24 @@ model CuentaBancaria {
   updatedAt   DateTime @updatedAt
 
   empresa Empresa? @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+}
+
+// Tipo de cambio por período (Etapa 2, Havanna Perú): cuántos soles vale 1 unidad de `moneda` (hoy USD) en el
+// período AAAA-MM. Kike convierte los dólares con el TC del último día del mes ("TC 31/10/2026" = 3,467).
+// El importe ORIGINAL en dólares se guarda siempre en MovimientoBancario; esta tabla se usa solo para convertir
+// al armar el Reporte. Lo carga ADMIN o FINANZAS. Si falta el de un mes, el Reporte avisa y no inventa uno.
+model TipoCambio {
+  id           String   @id @default(uuid())
+  periodo      String   // "AAAA-MM"
+  moneda       String   // código ISO de la moneda que se convierte: "USD"
+  valor        Decimal  @db.Decimal(18, 6) // soles por 1 unidad de moneda
+  cargadoPorId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cargadoPor Usuario @relation(fields: [cargadoPorId], references: [id], onDelete: Restrict)
+
+  @@unique([periodo, moneda])
 }
 
 // Bloque del Reporte en el que va una fila extra (las que agrega ADMIN/FINANZAS mientras revisa).

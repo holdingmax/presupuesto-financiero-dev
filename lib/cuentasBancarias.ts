@@ -1,5 +1,6 @@
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { BANCOS_EXTRACTO, esBancoExtracto, NOMBRE_BANCO, type BancoExtracto } from "@/lib/extractos/tipos";
+import { BANCO_BBVA_PERU, BANCOS_CUENTA, CUENTAS_BBVA_PERU, type BancoCuenta } from "@/lib/extractos/bancosCuenta";
 
 // Reglas de la lista de cuentas bancarias por empresa (plan docs/lector_bancos_plan.md
 // §4.1). Funciones puras, sin base de datos: las usa la pantalla /admin/cuentas-bancarias
@@ -13,7 +14,7 @@ export type CuentaExistente = { id: string; nombre: string; activa: boolean };
 
 export type DatosCuenta = { nombre: string; banco: string; terminacion: string };
 
-export type CuentaValidada = { nombre: string; banco: BancoExtracto; terminacion: string };
+export type CuentaValidada = { nombre: string; banco: BancoCuenta; terminacion: string };
 
 export type ResultadoValidacionCuenta =
   | { ok: true; cuenta: CuentaValidada }
@@ -30,6 +31,8 @@ export function validarCuenta(
   existentes: CuentaExistente[],
   editandoId?: string
 ): ResultadoValidacionCuenta {
+  if (datos.banco === BANCO_BBVA_PERU) return validarCuentaBbvaPeru(datos, existentes, editandoId);
+
   const nombre = normalizarCuenta(datos.nombre);
   const forma = FORMA_NOMBRE.exec(nombre);
   if (!forma) {
@@ -38,7 +41,7 @@ export function validarCuenta(
   const [, palabraBanco, numero] = forma;
 
   if (!esBancoExtracto(datos.banco)) {
-    return { ok: false, error: `Banco no válido. Los bancos son: ${BANCOS_EXTRACTO.join(", ")}.` };
+    return { ok: false, error: `Banco no válido. Los bancos son: ${BANCOS_CUENTA.join(", ")}.` };
   }
   if (palabraBanco !== datos.banco) {
     return {
@@ -71,6 +74,28 @@ export function validarCuenta(
   }
 
   return { ok: true, cuenta: { nombre, banco: datos.banco, terminacion } };
+}
+
+// BBVA Perú: no es un banco de los lectores y sus cuentas no llevan número en el nombre. Solo valen sus dos
+// nombres canónicos (soles y dólares); se guardan con el nombre canónico (con tilde). El archivo de Perú no
+// trae número de cuenta, así que la terminación es opcional (si se pone, 3 a 6 dígitos).
+function validarCuentaBbvaPeru(datos: DatosCuenta, existentes: CuentaExistente[], editandoId?: string): ResultadoValidacionCuenta {
+  const clave = normalizarCuenta(datos.nombre);
+  const canonico = Object.values(CUENTAS_BBVA_PERU).find((n) => normalizarCuenta(n) === clave);
+  if (!canonico) {
+    return { ok: false, error: `Las cuentas de BBVA Perú son: ${Object.values(CUENTAS_BBVA_PERU).join(" y ")}.` };
+  }
+  const terminacion = datos.terminacion.trim();
+  if (terminacion !== "" && !/^[0-9]{3,6}$/.test(terminacion)) {
+    return { ok: false, error: "La terminación son entre 3 y 6 dígitos, sin otros caracteres (o dejala vacía)." };
+  }
+  const repetida = existentes.find((c) => c.id !== editandoId && normalizarCuenta(c.nombre) === clave);
+  if (repetida) {
+    return repetida.activa
+      ? { ok: false, error: `Ya existe la cuenta ${canonico}.` }
+      : { ok: false, error: `Ya existe la cuenta ${canonico}, pero está inactiva. Reactivala en vez de crear otra.`, reactivarId: repetida.id };
+  }
+  return { ok: true, cuenta: { nombre: canonico, banco: BANCO_BBVA_PERU, terminacion } };
 }
 
 // El selector de subida muestra solo las activas; las inactivas siguen existiendo (no se

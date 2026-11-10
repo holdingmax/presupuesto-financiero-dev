@@ -42,6 +42,9 @@ export type ControlPieMoneda = {
 export type LecturaHavannaPeru = Omit<LecturaExtracto, "banco" | "filas"> & {
   filas: FilaHavannaPeru[];
   control: ControlPieMoneda[];
+  // true = la pestaña NO trae columna Moneda y se usó la moneda de la cuenta para todas las filas (con aviso).
+  // Quien reparte entre varias cuentas por moneda no puede aceptarlo.
+  monedaAsumida: boolean;
   // Lo que IMPIDE cargar (p. ej. el pie no cuadra). Quien llama no debe cargar si hay alguno.
   errores: string[];
 };
@@ -263,7 +266,7 @@ export function leerHavannaPeru(hoja: HojaGrilla, opciones: OpcionesHavannaPeru)
 
   // Estable: respeta el orden del archivo dentro del mismo día.
   filas.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
-  return { filas, cuentaEnArchivo: null, cuitEnArchivo: null, avisos: [...avisos], control, errores };
+  return { filas, cuentaEnArchivo: null, cuitEnArchivo: null, avisos: [...avisos], control, monedaAsumida: colMoneda === undefined, errores };
 }
 
 // Clave de reconocimiento: fecha + importe + cuenta + concepto + Nº Doc (nroReferencia) + moneda.
