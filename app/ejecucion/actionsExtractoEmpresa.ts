@@ -7,14 +7,16 @@ import { errorPeriodoNoHabilitado } from "@/lib/periodosHabilitados";
 import { slugDeEmpresa } from "@/lib/slug";
 import { bloquearPeriodo, obtenerEjecucionPorSemana } from "@/lib/ejecucion";
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
-import { verificarTamanoHavannaPeru } from "@/lib/extractos/limites";
+import { verificarCantidadFilasHavannaPeru, verificarTamanoHavannaPeru } from "@/lib/extractos/limites";
 import { leerHavannaPeru, type ControlPieMoneda } from "@/lib/extractos/havannaPeru";
 import { rangoDelPeriodo } from "@/lib/extractos/cargaEmpresa";
 import { DETECTOR_CHASE, DETECTOR_HAVANNA_PERU, seleccionarPestanaHavannaPeru } from "@/lib/extractos/havannaPeruPestanas";
 import { esCsvChase, hojaDeCsvChase, leerChase } from "@/lib/extractos/chase";
+import { hojaDeBytesBrou, leerBrou } from "@/lib/extractos/brou";
 import { ErrorExtracto } from "@/lib/extractos/tipos";
 import {
   ERROR_EMPRESA_SIN_EXTRACTO,
+  archivoDeUnaCuenta,
   armarFilasACargar,
   configDeEmpresa,
   datosParaCrear,
@@ -23,10 +25,11 @@ import {
   monedasDeConfig,
   planificarCarga,
   resolverCuentasForzadas,
+  type CuentasPorMoneda,
   type FilaExistente,
 } from "@/lib/extractos/cargaEmpresa";
 
-// Extracto de UNA empresa por su propio camino (Etapa 2: Havanna Perú y Bradenton): el libro PF de la empresa, no el extracto de
+// Extracto de UNA empresa por su propio camino (Etapa 2: Havanna Perú, Bradenton y Plate Silver): el libro PF de la empresa, no el extracto de
 // un banco. NO toca subirExtracto ni subirMadre. Toda la lógica que decide está en lib/extractos/cargaEmpresa.ts
 // (pura y probada); acá solo se lee la base, se llama a eso y se escribe. Mismas reglas de siempre: lo ya cargado
 // se reconoce CONTANDO (N − M) y no se toca, y todo lo que decide qué se carga y la carga misma van en UNA
@@ -93,10 +96,14 @@ export async function subirExtractoEmpresa(
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) return { ok: false, error: "Elegí un archivo antes de subir." };
-  // Bradenton (Chase) acepta además el .csv original que baja el banco; el resto de las empresas, solo el .xlsx.
+  // Bradenton (Chase) acepta además el .csv original que baja el banco; Plate Silver (BROU) solo el .xls tal cual lo baja
+  // el banco; el resto de las empresas, solo el .xlsx.
+  const esBrou = config.lector === "brou";
   const aceptaCsv = config.lector === "chase";
   const esCsv = aceptaCsv && /\.csv$/i.test(archivo.name);
-  if (!esCsv && !/\.xlsx$/i.test(archivo.name)) {
+  if (esBrou) {
+    if (!/\.xls$/i.test(archivo.name)) return { ok: false, error: "El archivo tiene que ser el .xls que baja el BROU, tal cual se descargó." };
+  } else if (!esCsv && !/\.xlsx$/i.test(archivo.name)) {
     return { ok: false, error: aceptaCsv ? "El archivo tiene que ser un .xlsx (libro PF) o el .csv de Chase." : "El archivo tiene que ser un .xlsx." };
   }
   const freno = verificarTamanoHavannaPeru(archivo.size);
@@ -106,9 +113,13 @@ export async function subirExtractoEmpresa(
   const cuentasDeLaBase = await prisma.cuentaBancaria.findMany({
     select: { id: true, nombre: true, banco: true, activa: true, empresaId: true, moneda: true },
   });
-  const resCuentas = resolverCuentasForzadas(config, empresa.id, cuentasDeLaBase);
-  if (!resCuentas.ok) return { ok: false, error: resCuentas.error };
-  const cuentas = resCuentas.cuentas;
+  // El archivo del BROU es de UNA cuenta: sus cuentas se resuelven DESPUÉS de leerlo (la cuenta sale de su encabezado).
+  let cuentas: CuentasPorMoneda = {};
+  if (!esBrou) {
+    const resCuentas = resolverCuentasForzadas(config, empresa.id, cuentasDeLaBase);
+    if (!resCuentas.ok) return { ok: false, error: resCuentas.error };
+    cuentas = resCuentas.cuentas;
+  }
 
   const ejecucion = await obtenerEjecucionPorSemana(periodo, numeroSemana);
   if (!ejecucion) return { ok: false, error: `No encontré la semana ${numeroSemana}.` };
@@ -120,7 +131,11 @@ export async function subirExtractoEmpresa(
   let nombrePestana: string;
   let crudo = false;
   try {
-    if (esCsv) {
+    if (esBrou) {
+      // Una sola tabla en una sola hoja: no hay pestaña que elegir.
+      hoja = hojaDeBytesBrou(bytes);
+      nombrePestana = hoja.nombre;
+    } else if (esCsv) {
       // El CSV no tiene pestañas: es una sola tabla. Se decide por contenido, no por la extensión.
       if (!esCsvChase(bytes)) {
         return { ok: false, error: "El .csv no parece el extracto de Chase (no encuentro el encabezado Posting Date / Description / Amount / Balance)." };
@@ -159,7 +174,9 @@ export async function subirExtractoEmpresa(
   let lectura;
   try {
     // Perú: la moneda de la cuenta solo se usaría si faltara la columna Moneda; abajo eso se rechaza. Chase: todo USD.
-    lectura = config.lector === "chase" ? leerChase(hoja, { crudo }) : leerHavannaPeru(hoja, { monedaCuenta: "PEN" });
+    lectura = config.lector === "brou"
+      ? leerBrou(hoja, { cuentaPorMoneda: config.numeroCuentaPorMoneda ?? {} })
+      : config.lector === "chase" ? leerChase(hoja, { crudo }) : leerHavannaPeru(hoja, { monedaCuenta: "PEN" });
   } catch (e) {
     if (e instanceof ErrorExtracto) return { ok: false, error: e.message };
     throw e;
@@ -168,11 +185,20 @@ export async function subirExtractoEmpresa(
   const errorLectura = errorDeLectura(lectura, config, nombrePestana);
   if (errorLectura) return { ok: false, error: errorLectura, control: lectura.control };
 
+  // BROU: las cuentas de ESTE archivo (la de su moneda) tienen que existir, estar activas y ser de la empresa.
+  const monedas = archivoDeUnaCuenta(config) ? [...new Set(lectura.filas.map((f) => f.moneda))] : monedasDeConfig(config);
+  if (esBrou) {
+    const lim = verificarCantidadFilasHavannaPeru(lectura.filas.length);
+    if (!lim.ok) return { ok: false, error: lim.error };
+    const resCuentas = resolverCuentasForzadas(config, empresa.id, cuentasDeLaBase, monedas);
+    if (!resCuentas.ok) return { ok: false, error: resCuentas.error };
+    cuentas = resCuentas.cuentas;
+  }
+
   const filas = armarFilasACargar(lectura, config, cuentas);
   const fuera = errorFechasFueraDelPeriodo(filas, ejecucion.periodo);
   if (fuera) return { ok: false, error: fuera };
 
-  const monedas = monedasDeConfig(config);
   const nombresCuentas = monedas.map((m) => cuentas[m].nombre);
   const { desde, hasta } = rangoDelPeriodo(periodo);
 
