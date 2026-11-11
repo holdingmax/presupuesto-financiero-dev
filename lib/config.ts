@@ -78,11 +78,10 @@ export const EMPRESAS_CON_EXTRACTO_POR_EMPRESA: readonly string[] = ["havanna-pe
 // (ReportePlantilla). No toca ningún cálculo ni formato de importe.
 export const EMPRESAS_EN_DOLARES: readonly string[] = ["bradenton", "plate-silver"];
 
-// Empresas en cuyo Reporte el botón «Cargar valores del mes» se muestra SOLO a ADMIN y FINANZAS (el gerente, con o sin permiso de
-// Real, no lo ve): el Presupuestado y el Real se tipean directo en las celdas del Reporte (EMPRESAS_CON_TIPEO_DIRECTO y
-// «Guardar presupuesto»). Solo afecta al botón: la ruta /reporte/carga sigue abierta por URL (con sus permisos de siempre)
-// porque en Bradenton y Havanna Perú es el único lugar donde ADMIN y FINANZAS cargan el Capital de trabajo. No toca
-// «Guardar presupuesto», «Guardar valores» ni «Subir extracto».
+// Empresas en cuyo Reporte NO se muestra el botón «Cargar valores del mes» (para ningún rol): el Presupuestado y el Real se
+// tipean directo en las celdas del Reporte (EMPRESAS_CON_TIPEO_DIRECTO y «Guardar presupuesto»). Solo oculta el botón: la
+// ruta /reporte/carga sigue abierta por URL (con sus permisos de siempre) porque en Bradenton y Havanna Perú es el único lugar
+// donde ADMIN y FINANZAS cargan el Capital de trabajo. No toca «Guardar presupuesto», «Guardar valores» ni «Subir extracto».
 export const EMPRESAS_SIN_LINK_CARGA_EN_REPORTE: readonly string[] = ["bradenton", "plate-silver", "havanna-peru"];
 
 // Pestaña Presupuesto también oculta para ADMIN y FINANZAS (Kike: la reemplazó la carga del gerente sobre el Reporte),

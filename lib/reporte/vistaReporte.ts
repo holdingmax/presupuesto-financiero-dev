@@ -123,15 +123,13 @@ export function edicionDelReporte(args: {
 }
 
 // ¿Se muestra el botón «Cargar valores del mes»? Lo que decide edicionDelReporte (linkCarga) salvo en las empresas de
-// EMPRESAS_SIN_LINK_CARGA_EN_REPORTE (gerentes con permiso de Real incluidos): ahí solo lo ven ADMIN y FINANZAS, porque
-// /reporte/carga es el único lugar donde cargan el Capital de trabajo. Solo el botón: la ruta no se bloquea.
+// EMPRESAS_SIN_LINK_CARGA_EN_REPORTE, donde nunca (ningún rol). Solo el botón: la ruta /reporte/carga no se bloquea.
 export function linkCargaVisible(
   empresaSlug: string,
   linkCarga: boolean,
-  esAdminOFinanzas: boolean,
   sinLink: readonly string[] = EMPRESAS_SIN_LINK_CARGA_EN_REPORTE
 ): boolean {
-  return linkCarga && (esAdminOFinanzas || !sinLink.includes(empresaSlug));
+  return linkCarga && !sinLink.includes(empresaSlug);
 }
 
 // Cartel de la vista histórica del mes en curso.
