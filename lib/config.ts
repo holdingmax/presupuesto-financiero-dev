@@ -70,9 +70,9 @@ export const EMPRESAS_CON_CARGA_EN_REPORTE: readonly string[] = [
 
 // Empresas que cargan su Real por EXTRACTO propio (acción subirExtractoEmpresa, Etapa 2): el archivo no es el de un
 // banco sino un libro de la propia empresa y las cuentas, la unidad y el lector están fijados en
-// lib/extractos/cargaEmpresa.ts (CONFIG_EXTRACTO_EMPRESA, una entrada por slug). Hoy Havanna Perú y Bradenton (Chase, USD). Sumar una
+// lib/extractos/cargaEmpresa.ts (CONFIG_EXTRACTO_EMPRESA, una entrada por slug). Hoy Havanna Perú, Bradenton (Chase, USD) y Plate Silver (BROU, UYU y USD). Sumar una
 // empresa es agregar su slug acá Y su entrada allá (un test controla que coincidan).
-export const EMPRESAS_CON_EXTRACTO_POR_EMPRESA: readonly string[] = ["havanna-peru", "bradenton"];
+export const EMPRESAS_CON_EXTRACTO_POR_EMPRESA: readonly string[] = ["havanna-peru", "bradenton", "plate-silver"];
 
 // Empresas cuyos importes están en dólares: solo cambia el texto «en pesos» del Reporte por «en dólares»
 // (ReportePlantilla). No toca ningún cálculo ni formato de importe.
