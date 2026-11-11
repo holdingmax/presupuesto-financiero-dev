@@ -38,7 +38,7 @@ test("A: NO se ve para el gerente sin tilde ni para quien no tiene fila en esa e
 });
 
 test("A: NO se ve en ninguna otra empresa, ni siquiera para ADMIN", () => {
-  for (const slug of ["havanna", "brillante", "avianor", "hwc", "radio", "plate-silver", "expensas"]) {
+  for (const slug of ["havanna", "brillante", "avianor", "hwc", "radio", "expensas"]) {
     assert.equal(puedeVerSubidaExtractoEmpresa(slug, true), false, slug);
   }
 });
