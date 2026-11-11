@@ -78,6 +78,12 @@ export const EMPRESAS_CON_EXTRACTO_POR_EMPRESA: readonly string[] = ["havanna-pe
 // (ReportePlantilla). No toca ningún cálculo ni formato de importe.
 export const EMPRESAS_EN_DOLARES: readonly string[] = ["bradenton", "plate-silver"];
 
+// Empresas en cuyo Reporte NO se muestra el botón «Cargar valores del mes» (para ningún rol): el Presupuestado y el Real se
+// tipean directo en las celdas del Reporte (EMPRESAS_CON_TIPEO_DIRECTO y «Guardar presupuesto»). Solo oculta el botón: la
+// ruta /reporte/carga sigue abierta por URL (con sus permisos de siempre) porque en Bradenton y Havanna Perú es el único lugar
+// donde ADMIN y FINANZAS cargan el Capital de trabajo. No toca «Guardar presupuesto», «Guardar valores» ni «Subir extracto».
+export const EMPRESAS_SIN_LINK_CARGA_EN_REPORTE: readonly string[] = ["bradenton", "plate-silver", "havanna-peru"];
+
 // Pestaña Presupuesto también oculta para ADMIN y FINANZAS (Kike: la reemplazó la carga del gerente sobre el Reporte),
 // pero solo en las empresas de EMPRESAS_CON_CARGA_EN_REPORTE que tienen plantilla de Reporte; las demás conservan la
 // pestaña. Con la pestaña oculta, /presupuesto redirige al Reporte del mismo período y "Mis empresas" lleva al Reporte.
@@ -207,8 +213,8 @@ export const CLASIFICACIONES_OCULTAS_PARA_GERENTE: Readonly<Record<string, reado
 // ni las demás empresas. «SIN CLASIFICAR» no se escribe acá: se agrega siempre, primero.
 //
 // Bradenton: los 17 conceptos de las pestañas "Presup 11-2026" y "Ejecutado 10-2026" del libro PF, con sus nombres exactos y en el
-// orden del libro (ingresos y después egresos). Confirmado por Romina: formato fijo de la pestaña Presup, no se agrega ni se
-// quita nada. Los depósitos (DEP EFECTIVO) los clasifica ella a mano.
+// orden del libro (ingresos y después egresos), más "OTROS" al final (18 en total). Confirmado por Romina: formato fijo de la
+// pestaña Presup; lo único que se sumó es OTROS. Los depósitos (DEP EFECTIVO) los clasifica ella a mano.
 export const CLASIFICACIONES_POR_EMPRESA: Readonly<Record<string, readonly string[]>> = {
   bradenton: [
     "COBRANZAS",
@@ -228,5 +234,7 @@ export const CLASIFICACIONES_POR_EMPRESA: Readonly<Record<string, readonly strin
     "MANTENIMIENTO Y REPARACIONES",
     "SUELDOS",
     "EXPENSAS",
+    // Agregada después, a pedido de Romina (confirmado): va al final, sin tocar el orden del libro.
+    "OTROS",
   ],
 };

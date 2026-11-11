@@ -563,7 +563,8 @@ test("TablaMovimientos: las dos opciones nuevas son aditivas (sin ellas, el comp
 
 // ---------- lista PROPIA de clasificaciones (Bradenton) ----------
 
-// Los 17 nombres tal cual los pasó Kike/Romina (pestañas "Presup 11-2026" y "Ejecutado 10-2026"), en el orden del libro.
+// Los 17 nombres tal cual los pasó Kike/Romina (pestañas "Presup 11-2026" y "Ejecutado 10-2026"), en el orden del libro, y
+// después OTROS (agregada a pedido de Romina): 18 en total.
 const LISTA_BRADENTON = [
   "COBRANZAS",
   "DEP EFECTIVO",
@@ -582,12 +583,15 @@ const LISTA_BRADENTON = [
   "MANTENIMIENTO Y REPARACIONES",
   "SUELDOS",
   "EXPENSAS",
+  "OTROS",
 ];
 
-test("config: la lista de Bradenton son exactamente los 17 nombres del libro, en su orden, sin repetidos", () => {
+test("config: la lista de Bradenton son los 17 nombres del libro en su orden y OTROS al final (18), sin repetidos", () => {
   assert.deepEqual(CLASIFICACIONES_POR_EMPRESA.bradenton, LISTA_BRADENTON);
-  assert.equal(LISTA_BRADENTON.length, 17);
-  assert.equal(new Set(LISTA_BRADENTON.map(normalizarClasificacion)).size, 17, "ninguno repetido (ni siquiera sin mayúsculas/tildes)");
+  assert.equal(LISTA_BRADENTON.length, 18);
+  assert.equal(LISTA_BRADENTON[16], "EXPENSAS", "las 17 del libro no cambian de lugar");
+  assert.equal(LISTA_BRADENTON[17], "OTROS");
+  assert.equal(new Set(LISTA_BRADENTON.map(normalizarClasificacion)).size, 18, "ninguno repetido (ni siquiera sin mayúsculas/tildes)");
   assert.ok(LISTA_BRADENTON.every((c) => c === c.trim() && c !== ""));
   // Solo Bradenton tiene lista propia: Plate Silver, Havanna Perú y las demás siguen con la general.
   assert.deepEqual(Object.keys(CLASIFICACIONES_POR_EMPRESA), ["bradenton"]);
@@ -605,7 +609,7 @@ test("clasificacionesPropiasDeEmpresa: null si la empresa no tiene lista; devuel
   assert.deepEqual(clasificacionesPropiasDeEmpresa("x", { x: ["A", "B"] }), ["A", "B"]);
 });
 
-test("Bradenton: se ofrece SIN CLASIFICAR primero y después las 17 en el orden del libro, sin consultar la base ni traer lo global", async () => {
+test("Bradenton: se ofrece SIN CLASIFICAR primero y después las 18 (las 17 del libro y OTROS), sin consultar la base ni traer lo global", async () => {
   const m = mundoBase();
   m.movs = [mov("a", { clasificacion: "PROV Y SERV" }), mov("b", { unidadNegocio: "BRILLANTE", clasificacion: "SOLO DE BRILLANTE" })];
   await conMundo(m, async () => {
@@ -615,14 +619,15 @@ test("Bradenton: se ofrece SIN CLASIFICAR primero y después las 17 en el orden 
     };
     const lista = await clasificacionesParaEditar(["BRADENTON"], [], "bradenton");
     assert.deepEqual(lista, ["SIN CLASIFICAR", ...LISTA_BRADENTON]);
-    assert.equal(lista.length, 18);
+    assert.equal(lista.length, 19);
+    assert.equal(lista[lista.length - 1], "OTROS");
     for (const ajena of ["PROV Y SERV", "IMP Y PREVISIONALES", "Gastos bancarios", "SOLO DE BRILLANTE", "AVION"]) {
       assert.equal(lista.includes(ajena), false, `${ajena} no se ofrece en Bradenton`);
     }
   });
 });
 
-test("Romina (Bradenton) puede poner cada una de las 17 y volver a SIN CLASIFICAR", async () => {
+test("Romina (Bradenton) puede poner cada una de las 18 (OTROS incluida) y volver a SIN CLASIFICAR", async () => {
   const m = mundoBase();
   m.movs = [mov("a")];
   await conMundo(m, async () => {

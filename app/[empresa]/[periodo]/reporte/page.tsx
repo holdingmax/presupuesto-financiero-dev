@@ -38,6 +38,7 @@ import {
   cantidadDeMeses,
   consultaDeBotonDeMes,
   edicionDelReporte,
+  linkCargaVisible,
   mesesAnteriores,
   modoDePeriodo,
   resolverVista,
@@ -413,7 +414,7 @@ async function ReportePorPlantilla({
       reporte={reporte}
       verPendientes={verPendientes}
       verControl={verControl}
-      mostrarLinkCarga={edicion.linkCarga}
+      mostrarLinkCarga={linkCargaVisible(empresaSlug, edicion.linkCarga)}
       mostrarLinkExtracto={puedeVerSubidaExtractoEmpresa(empresaSlug, puedeCargarReal) && esPeriodoHabilitado(periodo)}
       flujo={flujo}
       carga={carga}
