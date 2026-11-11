@@ -1,4 +1,4 @@
-import { PERIODOS_HABILITADOS, PERIODO_EN_CARGA_GERENTE, PERIODO_INICIO_HISTORIAL } from "@/lib/config";
+import { EMPRESAS_SIN_LINK_CARGA_EN_REPORTE, PERIODOS_HABILITADOS, PERIODO_EN_CARGA_GERENTE, PERIODO_INICIO_HISTORIAL } from "@/lib/config";
 import { periodosHasta } from "@/lib/reporte/motor";
 import { nombreLegibleDePeriodo } from "@/lib/periodosHabilitados";
 
@@ -120,6 +120,16 @@ export function edicionDelReporte(args: {
     filasExtra: !historial && args.esAdminOFinanzas,
     linkCarga: !historial && puedeCargarReal,
   };
+}
+
+// ¿Se muestra el botón «Cargar valores del mes»? Lo que decide edicionDelReporte (linkCarga) salvo en las empresas de
+// EMPRESAS_SIN_LINK_CARGA_EN_REPORTE, donde nunca (ningún rol). Solo el botón: la ruta /reporte/carga no se bloquea.
+export function linkCargaVisible(
+  empresaSlug: string,
+  linkCarga: boolean,
+  sinLink: readonly string[] = EMPRESAS_SIN_LINK_CARGA_EN_REPORTE
+): boolean {
+  return linkCarga && !sinLink.includes(empresaSlug);
 }
 
 // Cartel de la vista histórica del mes en curso.
