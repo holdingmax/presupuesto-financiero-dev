@@ -9,7 +9,8 @@ import {
 } from "@/lib/conteoMovimientos";
 import { periodoDeFecha } from "@/lib/ejecucionSemanas";
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
-import { BANCO_BBVA_PERU, BANCO_CHASE, CUENTAS_BBVA_PERU, CUENTAS_CHASE } from "./bancosCuenta";
+import { BANCO_BBVA_PERU, BANCO_BROU, BANCO_CHASE, CUENTAS_BBVA_PERU, CUENTAS_BROU, CUENTAS_CHASE, NUMEROS_CUENTA_BROU } from "./bancosCuenta";
+import { claveBrou } from "./brou";
 import { claveChase } from "./chase";
 import { claveHavannaPeru, type FilaHavannaPeru, type LecturaHavannaPeru, type MonedaHavannaPeru } from "./havannaPeru";
 
@@ -19,7 +20,7 @@ import { claveHavannaPeru, type FilaHavannaPeru, type LecturaHavannaPeru, type M
 
 // Cada empresa declara su lector, su banco y SUS monedas (una cuenta por moneda): Perú tiene soles y dólares, Bradenton
 // solo dólares. Una moneda que la empresa no declara no puede entrar: la fila se rechaza, no se asume.
-export type LectorEmpresa = "havanna-peru" | "chase";
+export type LectorEmpresa = "havanna-peru" | "chase" | "brou";
 
 export type ConfigExtractoEmpresa = {
   lector: LectorEmpresa;
@@ -32,7 +33,15 @@ export type ConfigExtractoEmpresa = {
   etiqueta: string;
   // Cuenta (nombre canónico) a la que va cada moneda que la empresa declara.
   cuentaPorMoneda: Partial<Record<MonedaHavannaPeru, string>>;
+  // Solo cuando el archivo es de UNA cuenta (BROU: un archivo por cuenta): el número de cuenta que muestra el banco en
+  // el encabezado, por moneda. Con esto la carga resuelve, bloquea y reconoce SOLO la cuenta del archivo.
+  numeroCuentaPorMoneda?: Partial<Record<MonedaHavannaPeru, string>>;
 };
+
+// ¿El archivo de esta empresa trae una sola cuenta (y por eso se cargan solo sus movimientos)?
+export function archivoDeUnaCuenta(config: ConfigExtractoEmpresa): boolean {
+  return config.numeroCuentaPorMoneda !== undefined;
+}
 
 // Las monedas de la empresa, en el orden en que se declaran.
 export function monedasDeConfig(config: ConfigExtractoEmpresa): MonedaHavannaPeru[] {
@@ -58,6 +67,16 @@ export const CONFIG_EXTRACTO_EMPRESA: Record<string, ConfigExtractoEmpresa> = {
     etiqueta: "Bradenton",
     cuentaPorMoneda: { USD: CUENTAS_CHASE.USD },
   },
+  // Plate Silver: BROU, un archivo .xls por cuenta (pesos uruguayos y dólares).
+  "plate-silver": {
+    lector: "brou",
+    unidad: "PLATE SILVER",
+    banco: BANCO_BROU,
+    nombreBanco: "BROU",
+    etiqueta: "Plate Silver",
+    cuentaPorMoneda: { UYU: CUENTAS_BROU.UYU, USD: CUENTAS_BROU.USD },
+    numeroCuentaPorMoneda: { UYU: NUMEROS_CUENTA_BROU.UYU, USD: NUMEROS_CUENTA_BROU.USD },
+  },
 };
 
 export const CLASIFICACION_SIN_CLASIFICAR = "SIN CLASIFICAR";
@@ -73,13 +92,19 @@ export function configDeEmpresa(slug: string): ConfigExtractoEmpresa | null {
 // Texto de la pantalla de subida: qué libro pedir y adónde va cada moneda. Sale de la configuración de la empresa.
 // Extensiones que acepta la subida de cada empresa: el libro PF (.xlsx) y, solo Bradenton, el .csv original de Chase.
 export function aceptaDeEmpresa(empresaSlug: string): string {
-  return configDeEmpresa(empresaSlug)?.lector === "chase" ? ".xlsx,.csv" : ".xlsx";
+  const lector = configDeEmpresa(empresaSlug)?.lector;
+  if (lector === "chase") return ".xlsx,.csv";
+  if (lector === "brou") return ".xls";
+  return ".xlsx";
 }
 
 export function textoSubidaExtractoEmpresa(empresaSlug: string, maxBytes: number, maxFilas: number): string {
   const config = configDeEmpresa(empresaSlug);
   const limite = `hasta ${Math.round(maxBytes / (1024 * 1024))} MB y ${maxFilas.toLocaleString("es-AR")} movimientos por mes`;
   if (!config) return "";
+  if (config.lector === "brou") {
+    return `Subí el extracto .xls del BROU tal cual lo baja el banco («Detalle de Movimiento de Cuenta», ${limite}). Es un archivo por cuenta: el sistema lee la cuenta y la moneda del encabezado y los carga en ${Object.values(config.cuentaPorMoneda).join(" o ")}. Te muestra un resumen con la cantidad de movimientos y los totales de débito y crédito (el archivo no trae saldo) para que los compares con el banco, y recién cuando confirmás carga los movimientos. Todo entra sin clasificar.`;
+  }
   const nombresMoneda: Record<string, string> = { PEN: "soles", USD: "dólares" };
   const destinos = Object.entries(config.cuentaPorMoneda).map(([m, cuenta]) => `los de ${nombresMoneda[m] ?? m} en ${cuenta}`);
   const libro = config.lector === "chase" ? "el libro PF de Bradenton o el .csv original de Chase" : "el libro PF de Perú";
@@ -90,7 +115,7 @@ export function textoSubidaExtractoEmpresa(empresaSlug: string, maxBytes: number
 
 export type CuentaDeLaBase = { id: string; nombre: string; banco: string; activa: boolean; empresaId: string | null; moneda: string };
 
-const MONEDA_ISO: Record<MonedaHavannaPeru, string> = { PEN: "PEN", USD: "USD" };
+const MONEDA_ISO: Record<MonedaHavannaPeru, string> = { PEN: "PEN", USD: "USD", UYU: "UYU" };
 
 // Por moneda: solo las que la empresa declara (Perú PEN y USD; Bradenton USD).
 export type CuentasPorMoneda = Record<string, CuentaDeLaBase>;
@@ -104,11 +129,13 @@ export type ResultadoCuentas =
 export function resolverCuentasForzadas(
   config: ConfigExtractoEmpresa,
   empresaId: string,
-  cuentasDeLaBase: readonly CuentaDeLaBase[]
+  cuentasDeLaBase: readonly CuentaDeLaBase[],
+  // Solo estas monedas (el archivo de una sola cuenta, BROU). Sin esto, todas las de la empresa.
+  monedas: readonly MonedaHavannaPeru[] = monedasDeConfig(config)
 ): ResultadoCuentas {
   const problemas: string[] = [];
   const cuentas: CuentasPorMoneda = {};
-  for (const moneda of monedasDeConfig(config)) {
+  for (const moneda of monedas) {
     const nombre = config.cuentaPorMoneda[moneda]!;
     const c = cuentasDeLaBase.find((x) => normalizarCuenta(x.nombre) === normalizarCuenta(nombre));
     if (!c) {
@@ -203,7 +230,12 @@ export function armarFilasACargar(
       sugeridaPorSistema: false,
       chequeIvaAmbiguo: false,
       unidadSugeridaPorSistema: false,
-      clave: config.lector === "chase" ? claveChase(f, bancoYCuenta) : claveHavannaPeru(f, bancoYCuenta),
+      clave:
+        config.lector === "chase"
+          ? claveChase(f, bancoYCuenta)
+          : config.lector === "brou"
+            ? claveBrou(f, bancoYCuenta)
+            : claveHavannaPeru(f, bancoYCuenta),
     };
   });
 }

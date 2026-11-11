@@ -14,7 +14,7 @@ type Props = {
   periodo: string;
   semanasAbiertas: number[];
   semanaPorDefecto: number | null;
-  // Extensiones que acepta el selector de archivo (".xlsx"; Bradenton también ".csv").
+  // Extensiones que acepta el selector de archivo (".xlsx"; Bradenton también ".csv"; Plate Silver ".xls").
   acepta?: string;
 };
 
@@ -24,7 +24,46 @@ const CAMPO = "h-9 px-2 rounded-md border border-line bg-paper text-sm text-ink 
 
 const plata = (centavos: number | null) => (centavos === null ? "—" : formatearImporteConCentavos(centavos / 100));
 
+const NOMBRE_MONEDA: Record<string, string> = { PEN: "Soles", USD: "Dólares", UYU: "Pesos uruguayos" };
+
+// Extracto SIN saldo (BROU): no hay saldo inicial ni final contra qué cuadrar. Se muestran la cantidad de filas y los
+// totales de débito y crédito del archivo para compararlos a ojo con los del banco.
+function TablaControlSinSaldo({ control }: { control: ControlPieMoneda[] }) {
+  return (
+    <>
+      <p className="mt-1 text-xs">El archivo no trae saldo: comparalo con los totales de débito y crédito que muestra el banco.</p>
+      <table className="mt-2 w-full text-xs tabular">
+        <thead>
+          <tr className="text-left text-ink-secondary">
+            <th className="py-1 pr-3 font-medium">Moneda</th>
+            <th className="py-1 pr-3 text-right font-medium">Movimientos</th>
+            <th className="py-1 pr-3 text-right font-medium">Débitos</th>
+            <th className="py-1 pr-3 text-right font-medium">Créditos</th>
+            <th className="py-1 pr-3 text-right font-medium">Neto</th>
+            <th className="py-1 font-medium">Fechas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {control.map((c) => (
+            <tr key={c.moneda} className="border-t border-line">
+              <td className="py-1 pr-3">{NOMBRE_MONEDA[c.moneda] ?? c.moneda}</td>
+              <td className="py-1 pr-3 text-right">{c.cantidad}</td>
+              <td className="py-1 pr-3 text-right">{plata(c.debitoCentavos ?? 0)}</td>
+              <td className="py-1 pr-3 text-right">{plata(c.creditoCentavos ?? 0)}</td>
+              <td className="py-1 pr-3 text-right">{plata(c.movimientosCentavos)}</td>
+              <td className="py-1">
+                {c.desde} a {c.hasta}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
 function TablaControl({ control }: { control: ControlPieMoneda[] }) {
+  if (control.length > 0 && control.every((c) => c.cantidad !== undefined)) return <TablaControlSinSaldo control={control} />;
   return (
     <table className="mt-2 w-full text-xs tabular">
       <thead>
@@ -39,7 +78,7 @@ function TablaControl({ control }: { control: ControlPieMoneda[] }) {
       <tbody>
         {control.map((c) => (
           <tr key={c.moneda} className="border-t border-line">
-            <td className="py-1 pr-3">{c.moneda === "PEN" ? "Soles" : "Dólares"}</td>
+            <td className="py-1 pr-3">{NOMBRE_MONEDA[c.moneda] ?? c.moneda}</td>
             <td className="py-1 pr-3 text-right">{plata(c.inicialCentavos)}</td>
             <td className="py-1 pr-3 text-right">{plata(c.movimientosCentavos)}</td>
             <td className="py-1 pr-3 text-right">{plata(c.finalCentavos)}</td>
@@ -225,7 +264,9 @@ export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbier
               </div>
             ))}
           </dl>
-          <p className="mt-3 text-xs font-medium">Control contra el pie del archivo</p>
+          <p className="mt-3 text-xs font-medium">
+            {vista.control.every((c) => c.cantidad !== undefined) ? "Control del archivo" : "Control contra el pie del archivo"}
+          </p>
           <TablaControl control={vista.control} />
           {vista.avisos.length > 0 && (
             <ul className="mt-2 list-disc pl-5 text-xs">

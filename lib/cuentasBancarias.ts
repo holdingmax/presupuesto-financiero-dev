@@ -16,7 +16,7 @@ export type DatosCuenta = { nombre: string; banco: string; terminacion: string }
 
 // moneda: la fijan las cuentas de los bancos con cuentas fijas (BBVA Perú, Chase: por su nombre canónico); en los
 // demás bancos no viene y queda el default.
-export type CuentaValidada = { nombre: string; banco: BancoCuenta; terminacion: string; moneda?: "PEN" | "USD" };
+export type CuentaValidada = { nombre: string; banco: BancoCuenta; terminacion: string; moneda?: "PEN" | "USD" | "UYU" };
 
 export type ResultadoValidacionCuenta =
   | { ok: true; cuenta: CuentaValidada }
@@ -101,7 +101,7 @@ function validarCuentaFija(datos: DatosCuenta, existentes: CuentaExistente[], ed
       : { ok: false, error: `Ya existe la cuenta ${canonico}, pero está inactiva. Reactivala en vez de crear otra.`, reactivarId: repetida.id };
   }
   const moneda = monedaDeCuentaFija(banco, canonico);
-  return { ok: true, cuenta: { nombre: canonico, banco, terminacion, moneda: (moneda as "PEN" | "USD" | null) ?? undefined } };
+  return { ok: true, cuenta: { nombre: canonico, banco, terminacion, moneda: (moneda as "PEN" | "USD" | "UYU" | null) ?? undefined } };
 }
 
 // El selector de subida muestra solo las activas; las inactivas siguen existiendo (no se

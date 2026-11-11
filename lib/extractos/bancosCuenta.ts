@@ -10,10 +10,14 @@ export const BANCO_BBVA_PERU = "BBVA_PERU";
 // empresa (lib/extractos/chase.ts). Mismo criterio: banco = texto libre en la base, sin migración.
 export const BANCO_CHASE = "CHASE";
 
-export const BANCOS_CUENTA = [...BANCOS_EXTRACTO, BANCO_BBVA_PERU, BANCO_CHASE] as const;
+// BROU (Plate Silver, Uruguay: una cuenta en pesos uruguayos y otra en dólares): extracto propio de la empresa
+// (lib/extractos/brou.ts). Mismo criterio: banco = texto libre en la base, sin migración.
+export const BANCO_BROU = "BROU";
+
+export const BANCOS_CUENTA = [...BANCOS_EXTRACTO, BANCO_BBVA_PERU, BANCO_CHASE, BANCO_BROU] as const;
 export type BancoCuenta = (typeof BANCOS_CUENTA)[number];
 
-export const NOMBRE_BANCO_CUENTA: Record<BancoCuenta, string> = { ...NOMBRE_BANCO, BBVA_PERU: "BBVA Perú", CHASE: "Chase" };
+export const NOMBRE_BANCO_CUENTA: Record<BancoCuenta, string> = { ...NOMBRE_BANCO, BBVA_PERU: "BBVA Perú", CHASE: "Chase", BROU: "BROU" };
 
 export function esBancoCuenta(valor: string): valor is BancoCuenta {
   return (BANCOS_CUENTA as readonly string[]).includes(valor);
@@ -26,12 +30,18 @@ export const CUENTAS_BBVA_PERU = { PEN: "BBVA PERÚ SOLES", USD: "BBVA PERÚ USD
 // La cuenta de Chase de Bradenton (una sola, en dólares). Nombre canónico sin número, como pidió Kike.
 export const CUENTAS_CHASE = { USD: "CHASE BRADENTON" } as const;
 
+// Las dos cuentas del BROU de Plate Silver (una por moneda). El archivo del banco trae el número de cuenta y la moneda en
+// el encabezado: el número identifica la cuenta (y es lo que hace rechazar un archivo de una cuenta no dada de alta).
+export const CUENTAS_BROU = { UYU: "BROU UYU", USD: "BROU USD" } as const;
+export const NUMEROS_CUENTA_BROU = { UYU: "110509829-00001", USD: "110509829-00002" } as const;
+
 // Bancos cuyas cuentas son FIJAS (nombre canónico → moneda): cada empresa declara sus monedas acá y en
 // CONFIG_EXTRACTO_EMPRESA. La pantalla de cuentas no pide moneda y el default de la base es ARS, que la carga por
 // extracto rechazaría; por eso la moneda sale del nombre canónico de la cuenta.
 export const CUENTAS_FIJAS_POR_BANCO: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   [BANCO_BBVA_PERU]: CUENTAS_BBVA_PERU,
   [BANCO_CHASE]: CUENTAS_CHASE,
+  [BANCO_BROU]: CUENTAS_BROU,
 };
 
 export function tieneCuentasFijas(banco: string): boolean {
