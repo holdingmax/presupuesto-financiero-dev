@@ -207,7 +207,7 @@ export const CLASIFICACIONES_OCULTAS_PARA_GERENTE: Readonly<Record<string, reado
   "conexion-logistica-spp": ["AVION", "MS", "PRESTAMO MS"],
 };
 
-// Lista PROPIA de clasificaciones de una empresa (Bradenton y Plate Silver), solo para la pantalla "Ejecución financiera" de esa empresa cuando el gerente
+// Lista PROPIA de clasificaciones de una empresa (Bradenton, Plate Silver y Havanna Perú), solo para la pantalla "Ejecución financiera" de esa empresa cuando el gerente
 // con la casilla clasifica sus movimientos (lib/clasificarPorEmpresaDb.ts: clasificacionesParaEditar). Por slug. Una empresa
 // que no está acá sigue con la lista general de siempre. NO cambia Ejecución global (que sigue ofreciendo lo suyo), ni el Reporte,
 // ni las demás empresas. «SIN CLASIFICAR» no se escribe acá: se agrega siempre, primero.
@@ -269,6 +269,23 @@ export const CLASIFICACIONES_POR_EMPRESA: Readonly<Record<string, readonly strin
     "PASAJE AEP - MVD - AEP",
     "SUELDO",
     "AGUINALDO",
+    "OTROS",
+  ],
+  // Havanna Perú: los 10 valores de la columna DETALLE de la hoja «MOVIMIENTOS OCTUBRE 26» del libro de Perú, en su orden, y OTROS
+  // al final (11 en total; con SIN CLASIFICAR, que el sistema agrega siempre primero, 12). OTROS está escrito acá a propósito: el
+  // sistema NO lo agrega solo. PENDIENTE DE CONFIRMAR CON NADINA: OTROS no sale del libro, se sumó por analogía con Bradenton y
+  // Plate Silver; si ella no lo quiere, se borra esa línea (y el test que lo fija).
+  "havanna-peru": [
+    "COBRANZAS CLIENTES",
+    "PROVEEDORES Y SERVICIOS",
+    "SUELDOS",
+    "COMISIONES BANCARIAS",
+    "IMPUESTOS",
+    "PRESTAMOS",
+    "SOLES A DOLARES",
+    "TARJETA",
+    "EXPENSAS",
+    "IMPORTACION",
     "OTROS",
   ],
 };

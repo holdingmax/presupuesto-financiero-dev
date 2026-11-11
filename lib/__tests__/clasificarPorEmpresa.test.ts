@@ -31,8 +31,10 @@ const BRADENTON = { id: "emp-brad", nombre: "Bradenton", activo: true, unidadesN
 const CONEXION = { id: "emp-con", nombre: "Conexión Logística", activo: true, unidadesNegocio: ["LOGISTICA", "SPP"] };
 const BRILLANTE = { id: "emp-bri", nombre: "Brillante", activo: true, unidadesNegocio: ["BRILLANTE"] };
 const PLATE_SILVER = { id: "emp-ps", nombre: "Plate Silver", activo: true, unidadesNegocio: ["PLATE SILVER"] };
+const HAVANNA_PERU = { id: "emp-hp", nombre: "Havanna Perú", activo: true, unidadesNegocio: ["HAVANNA PERU"] };
 
 const ROMINA: UsuarioParaClasificar = { id: "u-romina", rol: "GERENTE", operaEjecucion: false };
+const NADINA: UsuarioParaClasificar = { id: "u-nadina", rol: "GERENTE", operaEjecucion: false };
 
 type Mov = {
   id: string;
@@ -594,8 +596,8 @@ test("config: la lista de Bradenton son los 17 nombres del libro en su orden y O
   assert.equal(LISTA_BRADENTON[17], "OTROS");
   assert.equal(new Set(LISTA_BRADENTON.map(normalizarClasificacion)).size, 18, "ninguno repetido (ni siquiera sin mayúsculas/tildes)");
   assert.ok(LISTA_BRADENTON.every((c) => c === c.trim() && c !== ""));
-  // Solo Bradenton y Plate Silver tienen lista propia: Havanna Perú y las demás siguen con la general.
-  assert.deepEqual(Object.keys(CLASIFICACIONES_POR_EMPRESA), ["bradenton", "plate-silver"]);
+  // Solo Bradenton, Plate Silver y Havanna Perú tienen lista propia: las demás siguen con la general.
+  assert.deepEqual(Object.keys(CLASIFICACIONES_POR_EMPRESA), ["bradenton", "plate-silver", "havanna-peru"]);
 });
 
 // Los 29 nombres que confirmó Romina para Plate Silver, en su orden, y OTROS al final (pedido por ella): 30 en total.
@@ -644,10 +646,39 @@ test("config: la lista de Plate Silver son los 29 nombres de Romina en su orden 
   assert.ok(!LISTA_PLATE_SILVER.includes("SIN CLASIFICAR"), "SIN CLASIFICAR no se escribe en la lista: se agrega siempre, primero");
 });
 
+// Los 10 valores de la columna DETALLE de «MOVIMIENTOS OCTUBRE 26» (libro de Perú), en su orden, y OTROS al final (pendiente de
+// confirmar con Nadina): 11 en total.
+const LISTA_HAVANNA_PERU = [
+  "COBRANZAS CLIENTES",
+  "PROVEEDORES Y SERVICIOS",
+  "SUELDOS",
+  "COMISIONES BANCARIAS",
+  "IMPUESTOS",
+  "PRESTAMOS",
+  "SOLES A DOLARES",
+  "TARJETA",
+  "EXPENSAS",
+  "IMPORTACION",
+  "OTROS",
+];
+
+test("config: la lista de Havanna Perú son los 10 valores del libro en su orden y OTROS al final (11), sin repetidos", () => {
+  assert.deepEqual(CLASIFICACIONES_POR_EMPRESA["havanna-peru"], LISTA_HAVANNA_PERU);
+  assert.equal(LISTA_HAVANNA_PERU.length, 11);
+  assert.equal(LISTA_HAVANNA_PERU[0], "COBRANZAS CLIENTES");
+  assert.equal(LISTA_HAVANNA_PERU[9], "IMPORTACION", "el último de los 10 del libro");
+  assert.equal(LISTA_HAVANNA_PERU[10], "OTROS");
+  assert.equal(LISTA_HAVANNA_PERU.filter((c) => c === "OTROS").length, 1, "OTROS una sola vez");
+  assert.equal(new Set(LISTA_HAVANNA_PERU.map(normalizarClasificacion)).size, 11, "ninguno repetido (ni sin mayúsculas/tildes)");
+  assert.ok(LISTA_HAVANNA_PERU.every((c) => c === c.trim() && c !== ""));
+  assert.ok(!LISTA_HAVANNA_PERU.includes("SIN CLASIFICAR"), "SIN CLASIFICAR no se escribe en la lista: se agrega siempre, primero");
+});
+
 test("clasificacionesPropiasDeEmpresa: null si la empresa no tiene lista; devuelve una copia; no confunde claves heredadas", () => {
   assert.deepEqual(clasificacionesPropiasDeEmpresa("bradenton"), LISTA_BRADENTON);
   assert.deepEqual(clasificacionesPropiasDeEmpresa("plate-silver"), LISTA_PLATE_SILVER);
-  assert.equal(clasificacionesPropiasDeEmpresa("havanna-peru"), null);
+  assert.deepEqual(clasificacionesPropiasDeEmpresa("havanna-peru"), LISTA_HAVANNA_PERU);
+  assert.equal(clasificacionesPropiasDeEmpresa("brillante"), null);
   assert.equal(clasificacionesPropiasDeEmpresa("constructor"), null);
   assert.equal(clasificacionesPropiasDeEmpresa("toString"), null);
   const copia = clasificacionesPropiasDeEmpresa("bradenton")!;
@@ -711,7 +742,7 @@ test("una fila de Bradenton con un valor viejo fuera de la lista: se puede corre
   });
 });
 
-test("las demás empresas NO cambian: Conexión, Havanna Perú y Brillante siguen con la lista general (canónicas + las suyas + SIN CLASIFICAR)", async () => {
+test("las demás empresas NO cambian: Conexión y Brillante siguen con la lista general (canónicas + las suyas + SIN CLASIFICAR)", async () => {
   const m = mundoBase();
   m.movs = [mov("c", { unidadNegocio: "LOGISTICA", clasificacion: "UNA PROPIA DE CONEXION" }), mov("b", { unidadNegocio: "BRILLANTE", clasificacion: "SOLO DE BRILLANTE" })];
   await conMundo(m, async () => {
@@ -721,7 +752,7 @@ test("las demás empresas NO cambian: Conexión, Havanna Perú y Brillante sigue
     assert.equal(conexion.includes("AVION"), false, "las ocultas para el gerente siguen ocultas");
     assert.equal(conexion.includes("SOLO DE BRILLANTE"), false);
     assert.equal(conexion.includes("DEP EFECTIVO"), false, "lo de Bradenton no se filtra a las demás");
-    for (const slug of ["havanna-peru", "brillante"]) {
+    for (const slug of ["brillante", "conexion-logistica"]) {
       const lista = await clasificacionesParaEditar(["X"], [], slug);
       for (const c of CLASIFICACIONES_SUGERIDAS) assert.ok(lista.includes(c), `${slug} sigue ofreciendo ${c}`);
       assert.equal(lista.includes("LOTTERY"), false);
@@ -816,10 +847,90 @@ test("Bradenton y las demás NO cambian al sumar la lista de Plate Silver", asyn
     assert.deepEqual(await editar(ROMINA, "emp-brad", "b", { clasificacion: "COBRANZAS" }), { ok: true });
     assert.equal((await editar(ROMINA, "emp-brad", "b", { clasificacion: "COBRANZA DE CLIENTE" })).ok, false);
     // Las demás: lista general, sin lo de Plate Silver.
-    for (const slug of ["havanna-peru", "brillante", "conexion-logistica"]) {
+    for (const slug of ["brillante", "conexion-logistica"]) {
       const lista = await clasificacionesParaEditar(["X"], [], slug);
       for (const c of CLASIFICACIONES_SUGERIDAS) assert.ok(lista.includes(c), `${slug} sigue ofreciendo ${c}`);
       assert.equal(lista.includes("COBRANZA DE CLIENTE"), false, `${slug} no recibe lo de Plate Silver`);
     }
+  });
+});
+
+// ---------- lista PROPIA de Havanna Perú ----------
+
+function mundoPeru(): Mundo {
+  const m = mundoBase();
+  m.empresas = [BRADENTON, CONEXION, BRILLANTE, PLATE_SILVER, HAVANNA_PERU];
+  m.accesos = { "u-romina|emp-brad": true, "u-romina|emp-ps": true, "u-nadina|emp-hp": true };
+  return m;
+}
+const movPeru = (id: string, o: Partial<Mov> = {}) => mov(id, { unidadNegocio: "HAVANNA PERU", bancoYCuenta: "BBVA PERÚ SOLES", concepto: "COMISION MANTENIMIENTO", ...o });
+
+test("Havanna Perú: se ofrece SIN CLASIFICAR primero, después los 10 del libro en su orden y OTROS una sola vez, al final (12), sin consultar la base", async () => {
+  const m = mundoPeru();
+  m.movs = [movPeru("a", { clasificacion: "PROV Y SERV" }), movPeru("b", { clasificacion: "UNA VIEJA" })];
+  await conMundo(m, async () => {
+    const p = prisma as unknown as { movimientoBancario: { groupBy: () => Promise<never> } };
+    p.movimientoBancario.groupBy = async () => {
+      throw new Error("la lista propia no debe consultar la base");
+    };
+    const lista = await clasificacionesParaEditar(["HAVANNA PERU"], [], "havanna-peru");
+    assert.deepEqual(lista, ["SIN CLASIFICAR", ...LISTA_HAVANNA_PERU]);
+    assert.equal(lista.length, 12);
+    assert.equal(lista[0], "SIN CLASIFICAR");
+    assert.equal(lista[lista.length - 1], "OTROS");
+    assert.equal(lista.filter((c) => c === "OTROS").length, 1, "el sistema no agrega OTROS por su cuenta");
+    for (const ajena of ["PROV Y SERV", "IMP Y PREVISIONALES", "Gastos bancarios", "UNA VIEJA", "COBRANZAS", "DEP EFECTIVO", "COBRANZA DE CLIENTE", "SUELDO"]) {
+      assert.equal(lista.includes(ajena), false, `${ajena} no se ofrece en Havanna Perú`);
+    }
+  });
+});
+
+test("Nadina (Havanna Perú) puede poner cada una de las 11 (OTROS incluida) y volver a SIN CLASIFICAR", async () => {
+  const m = mundoPeru();
+  m.movs = [movPeru("a")];
+  await conMundo(m, async () => {
+    for (const c of LISTA_HAVANNA_PERU) {
+      assert.deepEqual(await editar(NADINA, "emp-hp", "a", { clasificacion: c }), { ok: true }, c);
+      assert.equal(m.movs[0].clasificacion, c);
+    }
+    assert.deepEqual(await editar(NADINA, "emp-hp", "a", { clasificacion: "SIN CLASIFICAR" }), { ok: true });
+    assert.equal(m.movs[0].clasificacion, "SIN CLASIFICAR");
+  });
+});
+
+test("Nadina NO puede poner en Havanna Perú un valor de la lista general, de Bradenton, de Plate Silver o inventado", async () => {
+  const m = mundoPeru();
+  m.movs = [movPeru("a")];
+  await conMundo(m, async () => {
+    for (const c of ["PROV Y SERV", "IMP Y PREVISIONALES", "Gastos bancarios", "COBRANZAS", "LOTTERY", "COBRANZA DE CLIENTE", "SUELDO", "INVENTADA XYZ", "cobranzas clientes", "SUELDOS "]) {
+      assert.equal((await editar(NADINA, "emp-hp", "a", { clasificacion: c })).ok, false, c);
+    }
+  });
+  assert.equal(m.movs[0].clasificacion, "SIN CLASIFICAR");
+  assert.equal(m.escrituras, 0);
+});
+
+test("Bradenton, Plate Silver y las demás NO cambian al sumar la lista de Havanna Perú", async () => {
+  const m = mundoPeru();
+  m.movs = [mov("b"), mov("c", { unidadNegocio: "BRILLANTE" })];
+  await conMundo(m, async () => {
+    const brad = await clasificacionesParaEditar(["BRADENTON"], [], "bradenton");
+    assert.deepEqual(brad, ["SIN CLASIFICAR", ...LISTA_BRADENTON]);
+    assert.equal(brad.length, 19);
+    const ps = await clasificacionesParaEditar(["PLATE SILVER"], [], "plate-silver");
+    assert.deepEqual(ps, ["SIN CLASIFICAR", ...LISTA_PLATE_SILVER]);
+    assert.equal(ps.length, 31);
+    for (const lista of [brad, ps]) {
+      for (const hp of ["COBRANZAS CLIENTES", "PROVEEDORES Y SERVICIOS", "COMISIONES BANCARIAS", "IMPUESTOS", "TARJETA", "SOLES A DOLARES", "IMPORTACION"]) {
+        assert.equal(lista.includes(hp), false, `${hp} no es de Bradenton ni de Plate Silver`);
+      }
+    }
+    for (const slug of ["brillante", "conexion-logistica"]) {
+      const lista = await clasificacionesParaEditar(["X"], [], slug);
+      for (const c of CLASIFICACIONES_SUGERIDAS) assert.ok(lista.includes(c), `${slug} sigue ofreciendo ${c}`);
+      assert.equal(lista.includes("COBRANZAS CLIENTES"), false, `${slug} no recibe lo de Havanna Perú`);
+    }
+    // Sin slug (como antes) también es la lista general.
+    assert.ok((await clasificacionesParaEditar(["LOGISTICA"], [])).includes("PROV Y SERV"));
   });
 });
