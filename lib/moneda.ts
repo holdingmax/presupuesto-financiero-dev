@@ -8,6 +8,7 @@ export const SIMBOLOS_MONEDA: Readonly<Record<string, string>> = {
   ARS: "$",
   PEN: "S/",
   USD: "US$",
+  UYU: "$U",
 };
 
 // Sin dato o vacío es pesos (lo cargado antes de la columna moneda); el resto, el código en mayúsculas.

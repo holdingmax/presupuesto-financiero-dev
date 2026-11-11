@@ -25,7 +25,8 @@ import {
 // NO es un banco de BANCOS_EXTRACTO ni lo toca detectarFormato: se invoca por su propio camino.
 // Sin base de datos, sin ExcelJS. Las columnas se ubican por NOMBRE del encabezado.
 
-export type MonedaHavannaPeru = "PEN" | "USD";
+// UYU: pesos uruguayos (BROU, Plate Silver). El nombre del tipo es histórico: lo comparten todos los lectores de empresa.
+export type MonedaHavannaPeru = "PEN" | "USD" | "UYU";
 
 export type FilaHavannaPeru = FilaExtracto & { moneda: MonedaHavannaPeru };
 
@@ -36,6 +37,13 @@ export type ControlPieMoneda = {
   finalCentavos: number | null;
   diferenciaCentavos: number | null; // inicial + movimientos − final (0 = cuadra)
   estado: "cuadra" | "no_cuadra" | "sin_pie";
+  // Solo los extractos SIN saldo (BROU): no hay saldo inicial ni final contra qué cuadrar, así que el control son la
+  // cantidad de filas y los totales de débito y crédito, que se muestran para compararlos con los del banco.
+  cantidad?: number;
+  debitoCentavos?: number; // suma de los débitos, positiva
+  creditoCentavos?: number; // suma de los créditos, positiva
+  desde?: string; // AAAA-MM-DD
+  hasta?: string;
 };
 
 // Misma forma que LecturaExtracto salvo `banco` (no es un banco de la lista) y con moneda por fila.

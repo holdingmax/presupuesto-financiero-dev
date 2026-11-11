@@ -90,7 +90,7 @@ export function textoSubidaExtractoEmpresa(empresaSlug: string, maxBytes: number
 
 export type CuentaDeLaBase = { id: string; nombre: string; banco: string; activa: boolean; empresaId: string | null; moneda: string };
 
-const MONEDA_ISO: Record<MonedaHavannaPeru, string> = { PEN: "PEN", USD: "USD" };
+const MONEDA_ISO: Record<MonedaHavannaPeru, string> = { PEN: "PEN", USD: "USD", UYU: "UYU" };
 
 // Por moneda: solo las que la empresa declara (Perú PEN y USD; Bradenton USD).
 export type CuentasPorMoneda = Record<string, CuentaDeLaBase>;
