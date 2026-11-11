@@ -207,7 +207,7 @@ export const CLASIFICACIONES_OCULTAS_PARA_GERENTE: Readonly<Record<string, reado
   "conexion-logistica-spp": ["AVION", "MS", "PRESTAMO MS"],
 };
 
-// Lista PROPIA de clasificaciones de una empresa, solo para la pantalla "Ejecución financiera" de esa empresa cuando el gerente
+// Lista PROPIA de clasificaciones de una empresa (Bradenton y Plate Silver), solo para la pantalla "Ejecución financiera" de esa empresa cuando el gerente
 // con la casilla clasifica sus movimientos (lib/clasificarPorEmpresaDb.ts: clasificacionesParaEditar). Por slug. Una empresa
 // que no está acá sigue con la lista general de siempre. NO cambia Ejecución global (que sigue ofreciendo lo suyo), ni el Reporte,
 // ni las demás empresas. «SIN CLASIFICAR» no se escribe acá: se agrega siempre, primero.
@@ -235,6 +235,40 @@ export const CLASIFICACIONES_POR_EMPRESA: Readonly<Record<string, readonly strin
     "SUELDOS",
     "EXPENSAS",
     // Agregada después, a pedido de Romina (confirmado): va al final, sin tocar el orden del libro.
+    "OTROS",
+  ],
+  // Plate Silver: los 29 conceptos que confirmó Romina, en su orden, y OTROS al final (30 en total; con SIN CLASIFICAR, que
+  // el sistema agrega siempre primero, 31). OTROS está escrito acá a propósito: el sistema NO lo agrega solo.
+  "plate-silver": [
+    "COBRANZA DE CLIENTE",
+    "IMPUESTO PERCEPCION IVA (UI)",
+    "COMISION BANCARIA",
+    "DIVIDENDOS",
+    "INVERSION PROYECTO USA",
+    "REPOSICION FONDO FIJO",
+    "DEVOLUCION DE INGRESO POR ERROR",
+    "TRANSFERENCIA ENTRE CUENTAS",
+    "IMPUESTO IVA",
+    "IMPUESTOS ANTICIPOS IRAE",
+    "IMPUESTO ANTICIPOS PERSONA JURIDICA",
+    "IMPUESTO A LAS SOCIEDADES - ICOSA",
+    "AG. DE RETENCION IRNR",
+    "ARRIENDO DE EQUIPO MULTIFUNCION/IMPRESOR",
+    "HONORARIOS MILTON GONZALEZ",
+    "HONORARIOS PROFESIONALES - ESTUDIO CONTABLE",
+    "SERVICIOS DE ALQUILER DE OFICINAS Y GASTOS",
+    "ALQUILER DE VEHICULO MVD UY",
+    "LIMPIEZA",
+    "WI-FI / TELEFONO",
+    "SERVICIOS DE SOFTWARE CARGAS",
+    "BPS",
+    "LIBRERIA Y OTROS",
+    "COSTO POR CUENTA Y ORDEN",
+    "POLIZA DE SEGUROS ARIEL",
+    "POLIZA SEGURO ACCIDENTES DE TRABAJO",
+    "PASAJE AEP - MVD - AEP",
+    "SUELDO",
+    "AGUINALDO",
     "OTROS",
   ],
 };

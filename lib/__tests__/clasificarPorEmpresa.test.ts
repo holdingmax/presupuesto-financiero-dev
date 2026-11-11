@@ -30,6 +30,7 @@ const leer = (...partes: string[]) => readFileSync(partes.join("/"), "utf8");
 const BRADENTON = { id: "emp-brad", nombre: "Bradenton", activo: true, unidadesNegocio: ["BRADENTON"] };
 const CONEXION = { id: "emp-con", nombre: "Conexión Logística", activo: true, unidadesNegocio: ["LOGISTICA", "SPP"] };
 const BRILLANTE = { id: "emp-bri", nombre: "Brillante", activo: true, unidadesNegocio: ["BRILLANTE"] };
+const PLATE_SILVER = { id: "emp-ps", nombre: "Plate Silver", activo: true, unidadesNegocio: ["PLATE SILVER"] };
 
 const ROMINA: UsuarioParaClasificar = { id: "u-romina", rol: "GERENTE", operaEjecucion: false };
 
@@ -593,13 +594,59 @@ test("config: la lista de Bradenton son los 17 nombres del libro en su orden y O
   assert.equal(LISTA_BRADENTON[17], "OTROS");
   assert.equal(new Set(LISTA_BRADENTON.map(normalizarClasificacion)).size, 18, "ninguno repetido (ni siquiera sin mayúsculas/tildes)");
   assert.ok(LISTA_BRADENTON.every((c) => c === c.trim() && c !== ""));
-  // Solo Bradenton tiene lista propia: Plate Silver, Havanna Perú y las demás siguen con la general.
-  assert.deepEqual(Object.keys(CLASIFICACIONES_POR_EMPRESA), ["bradenton"]);
+  // Solo Bradenton y Plate Silver tienen lista propia: Havanna Perú y las demás siguen con la general.
+  assert.deepEqual(Object.keys(CLASIFICACIONES_POR_EMPRESA), ["bradenton", "plate-silver"]);
+});
+
+// Los 29 nombres que confirmó Romina para Plate Silver, en su orden, y OTROS al final (pedido por ella): 30 en total.
+const LISTA_PLATE_SILVER = [
+  "COBRANZA DE CLIENTE",
+  "IMPUESTO PERCEPCION IVA (UI)",
+  "COMISION BANCARIA",
+  "DIVIDENDOS",
+  "INVERSION PROYECTO USA",
+  "REPOSICION FONDO FIJO",
+  "DEVOLUCION DE INGRESO POR ERROR",
+  "TRANSFERENCIA ENTRE CUENTAS",
+  "IMPUESTO IVA",
+  "IMPUESTOS ANTICIPOS IRAE",
+  "IMPUESTO ANTICIPOS PERSONA JURIDICA",
+  "IMPUESTO A LAS SOCIEDADES - ICOSA",
+  "AG. DE RETENCION IRNR",
+  "ARRIENDO DE EQUIPO MULTIFUNCION/IMPRESOR",
+  "HONORARIOS MILTON GONZALEZ",
+  "HONORARIOS PROFESIONALES - ESTUDIO CONTABLE",
+  "SERVICIOS DE ALQUILER DE OFICINAS Y GASTOS",
+  "ALQUILER DE VEHICULO MVD UY",
+  "LIMPIEZA",
+  "WI-FI / TELEFONO",
+  "SERVICIOS DE SOFTWARE CARGAS",
+  "BPS",
+  "LIBRERIA Y OTROS",
+  "COSTO POR CUENTA Y ORDEN",
+  "POLIZA DE SEGUROS ARIEL",
+  "POLIZA SEGURO ACCIDENTES DE TRABAJO",
+  "PASAJE AEP - MVD - AEP",
+  "SUELDO",
+  "AGUINALDO",
+  "OTROS",
+];
+
+test("config: la lista de Plate Silver son los 29 nombres de Romina en su orden y OTROS al final (30), sin repetidos", () => {
+  assert.deepEqual(CLASIFICACIONES_POR_EMPRESA["plate-silver"], LISTA_PLATE_SILVER);
+  assert.equal(LISTA_PLATE_SILVER.length, 30);
+  assert.equal(LISTA_PLATE_SILVER[0], "COBRANZA DE CLIENTE");
+  assert.equal(LISTA_PLATE_SILVER[28], "AGUINALDO", "el último de los 29 de Romina");
+  assert.equal(LISTA_PLATE_SILVER[29], "OTROS");
+  assert.equal(LISTA_PLATE_SILVER.filter((c) => c === "OTROS").length, 1, "OTROS una sola vez");
+  assert.equal(new Set(LISTA_PLATE_SILVER.map(normalizarClasificacion)).size, 30, "ninguno repetido (ni sin mayúsculas/tildes)");
+  assert.ok(LISTA_PLATE_SILVER.every((c) => c === c.trim() && c !== ""));
+  assert.ok(!LISTA_PLATE_SILVER.includes("SIN CLASIFICAR"), "SIN CLASIFICAR no se escribe en la lista: se agrega siempre, primero");
 });
 
 test("clasificacionesPropiasDeEmpresa: null si la empresa no tiene lista; devuelve una copia; no confunde claves heredadas", () => {
   assert.deepEqual(clasificacionesPropiasDeEmpresa("bradenton"), LISTA_BRADENTON);
-  assert.equal(clasificacionesPropiasDeEmpresa("plate-silver"), null);
+  assert.deepEqual(clasificacionesPropiasDeEmpresa("plate-silver"), LISTA_PLATE_SILVER);
   assert.equal(clasificacionesPropiasDeEmpresa("havanna-peru"), null);
   assert.equal(clasificacionesPropiasDeEmpresa("constructor"), null);
   assert.equal(clasificacionesPropiasDeEmpresa("toString"), null);
@@ -664,7 +711,7 @@ test("una fila de Bradenton con un valor viejo fuera de la lista: se puede corre
   });
 });
 
-test("las demás empresas NO cambian: Conexión, Plate Silver y Havanna Perú siguen con la lista general (canónicas + las suyas + SIN CLASIFICAR)", async () => {
+test("las demás empresas NO cambian: Conexión, Havanna Perú y Brillante siguen con la lista general (canónicas + las suyas + SIN CLASIFICAR)", async () => {
   const m = mundoBase();
   m.movs = [mov("c", { unidadNegocio: "LOGISTICA", clasificacion: "UNA PROPIA DE CONEXION" }), mov("b", { unidadNegocio: "BRILLANTE", clasificacion: "SOLO DE BRILLANTE" })];
   await conMundo(m, async () => {
@@ -674,7 +721,7 @@ test("las demás empresas NO cambian: Conexión, Plate Silver y Havanna Perú si
     assert.equal(conexion.includes("AVION"), false, "las ocultas para el gerente siguen ocultas");
     assert.equal(conexion.includes("SOLO DE BRILLANTE"), false);
     assert.equal(conexion.includes("DEP EFECTIVO"), false, "lo de Bradenton no se filtra a las demás");
-    for (const slug of ["plate-silver", "havanna-peru", "brillante"]) {
+    for (const slug of ["havanna-peru", "brillante"]) {
       const lista = await clasificacionesParaEditar(["X"], [], slug);
       for (const c of CLASIFICACIONES_SUGERIDAS) assert.ok(lista.includes(c), `${slug} sigue ofreciendo ${c}`);
       assert.equal(lista.includes("LOTTERY"), false);
@@ -699,4 +746,80 @@ test("Ejecución global, el Reporte y las equivalencias NO se tocaron: nadie má
   assert.match(leer("lib", "clasificarPorEmpresaDb.ts"), /clasificacionesParaEditar\(empresa\.unidadesNegocio, ocultasNormalizadas, slugDeEmpresa\(empresa\.nombre\)\)/);
   // Ejecución global sigue ofreciendo la lista global de siempre.
   assert.match(leer("app", "ejecucion", "actions.ts"), /const clasificacionesPromise = calcularClasificacionesDisponibles\(\);/);
+});
+
+// ---------- lista PROPIA de Plate Silver ----------
+
+function mundoPlate(): Mundo {
+  const m = mundoBase();
+  m.empresas = [BRADENTON, CONEXION, BRILLANTE, PLATE_SILVER];
+  m.accesos = { "u-romina|emp-brad": true, "u-romina|emp-ps": true };
+  return m;
+}
+const movPlate = (id: string, o: Partial<Mov> = {}) => mov(id, { unidadNegocio: "PLATE SILVER", bancoYCuenta: "BROU USD", concepto: "SPI - COMISIÓN", ...o });
+
+test("Plate Silver: se ofrece SIN CLASIFICAR primero, después los 29 de Romina en su orden y OTROS una sola vez, al final (31), sin consultar la base", async () => {
+  const m = mundoPlate();
+  m.movs = [movPlate("a", { clasificacion: "PROV Y SERV" }), movPlate("b", { clasificacion: "UNA VIEJA" })];
+  await conMundo(m, async () => {
+    const p = prisma as unknown as { movimientoBancario: { groupBy: () => Promise<never> } };
+    p.movimientoBancario.groupBy = async () => {
+      throw new Error("la lista propia no debe consultar la base");
+    };
+    const lista = await clasificacionesParaEditar(["PLATE SILVER"], [], "plate-silver");
+    assert.deepEqual(lista, ["SIN CLASIFICAR", ...LISTA_PLATE_SILVER]);
+    assert.equal(lista.length, 31);
+    assert.equal(lista[0], "SIN CLASIFICAR");
+    assert.equal(lista[lista.length - 1], "OTROS");
+    assert.equal(lista.filter((c) => c === "OTROS").length, 1, "el sistema no agrega OTROS por su cuenta");
+    for (const ajena of ["PROV Y SERV", "IMP Y PREVISIONALES", "Gastos bancarios", "UNA VIEJA", "DEP EFECTIVO", "LOTTERY", "SUELDOS"]) {
+      assert.equal(lista.includes(ajena), false, `${ajena} no se ofrece en Plate Silver`);
+    }
+  });
+});
+
+test("Romina (Plate Silver) puede poner cada una de las 30 (OTROS incluida) y volver a SIN CLASIFICAR", async () => {
+  const m = mundoPlate();
+  m.movs = [movPlate("a")];
+  await conMundo(m, async () => {
+    for (const c of LISTA_PLATE_SILVER) {
+      assert.deepEqual(await editar(ROMINA, "emp-ps", "a", { clasificacion: c }), { ok: true }, c);
+      assert.equal(m.movs[0].clasificacion, c);
+    }
+    assert.deepEqual(await editar(ROMINA, "emp-ps", "a", { clasificacion: "SIN CLASIFICAR" }), { ok: true });
+    assert.equal(m.movs[0].clasificacion, "SIN CLASIFICAR");
+  });
+});
+
+test("Romina NO puede poner en Plate Silver un valor de la lista general, de Bradenton o inventado", async () => {
+  const m = mundoPlate();
+  m.movs = [movPlate("a")];
+  await conMundo(m, async () => {
+    for (const c of ["PROV Y SERV", "Gastos bancarios", "AVION", "LOTTERY", "COBRANZAS", "SUELDOS", "INVENTADA XYZ", "cobranza de cliente", "COBRANZA DE CLIENTE "]) {
+      assert.equal((await editar(ROMINA, "emp-ps", "a", { clasificacion: c })).ok, false, c);
+    }
+  });
+  assert.equal(m.movs[0].clasificacion, "SIN CLASIFICAR");
+  assert.equal(m.escrituras, 0);
+});
+
+test("Bradenton y las demás NO cambian al sumar la lista de Plate Silver", async () => {
+  const m = mundoPlate();
+  m.movs = [mov("b"), mov("c", { unidadNegocio: "BRILLANTE" })];
+  await conMundo(m, async () => {
+    // Bradenton: exactamente la suya (SIN CLASIFICAR + 18), sin nada de Plate Silver.
+    const brad = await clasificacionesParaEditar(["BRADENTON"], [], "bradenton");
+    assert.deepEqual(brad, ["SIN CLASIFICAR", ...LISTA_BRADENTON]);
+    assert.equal(brad.length, 19);
+    for (const ps of ["COBRANZA DE CLIENTE", "SUELDO", "AGUINALDO", "TRANSFERENCIA ENTRE CUENTAS"]) assert.equal(brad.includes(ps), false, `${ps} no es de Bradenton`);
+    // Y Romina sigue clasificando Bradenton con la suya.
+    assert.deepEqual(await editar(ROMINA, "emp-brad", "b", { clasificacion: "COBRANZAS" }), { ok: true });
+    assert.equal((await editar(ROMINA, "emp-brad", "b", { clasificacion: "COBRANZA DE CLIENTE" })).ok, false);
+    // Las demás: lista general, sin lo de Plate Silver.
+    for (const slug of ["havanna-peru", "brillante", "conexion-logistica"]) {
+      const lista = await clasificacionesParaEditar(["X"], [], slug);
+      for (const c of CLASIFICACIONES_SUGERIDAS) assert.ok(lista.includes(c), `${slug} sigue ofreciendo ${c}`);
+      assert.equal(lista.includes("COBRANZA DE CLIENTE"), false, `${slug} no recibe lo de Plate Silver`);
+    }
+  });
 });
