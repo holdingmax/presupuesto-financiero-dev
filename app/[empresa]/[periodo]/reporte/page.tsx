@@ -415,7 +415,7 @@ async function ReportePorPlantilla({
       reporte={reporte}
       verPendientes={verPendientes}
       verControl={verControl}
-      mostrarLinkCarga={linkCargaVisible(empresaSlug, edicion.linkCarga)}
+      mostrarLinkCarga={linkCargaVisible(empresaSlug, edicion.linkCarga, esAdminOFinanzas(usuario))}
       mostrarLinkExtracto={puedeVerSubidaExtractoEmpresa(empresaSlug, puedeCargarReal) && esPeriodoHabilitado(periodo)}
       flujo={flujo}
       carga={carga}
