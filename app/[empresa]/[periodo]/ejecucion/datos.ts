@@ -8,6 +8,9 @@ import { obtenerValoresOcultos } from "@/lib/ocultasGerenteDb";
 import { slugDeEmpresa } from "@/lib/slug";
 import { avisoSemanasAbiertas, sumarTotalesSemanalesPorMoneda, whereMovimientosDelMes } from "@/lib/ejecucionMes";
 import { totalEnPesos } from "@/lib/moneda";
+import { clasificacionesOcultasParaUsuario } from "@/lib/clasificacionesOcultas";
+import { puedeClasificarEnEmpresa } from "@/lib/clasificarPorEmpresa";
+import { clasificacionesParaEditar, contarSugerenciasDeEmpresa } from "@/lib/clasificarPorEmpresaDb";
 
 // Pestaña "Ejecución financiera" de cada empresa (docs/ejecucion_global_plan.md §3.4 y §6): SOLO
 // LECTURA y filtrada. Ejecución se opera en el módulo global (/ejecucion); acá se ve, de cada
@@ -85,6 +88,34 @@ export async function obtenerDatosSemanaDeEmpresa(
   const totalPaginas = Math.max(1, Math.ceil(totalMovimientos / FILAS_POR_PAGINA));
   const paginaEfectiva = Math.min(Math.max(1, pagina), totalPaginas);
 
+  // Clasificar desde acá: solo un gerente con la casilla de ESTA empresa y solo con la semana ABIERTA. Para cualquier otro
+  // usuario (ADMIN, FINANZAS, quien opera, gerente sin la casilla) `edicion` es null y la pantalla queda de solo lectura,
+  // exactamente como siempre. Lo que decide el servidor al escribir (lib/clasificarPorEmpresaDb.ts) no depende de esto.
+  let edicion: {
+    unidades: string[];
+    clasificaciones: string[];
+    sugeridasClasificacion: number;
+    sugeridasUnidad: number;
+  } | null = null;
+  if (ejecucion.estado === "ABIERTA" && unidades.length > 0) {
+    const acceso = await prisma.usuarioEmpresa.findUnique({
+      where: { usuarioId_empresaId: { usuarioId: usuario.id, empresaId: empresa.id } },
+      select: { puedeOperarEjecucion: true },
+    });
+    if (puedeClasificarEnEmpresa(usuario, acceso)) {
+      const [clasificaciones, sugeridas] = await Promise.all([
+        clasificacionesParaEditar(unidades, clasificacionesOcultasParaUsuario(slugDeEmpresa(empresa.nombre), usuario)),
+        contarSugerenciasDeEmpresa(ejecucion.id, unidades, ocultas),
+      ]);
+      edicion = {
+        unidades,
+        clasificaciones,
+        sugeridasClasificacion: sugeridas.clasificacion,
+        sugeridasUnidad: sugeridas.unidad,
+      };
+    }
+  }
+
   // Mismo desempate estable por id que el módulo global.
   const movimientos = await prisma.movimientoBancario.findMany({
     where,
@@ -95,6 +126,8 @@ export async function obtenerDatosSemanaDeEmpresa(
   });
 
   return {
+    empresaId: empresa.id,
+    edicion,
     empresaNombre: empresa.nombre,
     numeroSemana: ejecucion.numeroSemana,
     estado: ejecucion.estado,

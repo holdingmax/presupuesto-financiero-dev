@@ -227,6 +227,10 @@ type Props = {
   onCambiarUnidadNegocio?: (id: string, valor: string) => void;
   onQuitar?: (id: string) => void;
   onToggleIgnorado?: (id: string, valor: boolean) => void;
+  // Gerente que clasifica lo de SU empresa (pestaña de la empresa): la unidad solo puede ser una de estas (en vez de la
+  // lista global) y no se prorratea. Sin estas dos opciones la tabla se comporta exactamente como siempre.
+  unidadesPermitidas?: string[];
+  sinProrrateo?: boolean;
 };
 
 export default function TablaMovimientos({
@@ -241,6 +245,8 @@ export default function TablaMovimientos({
   onCambiarUnidadNegocio,
   onQuitar,
   onToggleIgnorado,
+  unidadesPermitidas,
+  sinProrrateo = false,
 }: Props) {
   const router = useRouter();
   const { periodo } = useParams<{ periodo: string }>();
@@ -363,7 +369,7 @@ export default function TablaMovimientos({
                     moneda={m.moneda}
                     desglose={m.desglose}
                     onAbrir={
-                      soloLectura || deshabilitado
+                      soloLectura || deshabilitado || sinProrrateo
                         ? undefined
                         : () => setDesgloseAbiertoId(expandida ? null : m.id)
                     }
@@ -390,7 +396,12 @@ export default function TablaMovimientos({
                         m.unidadSugeridaPorSistema ? "italic text-ink-secondary" : ""
                       }`}
                     >
-                      {opcionesUnidad([m.unidadNegocio]).map((u) => (
+                      {(unidadesPermitidas
+                        ? unidadesPermitidas.includes(m.unidadNegocio)
+                          ? unidadesPermitidas
+                          : [m.unidadNegocio, ...unidadesPermitidas]
+                        : opcionesUnidad([m.unidadNegocio])
+                      ).map((u) => (
                         <option key={u} value={u}>
                           {u}
                         </option>
@@ -412,7 +423,7 @@ export default function TablaMovimientos({
               </div>
             </td>
             <td className="py-1 pr-3 text-center whitespace-nowrap">
-              {!soloLectura && !deshabilitado ? (
+              {!soloLectura && !deshabilitado && !sinProrrateo ? (
                 <input
                   type="checkbox"
                   aria-label="Prorratea"

@@ -2,6 +2,7 @@ import Link from "next/link";
 import TablaMovimientos from "@/app/ejecucion/TablaMovimientos";
 import Paginacion from "@/app/ejecucion/Paginacion";
 import TotalesPorMoneda from "@/app/ejecucion/TotalesPorMoneda";
+import MovimientosEditablesEmpresa from "./MovimientosEditablesEmpresa";
 import { obtenerDatosSemanaDeEmpresa } from "../datos";
 import { AccesoDenegadoError } from "@/lib/auth";
 import { textoTrazabilidad } from "@/lib/fecha";
@@ -75,11 +76,14 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
             {datos.empresaNombre} · Semana {datos.numeroSemana}
           </p>
           <h1 className="text-4xl font-serif font-semibold tracking-tight">
-            {datos.estado === "CERRADA" ? "Historial de ejecución" : "Ejecución (solo lectura)"}
+            {datos.estado === "CERRADA" ? "Historial de ejecución" : datos.edicion ? "Ejecución" : "Ejecución (solo lectura)"}
           </h1>
           <p className="mt-2 text-xs text-ink-muted max-w-xl">
             Solo se muestran los movimientos de las unidades de {datos.empresaNombre}, vengan de la
-            cuenta bancaria que vengan. Los extractos se cargan y se cierran en Ejecución global.
+            cuenta bancaria que vengan.{" "}
+            {datos.edicion
+              ? "En esta semana abierta podés clasificar, ignorar y cambiar la unidad entre las de tu empresa. Cerrar la semana lo hace Finanzas en Ejecución global."
+              : "Los extractos se cargan y se cierran en Ejecución global."}
           </p>
           {datos.puedeIrAlModuloGlobal && (
             <Link
@@ -218,11 +222,21 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
             </div>
             {/* overflow-auto + alto máximo: el encabezado sticky de la tabla se pega al borde de esta caja. */}
             <div className="max-h-[calc(100vh-12rem)] overflow-auto border-t border-line-strong">
-              <TablaMovimientos
-                movimientos={datos.movimientos}
-                numeroSemana={datos.numeroSemana}
-                soloLectura
-              />
+              {datos.edicion ? (
+                <MovimientosEditablesEmpresa
+                  empresaId={datos.empresaId}
+                  periodo={periodo}
+                  numeroSemana={datos.numeroSemana}
+                  movimientos={datos.movimientos}
+                  edicion={datos.edicion}
+                />
+              ) : (
+                <TablaMovimientos
+                  movimientos={datos.movimientos}
+                  numeroSemana={datos.numeroSemana}
+                  soloLectura
+                />
+              )}
             </div>
             <Paginacion
               base={`/${empresa}/${periodo}/ejecucion/${datos.numeroSemana}`}
