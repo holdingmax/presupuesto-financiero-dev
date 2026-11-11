@@ -121,7 +121,12 @@ test("bradenton: Posición = Disponible antes de gastos − Total gastos, y los 
 
 // Sin control de arrastre (como Avianor): el Banco sale del extracto Chase, no de la Posición del mes anterior.
 test("bradenton: la plantilla no tiene control de arrastre (sin rol totalDisponibilidades ni saldo)", () => {
-  assert.equal(plantilla.filas.some((f) => f.tipo === "total" && f.rol !== undefined), false);
+  // Los únicos roles son los tres de flujo (solo ubican las filas extra); ninguno arma el control de arrastre.
+  assert.equal(plantilla.filas.some((f) => f.tipo === "total" && (f.rol === "totalDisponibilidades" || f.rol === "saldo")), false);
+  assert.deepEqual(
+    plantilla.filas.flatMap((f) => (f.tipo === "total" && f.rol !== undefined ? [f.rol] : [])),
+    ["totalIngresos", "totalEgresosOperativos", "totalEgresos"]
+  );
   // Aunque haya datos cargados en dos meses seguidos, el motor no arma ningún control.
   const mes = (periodo: string, banco: number): DatosMes => ({
     periodo,

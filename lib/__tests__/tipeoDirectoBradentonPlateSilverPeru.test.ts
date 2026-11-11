@@ -67,10 +67,10 @@ function vista(slug: string, over: Partial<Parameters<typeof armarVistaTipeo>[0]
   });
 }
 
-test("config: las tres están en el interruptor de tipeo, sin filas extra, y las tres ven Disponibilidades", () => {
+test("config: las tres están en el interruptor de tipeo y en el de filas extra (con permiso de gerente), y las tres ven Disponibilidades", () => {
   for (const slug of SLUGS) {
     assert.ok(EMPRESAS_CON_TIPEO_DIRECTO.includes(slug), slug);
-    assert.equal(EMPRESAS_CON_FILAS_EXTRA.includes(slug), false, `${slug} no tiene filas extra`);
+    assert.equal(EMPRESAS_CON_FILAS_EXTRA.includes(slug), true, `${slug} tiene filas extra (a pedido; ver filasExtraGerente.test.ts)`);
   }
   assert.equal(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes("bradenton"), true);
   assert.equal(EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE.includes("plate-silver"), true);

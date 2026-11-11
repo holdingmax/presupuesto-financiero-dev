@@ -6,7 +6,7 @@ import {
   EMPRESAS_CON_FILAS_EXTRA,
   EMPRESAS_CON_TIPEO_DIRECTO,
 } from "@/lib/config";
-import { armarReporte, clavesCalculables, validarPlantilla, type DatosMes, type Reporte } from "@/lib/reporte/motor";
+import { armarReporte, clavesCalculables, validarPlantilla, type DatosMes, type Fila, type Plantilla, type Reporte } from "@/lib/reporte/motor";
 import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { accesoReservadosDelReporte } from "@/lib/reporte/visibilidad";
 import { categoriasSinFila, esFilaManualEditable, planDeCarga, vistaDeCarga } from "@/lib/reporte/cargaGerente";
@@ -158,8 +158,18 @@ test("varias filas del mismo bloque entran en el orden dado", () => {
 
 test("una plantilla sin los totales marcados no admite filas extra y falla fuerte, no suma a medias", () => {
   assert.equal(admiteFilasExtra(BRILLANTE), true);
-  // Plate Silver no marca los totales de flujo (Havanna y Conexión sí, desde que tienen filas extra).
-  const sinRoles = PLANTILLAS_POR_SLUG["plate-silver"];
+  // Hoy todas las plantillas marcan los totales de flujo: se arma una sin ellos (la de Brillante, sin los tres roles).
+  const sinRoles: Plantilla = {
+    ...BRILLANTE,
+    filas: BRILLANTE.filas.map((f): Fila => {
+      if (f.tipo === "total" && f.rol && ["totalIngresos", "totalEgresosOperativos", "totalEgresos"].includes(f.rol)) {
+        const { rol: _rol, ...resto } = f;
+        void _rol;
+        return resto;
+      }
+      return f;
+    }),
+  };
   assert.equal(admiteFilasExtra(sinRoles), false);
   assert.throws(() => conFilasExtra(sinRoles, [ING]), /no admite filas extra/);
 });
@@ -260,7 +270,11 @@ test("interruptor VACÍO: NO consulta la base y devuelve la plantilla de siempre
 });
 
 test("con la configuración real, solo las empresas del interruptor consultan la base; las demás no", async () => {
-  assert.ok(SLUGS.filter((s) => !EMPRESAS_CON_FILAS_EXTRA.includes(s)).includes("plate-silver"), "sanidad: el recorrido no está vacío");
+  // Hoy todas las empresas con plantilla están en el interruptor: la comprobación se hace sacando a cada una de la lista.
+  for (const slug of SLUGS) {
+    const sinEsta = EMPRESAS_CON_FILAS_EXTRA.filter((s) => s !== slug);
+    assert.equal(await plantillaDeEmpresaConExtras("e", slug, "2026-10", { interruptores: sinEsta, leer: noDebeLeer }), PLANTILLAS_POR_SLUG[slug], slug);
+  }
   for (const slug of SLUGS.filter((s) => !EMPRESAS_CON_FILAS_EXTRA.includes(s))) {
     assert.equal(await plantillaDeEmpresaConExtras("e", slug, "2026-10", { leer: noDebeLeer }), PLANTILLAS_POR_SLUG[slug], slug);
   }

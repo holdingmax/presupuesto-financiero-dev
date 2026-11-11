@@ -336,9 +336,9 @@ async function ReportePorPlantilla({
     carga = vistaDeCarga(plan);
   }
 
-  // Tipeo directo (Real manual y, en las filas extra, Presupuestado) y botones de filas extra: solo ADMIN y FINANZAS
-  // y solo empresas de los interruptores (lib/config.ts). Las dos vistas devuelven null a quien no es ADMIN ni
-  // FINANZAS; las consultas extra solo se hacen si hay algo que armar. Usan la plantilla del Reporte (con las filas
+  // Tipeo directo (Real manual y, en las filas extra, Presupuestado) y botones de filas extra: ADMIN y FINANZAS (y el gerente
+  // con la casilla de la empresa, solo Real y solo filas extra en las empresas de EMPRESAS_CON_FILAS_EXTRA_GERENTE) y solo
+  // empresas de los interruptores (lib/config.ts). Las dos vistas devuelven null a quien no corresponde; las consultas extra solo se hacen si hay algo que armar. Usan la plantilla del Reporte (con las filas
   // extra); la carga del gerente de más arriba sigue con la estática.
   let tipeo: VistaTipeo | null = null;
   let filasExtra: VistaFilasExtra | null = null;
@@ -376,8 +376,9 @@ async function ReportePorPlantilla({
       empresaSlug,
       plantillaEstatica: plantilla,
       plantillaReporte,
-      // Las filas extra siguen solo para ADMIN y FINANZAS (el gerente con permiso carga Real, no arma filas).
+      // ADMIN y FINANZAS, y un gerente con la casilla de ESTA empresa solo en las de EMPRESAS_CON_FILAS_EXTRA_GERENTE.
       esAdminOFinanzas: esAdminOFinanzas(usuario),
+      puedeCargarReal,
       periodo,
       actual: periodoActual(),
       semanas: semanasDelMes,

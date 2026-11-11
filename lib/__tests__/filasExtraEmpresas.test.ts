@@ -193,8 +193,10 @@ const celda = (r: Reporte, clave: string) => r.filas.find((f) => f.fila.clave ==
 // ---- Configuración -------------------------------------------------------------------------------
 
 test("config: las empresas de este archivo están en filas extra y en tipeo directo; las demás, afuera", () => {
-  // La lista fijada es Brillante + las de ESPERADO: ninguna queda sin probar acá ni sobra una entrada.
-  assert.deepEqual([...CON_FILAS_EXTRA_HOY].filter((s) => s !== "brillante").sort(), [...SLUGS].sort());
+  // La lista fijada es Brillante + las de ESPERADO + Bradenton, Plate Silver y Havanna Perú (esas tres tienen su propio archivo,
+  // filasExtraGerente.test.ts, porque además las agrega un gerente): ninguna queda sin probar ni sobra una entrada.
+  const EN_OTRO_ARCHIVO = ["bradenton", "plate-silver", "havanna-peru"];
+  assert.deepEqual([...CON_FILAS_EXTRA_HOY].filter((s) => s !== "brillante" && !EN_OTRO_ARCHIVO.includes(s)).sort(), [...SLUGS].sort());
   assert.deepEqual([...EMPRESAS_CON_FILAS_EXTRA], [...CON_FILAS_EXTRA_HOY]);
   for (const slug of SLUGS) {
     assert.ok(EMPRESAS_CON_FILAS_EXTRA.includes(slug), slug);
@@ -202,7 +204,7 @@ test("config: las empresas de este archivo están en filas extra y en tipeo dire
   }
   // «Afuera» se deriva del interruptor: todas las demás plantillas, sin una lista a mano.
   const fuera = Object.keys(PLANTILLAS_POR_SLUG).filter((s) => !EMPRESAS_CON_FILAS_EXTRA.includes(s));
-  assert.ok(fuera.length > 0, "sanidad: el recorrido no está vacío");
+  // (Hoy todas las plantillas están en el interruptor: si se suma una empresa nueva sin activarlo, este recorrido la cubre.)
   for (const slug of fuera) assert.equal(EMPRESAS_CON_FILAS_EXTRA.includes(slug), false, slug);
 });
 
@@ -463,10 +465,10 @@ for (const slug of SLUGS) {
 // ---- Las que siguen afuera -----------------------------------------------------------------------
 
 test("las empresas fuera del interruptor de filas extra no consultan la base ni pueden crear filas", async () => {
-  const fuera = Object.keys(PLANTILLAS_POR_SLUG).filter((s) => !EMPRESAS_CON_FILAS_EXTRA.includes(s));
-  assert.ok(fuera.length > 0, "sanidad: el recorrido no está vacío");
-  for (const slug of fuera) {
-    assert.equal(await plantillaDeEmpresaConExtras("e", slug, "2026-10", { leer: noDebeLeer }), PLANTILLAS_POR_SLUG[slug], slug);
+  // Hoy todas las plantillas están en el interruptor: se comprueba sacando a cada una de la lista.
+  for (const slug of Object.keys(PLANTILLAS_POR_SLUG)) {
+    const sinEsta = EMPRESAS_CON_FILAS_EXTRA.filter((s) => s !== slug);
+    assert.equal(await plantillaDeEmpresaConExtras("e", slug, "2026-10", { interruptores: sinEsta, leer: noDebeLeer }), PLANTILLAS_POR_SLUG[slug], slug);
     const alta = validarCreacionFilaExtra({
       empresaSlug: slug,
       plantilla: PLANTILLAS_POR_SLUG[slug],
@@ -477,6 +479,7 @@ test("las empresas fuera del interruptor de filas extra no consultan la base ni 
       periodo: "2026-10",
       actual: "2026-10",
       semanas: ABIERTO,
+      interruptores: { filasExtra: sinEsta, tipeo: EMPRESAS_CON_TIPEO_DIRECTO },
     });
     assert.deepEqual(alta, { ok: false, error: ERROR_NO_HABILITADO }, slug);
   }

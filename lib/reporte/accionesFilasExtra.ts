@@ -1,4 +1,5 @@
-import { EMPRESAS_CON_FILAS_EXTRA, EMPRESAS_CON_TIPEO_DIRECTO } from "@/lib/config";
+import { EMPRESAS_CON_FILAS_EXTRA, EMPRESAS_CON_FILAS_EXTRA_GERENTE, EMPRESAS_CON_TIPEO_DIRECTO } from "@/lib/config";
+import { ERROR_SIN_PERMISO_DE_CARGAR_REAL } from "@/lib/permisosReal";
 import type { Plantilla } from "@/lib/reporte/motor";
 import { motivoBloqueo, type EstadoSemanas } from "@/lib/reporte/bloqueo";
 import {
@@ -15,17 +16,35 @@ import {
 export type InterruptoresFilasExtra = {
   filasExtra: readonly string[];
   tipeo: readonly string[];
+  // Empresas donde, además de ADMIN y FINANZAS, un gerente con la casilla de ESA empresa agrega y borra filas.
+  filasExtraGerente?: readonly string[];
 };
 
 const DE_CONFIG: InterruptoresFilasExtra = {
   filasExtra: EMPRESAS_CON_FILAS_EXTRA,
   tipeo: EMPRESAS_CON_TIPEO_DIRECTO,
+  filasExtraGerente: EMPRESAS_CON_FILAS_EXTRA_GERENTE,
 };
 
 const FORMATO_PERIODO = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export const ERROR_NO_HABILITADO = "Agregar filas no está habilitado para esta empresa.";
 export const ERROR_SOLO_ADMIN = "Solo ADMIN y FINANZAS pueden agregar o borrar filas.";
+
+// Quién puede agregar y borrar filas: ADMIN y FINANZAS siempre; un GERENTE solo en las empresas de EMPRESAS_CON_FILAS_EXTRA_GERENTE y
+// solo con la casilla de ESA empresa (`puedeCargarReal`, lib/permisosReal.ts; sin definir = no la tiene). null = puede; si no, el motivo.
+// El estado del Presupuesto NO cuenta (el gerente puede aunque esté En revisión); el mes bloqueado sí, aparte.
+export function motivoSinPermisoFilasExtra(a: {
+  empresaSlug: string;
+  esAdminOFinanzas: boolean;
+  puedeCargarReal?: boolean;
+  interruptores?: InterruptoresFilasExtra;
+}): string | null {
+  if (a.esAdminOFinanzas) return null;
+  const enGerente = (a.interruptores ?? DE_CONFIG).filasExtraGerente ?? [];
+  if (!enGerente.includes(a.empresaSlug)) return ERROR_SOLO_ADMIN;
+  return a.puedeCargarReal === true ? null : ERROR_SIN_PERMISO_DE_CARGAR_REAL;
+}
 
 // Interruptor de la empresa, tipeo directo (las filas se tipean con él) y plantilla con los totales marcados.
 export function filasExtraActivas(
@@ -59,6 +78,8 @@ export function validarCreacionFilaExtra(a: {
   // La plantilla ESTÁTICA de la empresa.
   plantilla: Plantilla;
   esAdminOFinanzas: boolean;
+  // Puede cargar el Real de ESTA empresa (gerente con la casilla). Sin definir = no.
+  puedeCargarReal?: boolean;
   bloque: unknown;
   nombre: unknown;
   // Todas las filas extra de la empresa (también las que ya no se ven).
@@ -68,7 +89,8 @@ export function validarCreacionFilaExtra(a: {
   semanas: EstadoSemanas;
   interruptores?: InterruptoresFilasExtra;
 }): CreacionValida {
-  if (!a.esAdminOFinanzas) return { ok: false, error: ERROR_SOLO_ADMIN };
+  const sinPermiso = motivoSinPermisoFilasExtra(a);
+  if (sinPermiso) return { ok: false, error: sinPermiso };
   if (!filasExtraActivas(a.empresaSlug, a.plantilla, a.interruptores)) return { ok: false, error: ERROR_NO_HABILITADO };
   const bloque = BLOQUES_EXTRA.find((b) => b === a.bloque);
   if (!bloque) return { ok: false, error: "Bloque inválido." };
@@ -87,12 +109,14 @@ export function decidirBorradoFilaExtra(a: {
   empresaSlug: string;
   plantilla: Plantilla;
   esAdminOFinanzas: boolean;
+  puedeCargarReal?: boolean;
   existe: boolean;
   // Valores de ValorManualReporte (cualquier mes y columna) con la clave de la fila.
   cantidadDeValores: number;
   interruptores?: InterruptoresFilasExtra;
 }): { ok: true } | { ok: false; error: string } {
-  if (!a.esAdminOFinanzas) return { ok: false, error: ERROR_SOLO_ADMIN };
+  const sinPermiso = motivoSinPermisoFilasExtra(a);
+  if (sinPermiso) return { ok: false, error: sinPermiso };
   if (!filasExtraActivas(a.empresaSlug, a.plantilla, a.interruptores)) return { ok: false, error: ERROR_NO_HABILITADO };
   if (!a.existe) return { ok: false, error: "No encontré esa fila." };
   if (a.cantidadDeValores > 0) return { ok: false, error: ERROR_FILA_CON_VALORES };
@@ -102,13 +126,15 @@ export function decidirBorradoFilaExtra(a: {
 // Lo que recibe la pantalla: en qué bloques se muestra «Agregar una fila» y qué filas extra se pueden borrar.
 export type VistaFilasExtra = { bloques: BloqueExtra[]; borrables: string[] };
 
-// null = ni botones ni borrado (quien no es ADMIN ni FINANZAS recibe null SIEMPRE, con el interruptor que sea).
+// null = ni botones ni borrado. Lo recibe ADMIN/FINANZAS y, solo en las empresas de EMPRESAS_CON_FILAS_EXTRA_GERENTE, un gerente con
+// la casilla de esa empresa; cualquier otro recibe null SIEMPRE, con el interruptor que sea.
 export function armarVistaFilasExtra(a: {
   empresaSlug: string;
   plantillaEstatica: Plantilla;
   // La del Reporte, con las filas extra del mes.
   plantillaReporte: Plantilla;
   esAdminOFinanzas: boolean;
+  puedeCargarReal?: boolean;
   periodo: string;
   actual: string;
   semanas: EstadoSemanas;
@@ -116,7 +142,7 @@ export function armarVistaFilasExtra(a: {
   clavesConValores: ReadonlySet<string>;
   interruptores?: InterruptoresFilasExtra;
 }): VistaFilasExtra | null {
-  if (!a.esAdminOFinanzas) return null;
+  if (motivoSinPermisoFilasExtra(a) !== null) return null;
   if (!filasExtraActivas(a.empresaSlug, a.plantillaEstatica, a.interruptores)) return null;
   const bloques = BLOQUES_EXTRA.filter((b) => motivoBloqueoAltaFilaExtra(b, a.periodo, a.actual, a.semanas) === null);
   const borrables = a.plantillaReporte.filas

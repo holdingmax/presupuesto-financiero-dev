@@ -85,16 +85,16 @@ export const PLANTILLA_PLATE_SILVER: Plantilla = {
     }),
     titulo("ps.tituloIngresos", "INGRESOS", "INGRESOS"),
     ...ingresos,
-    total("ps.totalIngresos", "INGRESOS", "TOTAL INGRESOS", ingresos.map((f) => f.clave)),
+    total("ps.totalIngresos", "INGRESOS", "TOTAL INGRESOS", ingresos.map((f) => f.clave), { rol: "totalIngresos" }),
     total("ps.disponibleAntes", "CIERRE", "DISPONIBLE ANTES DE GASTOS", ["ps.totalDisponibilidades", "ps.totalIngresos"], {
       requiere: ["ps.totalDisponibilidades"],
       soloConPresupuesto: true,
     }),
     titulo("ps.tituloGastos", "EGRESOS", "GASTOS"),
     ...egresos,
-    total("ps.totalGastosOperativos", "EGRESOS", "TOTAL GASTOS OPERATIVOS", egresos.map((f) => f.clave)),
+    total("ps.totalGastosOperativos", "EGRESOS", "TOTAL GASTOS OPERATIVOS", egresos.map((f) => f.clave), { rol: "totalEgresosOperativos" }),
     ...deAbajo,
-    total("ps.totalGastos", "ABAJO", "TOTAL GASTOS", ["ps.totalGastosOperativos", ...deAbajo.map((f) => f.clave)]),
+    total("ps.totalGastos", "ABAJO", "TOTAL GASTOS", ["ps.totalGastosOperativos", ...deAbajo.map((f) => f.clave)], { rol: "totalEgresos" }),
     total("ps.saldo", "CIERRE", "POSICIÓN DE EFECTIVO (fin de mes)", ["ps.disponibleAntes"], {
       resta: ["ps.totalGastos"],
       requiere: ["ps.disponibleAntes"],
@@ -102,6 +102,8 @@ export const PLANTILLA_PLATE_SILVER: Plantilla = {
       rol: "saldo",
       visibleGerente: true,
     }),
+    // OJO (filas extra, a confirmar con Romina): el Capital sale del 100% de TOTAL GASTOS OPERATIVOS, así que una fila extra de
+    // Egresos lo sube y baja el Excedente (igual que en HWC, Fredy, Radio y Conexión). Una fila de Ingresos o «de abajo» no lo mueve.
     total("ps.capital", "CIERRE", "Capital de trabajo propuesto", ["ps.totalGastosOperativos"], {
       soloConPresupuesto: true,
       visibleGerente: true,

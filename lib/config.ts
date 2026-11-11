@@ -168,6 +168,10 @@ export const EMPRESAS_CON_TIPEO_DIRECTO: readonly string[] = ["brillante", "fred
 // lo tocan. Sí mueven los totales, Disponible antes de gastos y Posición de efectivo.
 // Radio: el Capital de trabajo sale del 50% de TOTAL EGRESOS OPERATIVOS, así que una fila extra de Egresos lo mueve (igual
 // que en Fredy y HWC); un Capital tipeado a mano lo reemplaza.
+// Bradenton y Havanna Perú: el Capital de trabajo es una línea manual que no sale de ningún total: una fila extra mueve los totales,
+// Disponible antes de gastos y Saldo, pero no el Capital ni el Excedente. Disponibilidades no se mueve nunca.
+// Plate Silver: el Capital sale del 100% de TOTAL GASTOS OPERATIVOS, así que una fila extra de Egresos lo sube y baja el Excedente (como
+// HWC, Fredy, Radio y Conexión). PENDIENTE DE CONFIRMAR CON ROMINA.
 // Havanna: el Capital de trabajo suma Sueldos, Expensas, Proveedores/4 e Inversiones/3 (no un total de Egresos), así que una fila
 // extra no lo mueve; sí mueve los totales, Disponible antes de gastos y Saldo.
 // Conexión Logística (y su alias de testing): el Capital de trabajo sale del 50% de TOTAL EGRESOS OPERATIVOS, así que una fila extra
@@ -182,7 +186,17 @@ export const EMPRESAS_CON_FILAS_EXTRA: readonly string[] = [
   "havanna",
   "conexion-logistica",
   "conexion-logistica-spp",
+  "bradenton",
+  "plate-silver",
+  "havanna-peru",
 ];
+
+// Filas extra que además puede agregar y borrar un GERENTE: solo con la casilla «Puede cargar Real de esta empresa» de ESA empresa
+// (UsuarioEmpresa.puedeOperarEjecucion) y solo en las empresas de esta lista (subconjunto de EMPRESAS_CON_FILAS_EXTRA; un test lo
+// controla). ADMIN y FINANZAS siguen pudiendo en todas las de la lista de arriba. El gerente de cualquier otra empresa, tenga o no la
+// casilla, no puede. A diferencia de ADMIN y FINANZAS, el gerente puede aunque el Presupuesto esté En revisión (decisión de Leticia);
+// la regla del mes bloqueado vale para todos. Del Presupuestado de esas filas se encarga ADMIN/FINANZAS: el gerente solo tipea Real.
+export const EMPRESAS_CON_FILAS_EXTRA_GERENTE: readonly string[] = ["bradenton", "plate-silver", "havanna-peru"];
 
 // Etiqueta del ciclo fiscal que se muestra en la portada de login (app/login/page.tsx).
 //
