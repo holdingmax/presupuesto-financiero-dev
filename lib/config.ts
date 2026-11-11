@@ -80,8 +80,9 @@ export const EMPRESAS_EN_DOLARES: readonly string[] = ["bradenton", "plate-silve
 
 // Empresas en cuyo Reporte NO se muestra el botón «Cargar valores del mes» (para ningún rol): el Presupuestado y el Real se
 // tipean directo en las celdas del Reporte (EMPRESAS_CON_TIPEO_DIRECTO y «Guardar presupuesto»). Solo oculta el botón: la
-// ruta /reporte/carga sigue abierta por URL (con sus permisos de siempre) porque en Bradenton y Havanna Perú es el único lugar
-// donde ADMIN y FINANZAS cargan el Capital de trabajo. No toca «Guardar presupuesto», «Guardar valores» ni «Subir extracto».
+// ruta /reporte/carga sigue abierta por URL (con sus permisos de siempre); ya no hace falta para el Capital de trabajo, que
+// ADMIN y FINANZAS tipean directo en el Reporte (Presupuestado y Real en Bradenton y Havanna Perú). No toca «Guardar
+// presupuesto», «Guardar valores» ni «Subir extracto».
 export const EMPRESAS_SIN_LINK_CARGA_EN_REPORTE: readonly string[] = ["bradenton", "plate-silver", "havanna-peru"];
 
 // Pestaña Presupuesto también oculta para ADMIN y FINANZAS (Kike: la reemplazó la carga del gerente sobre el Reporte),
@@ -123,7 +124,8 @@ export const EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE: readonly string[] = [
 // Cierre: Saldo, Capital de trabajo y Disponible (NO «Disponible antes de gastos»), al pie de la tabla como en la hoja
 // «PRESUPUESTO MES A MES». Se calculan con el total de Disponibilidades: una empresa solo puede estar acá si también está
 // en la lista de arriba (lo controla un test, y el motor lo aplica igual: sin Disponibilidades, no hay Cierre).
-// El gerente las ve en solo lectura: el Capital de trabajo de las empresas que lo tipean lo carga ADMIN en /reporte/carga.
+// El gerente las ve en solo lectura: el Capital de trabajo lo tipean ADMIN y FINANZAS directo en el Reporte (Presupuestado; en
+// Bradenton y Havanna Perú también el Real), nunca el gerente.
 // En Plate Silver y Bradenton además se ven Posición, Capital y Excedente (marcadas con visibleGerente en su plantilla).
 export const EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE: readonly string[] = [
   "brillante",

@@ -26,8 +26,10 @@ const CON_CAPITAL: Record<string, string> = {
   hwc: "hw.capital",
   mantenor: "mn.capital",
 };
-// Capital de trabajo que NO es una fila `capital` (línea o total): no abre celda aunque el tipeo esté prendido.
-const CAPITAL_QUE_NO_ES_FILA_CAPITAL = ["havanna-peru", "bradenton", "plate-silver"];
+// Capital de trabajo que NO es una fila `capital`: en Bradenton y Havanna Perú es una LÍNEA manual de Cierre y abre celda
+// de Presupuestado y de Real (solo ADMIN y FINANZAS); en Plate Silver es un total y no abre celda aunque el tipeo esté prendido.
+const CAPITAL_LINEA: Record<string, string> = { bradenton: "bd.capital", "havanna-peru": "hp.capital" };
+const CAPITAL_TOTAL = ["plate-silver"];
 const TODAS: InterruptoresTipeo = { tipeo: SLUGS, disponibilidades: SLUGS, filasExtra: [] };
 
 const ABIERTO = { abiertas: 1, cerradas: 0 };
@@ -129,18 +131,23 @@ for (const [slug, clave] of Object.entries(CON_CAPITAL)) {
   });
 }
 
-test("aunque el tipeo esté prendido en todas, de Cierre solo abren las filas `capital`", () => {
+test("aunque el tipeo esté prendido en todas, de Cierre solo abre el Capital: la fila `capital` (P) y la línea de Bradenton y Havanna Perú (P y R)", () => {
   for (const slug of SLUGS) {
-    const esperado = Object.hasOwn(CON_CAPITAL, slug) ? [`${CON_CAPITAL[slug]}|PRESUPUESTADO`] : [];
+    const esperado = Object.hasOwn(CON_CAPITAL, slug)
+      ? [`${CON_CAPITAL[slug]}|PRESUPUESTADO`]
+      : Object.hasOwn(CAPITAL_LINEA, slug)
+        ? [`${CAPITAL_LINEA[slug]}|PRESUPUESTADO`, `${CAPITAL_LINEA[slug]}|REAL`]
+        : [];
     const cierre = camposTipeables(PLANTILLAS_POR_SLUG[slug], slug, TODAS).filter((c) => c.bloque === "CIERRE");
-    assert.deepEqual(cierre.map((c) => `${c.clave}|${c.columna}`), esperado, slug);
+    assert.deepEqual(cierre.map((c) => `${c.clave}|${c.columna}`).sort(), esperado.sort(), slug);
   }
 });
 
-test("el Capital de havanna-peru, bradenton y plate-silver, el Disponible y el Saldo no abren celda y el servidor los rechaza", () => {
-  for (const slug of CAPITAL_QUE_NO_ES_FILA_CAPITAL) {
+test("el Capital de plate-silver (un total), el Disponible y el Saldo no abren celda y el servidor los rechaza", () => {
+  for (const slug of CAPITAL_TOTAL) {
     const plantilla = PLANTILLAS_POR_SLUG[slug];
     assert.equal(plantilla.filas.some((f) => f.tipo === "capital"), false, `${slug}: su Capital no es una fila capital`);
+    assert.equal(plantilla.filas.find((f) => f.clave.endsWith(".capital"))?.tipo, "total", `${slug}: su Capital es un total`);
     const capital = plantilla.filas.find((f) => f.clave.endsWith(".capital"));
     assert.ok(capital, `${slug}: tiene fila de Capital`);
     const args = { empresaSlug: slug, plantilla, esAdminOFinanzas: true, interruptores: TODAS };
