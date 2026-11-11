@@ -7,7 +7,7 @@ import {
 } from "@/lib/config";
 import { camposManuales } from "@/lib/reporte/motor";
 import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
-import { armarVistaTipeo, camposTipeables, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto";
+import { armarVistaTipeo, camposTipeables, ERROR_SOLO_ADMIN_FINANZAS_CAPITAL, motivoRechazoTipeo } from "@/lib/reporte/tipeoDirecto";
 import { mesesDePrueba } from "@/lib/reporte/__tests__/fixtures/datosGerente";
 
 // Tipeo directo del Real en Bradenton, Plate Silver y Havanna Perú (lib/reporte/tipeoDirecto.ts). Las tres tienen TODO el
@@ -48,7 +48,10 @@ const ESPERADO: Record<
     abajo: ["hp.importacionHavanna", "hp.solesADolares", "hp.dividendos", "hp.implementacionLocales"],
   },
 };
+// Celdas de Real de flujo (y Disponibilidades). El Capital de trabajo va aparte (CAPITAL): solo ADMIN y FINANZAS.
 const CANTIDAD: Record<string, number> = { bradenton: 26, "plate-silver": 25, "havanna-peru": 23 };
+// Capital de trabajo: línea manual de Cierre (P y R) en Bradenton y Havanna Perú; en Plate Silver es un total y no abre celda.
+const CAPITAL: Record<string, string | null> = { bradenton: "bd.capital", "plate-silver": null, "havanna-peru": "hp.capital" };
 const SLUGS = Object.keys(ESPERADO);
 
 const ABIERTO = { abiertas: 1, cerradas: 0 };
@@ -82,14 +85,18 @@ for (const slug of SLUGS) {
   const esperado = ESPERADO[slug];
 
   test(`${slug}: sus campos tipeables son exactamente el Real manual de flujo (y de Disponibilidades si las ve)`, () => {
-    const campos = camposTipeables(plantilla, slug);
+    const todos = camposTipeables(plantilla, slug);
+    // El Capital (Cierre) se prueba aparte: acá queda lo de flujo y Disponibilidades.
+    const campos = todos.filter((c) => c.bloque !== "CIERRE");
     assert.equal(campos.length, CANTIDAD[slug]);
     assert.ok(campos.every((c) => c.columna === "REAL"), "solo Real: el Presupuestado se carga en la pantalla de carga");
     assert.deepEqual(campos.filter((c) => c.bloque === "DISPONIBILIDADES").map((c) => c.clave), esperado.disponibilidades);
     assert.deepEqual(campos.filter((c) => c.bloque === "INGRESOS").map((c) => c.clave), esperado.ingresos);
     assert.deepEqual(campos.filter((c) => c.bloque === "EGRESOS").map((c) => c.clave), esperado.egresos);
     assert.deepEqual(campos.filter((c) => c.bloque === "ABAJO").map((c) => c.clave), esperado.abajo);
-    assert.equal(campos.some((c) => c.bloque === "CIERRE"), false, "el Capital de trabajo no abre celda");
+    const clavesCierre = todos.filter((c) => c.bloque === "CIERRE").map((c) => `${c.clave}|${c.columna}`).sort();
+    const capital = CAPITAL[slug];
+    assert.deepEqual(clavesCierre, capital ? [`${capital}|PRESUPUESTADO`, `${capital}|REAL`].sort() : [], "Capital: P y R en la línea; nada en Plate Silver");
     assert.equal(campos.some((c) => c.clave.startsWith("extra.")), false);
   });
 
@@ -105,12 +112,12 @@ for (const slug of SLUGS) {
     const valores = mesesDePrueba(plantilla)[1].manuales!.real;
     const v = vista(slug, { valoresReales: valores });
     assert.ok(v);
-    assert.equal(v.celdas.length, CANTIDAD[slug]);
+    assert.equal(v.celdas.length, CANTIDAD[slug] + (CAPITAL[slug] ? 2 : 0));
     assert.equal(vista(slug, { esAdminOFinanzas: false, valoresReales: valores }), null);
     assert.equal(vista(slug, { esAdminOFinanzas: false, valoresReales: valores, semanas: CERRADO }), null);
   });
 
-  test(`${slug}: el servidor acepta el Real de flujo y rechaza al gerente, el Presupuestado, el Capital, la fila extra y la ajena`, () => {
+  test(`${slug}: el servidor acepta el Real de flujo y rechaza al gerente, el Presupuestado de flujo, la fila extra y la ajena`, () => {
     const clave = esperado.ingresos[0];
     const args = { empresaSlug: slug, plantilla, esAdminOFinanzas: true };
     assert.equal(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: clave, columna: "REAL", texto: "1.000,00" }] }), null);
@@ -119,10 +126,6 @@ for (const slug of SLUGS) {
       /ADMIN y FINANZAS/
     );
     assert.ok(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: clave, columna: "PRESUPUESTADO", texto: "1.000,00" }] }));
-    const capital = plantilla.filas.find((f) => f.clave.endsWith(".capital"))!;
-    for (const columna of ["PRESUPUESTADO", "REAL"] as const) {
-      assert.ok(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: capital.clave, columna, texto: "1.000,00" }] }), `Capital ${columna}`);
-    }
     assert.ok(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: "extra.x", columna: "REAL", texto: "1.000,00" }] }));
     assert.ok(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: "no.existe", columna: "REAL", texto: "1.000,00" }] }));
     assert.ok(motivoRechazoTipeo({ ...args, entradas: [{ filaClave: "br.sueldos", columna: "REAL", texto: "1.000,00" }] }), "fila de otra empresa");
@@ -163,4 +166,99 @@ test("Bradenton y Plate Silver: sus Disponibilidades se bloquean con semanas cer
     }),
     null
   );
+});
+
+// Capital de trabajo (Cierre) tipeado en el Reporte: P y R, solo ADMIN y FINANZAS, en Bradenton y Havanna Perú. Plate Silver
+// (su Capital es un total) no cambia. Las reglas de bloqueo son las de siempre (bloqueo.ts).
+const CON_CAPITAL_TIPEABLE = Object.entries(CAPITAL).filter(([, c]) => c !== null) as [string, string][];
+
+test("Capital de trabajo: ADMIN y FINANZAS reciben la celda de Presupuestado y la de Real, vacías y sin aviso", () => {
+  for (const [slug, clave] of CON_CAPITAL_TIPEABLE) {
+    const celdas = vista(slug)!.celdas.filter((c) => c.clave === clave);
+    assert.deepEqual(celdas.map((c) => c.id).sort(), [`${clave}|PRESUPUESTADO`, `${clave}|REAL`], slug);
+    for (const c of celdas) {
+      assert.equal(c.importeInicial, "", `${slug} ${c.columna}`);
+      assert.equal(c.avisoUnaVez, false, `${slug} ${c.columna}`);
+    }
+  }
+});
+
+test("Capital de trabajo: el servidor acepta Presupuestado y Real de ADMIN y FINANZAS y rechaza al gerente, con y sin permiso de Real", () => {
+  for (const [slug, clave] of CON_CAPITAL_TIPEABLE) {
+    const plantilla = PLANTILLAS_POR_SLUG[slug];
+    for (const columna of ["PRESUPUESTADO", "REAL"] as const) {
+      const entradas = [{ filaClave: clave, columna, texto: "30.000,00" }];
+      assert.equal(motivoRechazoTipeo({ empresaSlug: slug, plantilla, esAdminOFinanzas: true, entradas }), null, `${slug} ${columna} ADMIN/FINANZAS`);
+      for (const puedeCargarReal of [true, false]) {
+        const motivo = motivoRechazoTipeo({ empresaSlug: slug, plantilla, esAdminOFinanzas: false, puedeCargarReal, entradas });
+        assert.ok(motivo, `${slug} ${columna} gerente (permiso ${puedeCargarReal})`);
+      }
+    }
+    // Con permiso, el Real del Capital se rechaza por ser de Cierre (no por «solo Real»), aunque vaya junto a un Real de flujo.
+    const motivoReal = motivoRechazoTipeo({
+      empresaSlug: slug,
+      plantilla,
+      esAdminOFinanzas: false,
+      puedeCargarReal: true,
+      entradas: [
+        { filaClave: ESPERADO[slug].ingresos[0], columna: "REAL", texto: "1,00" },
+        { filaClave: clave, columna: "REAL", texto: "30.000,00" },
+      ],
+    });
+    assert.equal(motivoReal, ERROR_SOLO_ADMIN_FINANZAS_CAPITAL, slug);
+  }
+});
+
+test("Capital de trabajo: el gerente con permiso recibe solo el Real de flujo, ninguna celda de Cierre", () => {
+  for (const [slug, clave] of CON_CAPITAL_TIPEABLE) {
+    const v = vista(slug, { esAdminOFinanzas: false, puedeCargarReal: true })!;
+    assert.equal(v.celdas.length, CANTIDAD[slug], slug);
+    assert.ok(v.celdas.every((c) => c.columna === "REAL" && c.clave !== clave), slug);
+    assert.equal(vista(slug, { esAdminOFinanzas: false, puedeCargarReal: false }), null, `${slug}: sin permiso, nada`);
+  }
+});
+
+test("Capital de trabajo: bloqueos de siempre — mes pasado cerrado (carga única en Real), Presupuesto validado (columna P) y mes en curso", () => {
+  for (const [slug, clave] of CON_CAPITAL_TIPEABLE) {
+    const pasado = { periodo: "2026-09", actual: "2026-10", semanas: CERRADO };
+    // Real: vacío viaja con aviso de carga única; ya cargado no viaja.
+    assert.equal(vista(slug, pasado)!.celdas.find((c) => c.id === `${clave}|REAL`)!.avisoUnaVez, true, slug);
+    assert.equal(vista(slug, { ...pasado, valoresReales: new Map([[clave, 100]]) })!.celdas.some((c) => c.id === `${clave}|REAL`), false, slug);
+    // Presupuestado: lo bloquea el Presupuesto validado, no el mes cerrado.
+    assert.equal(vista(slug, pasado)!.celdas.find((c) => c.id === `${clave}|PRESUPUESTADO`)!.avisoUnaVez, false, slug);
+    const validado = { presupuestoValidado: true };
+    assert.equal(vista(slug, validado)!.celdas.find((c) => c.id === `${clave}|PRESUPUESTADO`)!.avisoUnaVez, true, slug);
+    assert.equal(
+      vista(slug, { ...validado, valoresPresupuesto: new Map([[clave, 100]]) })!.celdas.some((c) => c.id === `${clave}|PRESUPUESTADO`),
+      false,
+      slug
+    );
+    // Mes en curso: el valor cargado viaja y se corrige.
+    const enCurso = vista(slug, { valoresReales: new Map([[clave, 3000000]]), valoresPresupuesto: new Map([[clave, 3000000]]) })!;
+    for (const col of ["PRESUPUESTADO", "REAL"]) assert.equal(enCurso.celdas.find((c) => c.id === `${clave}|${col}`)!.centavos, 3000000, `${slug} ${col}`);
+  }
+});
+
+test("Capital de trabajo: Plate Silver no cambia — su Capital es un total, no abre celda y el servidor lo rechaza para todos", () => {
+  const plantilla = PLANTILLAS_POR_SLUG["plate-silver"];
+  assert.equal(plantilla.filas.find((f) => f.clave === "ps.capital")!.tipo, "total");
+  assert.equal(camposTipeables(plantilla, "plate-silver").some((c) => c.bloque === "CIERRE"), false);
+  for (const columna of ["PRESUPUESTADO", "REAL"] as const) {
+    for (const esAdminOFinanzas of [true, false]) {
+      assert.ok(
+        motivoRechazoTipeo({ empresaSlug: "plate-silver", plantilla, esAdminOFinanzas, puedeCargarReal: true, entradas: [{ filaClave: "ps.capital", columna, texto: "1.000,00" }] }),
+        `${columna} ${esAdminOFinanzas}`
+      );
+    }
+  }
+});
+
+test("Capital de trabajo: ninguna otra empresa abre una línea de Cierre; solo Bradenton y Havanna Perú", () => {
+  const todas = Object.keys(PLANTILLAS_POR_SLUG);
+  const conLinea = todas.filter((slug) =>
+    camposTipeables(PLANTILLAS_POR_SLUG[slug], slug, { tipeo: todas, disponibilidades: todas, filasExtra: [] }).some(
+      (c) => c.bloque === "CIERRE" && c.columna === "REAL"
+    )
+  );
+  assert.deepEqual(conLinea.sort(), ["bradenton", "havanna-peru"]);
 });

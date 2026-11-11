@@ -17,6 +17,7 @@ import { esClaveDeFilaExtra } from "@/lib/reporte/filasExtra";
 import { ERROR_SIN_PERMISO_DE_CARGAR_REAL } from "@/lib/permisosReal";
 
 export const ERROR_SOLO_REAL = "Con tu permiso solo podés cargar el Real; el Presupuestado va por su flujo.";
+export const ERROR_SOLO_ADMIN_FINANZAS_CAPITAL = "El Capital de trabajo lo cargan solo ADMIN y FINANZAS.";
 
 // Tipeo directo en el Reporte (ADMIN y FINANZAS): el Real manual de las filas de la plantilla, el Presupuestado de las
 // que lo tienen pisable, el del Capital de trabajo y, en las filas extra, también el Presupuestado. Puro: sin Prisma ni next/*, para poder probarlo. Define qué celdas se pueden
@@ -37,7 +38,8 @@ const DE_CONFIG: InterruptoresTipeo = {
   filasExtra: EMPRESAS_CON_FILAS_EXTRA,
 };
 
-// Cierre es reservado: de él solo se tipea el Presupuestado del Capital de trabajo (ver camposTipeables); el resto no.
+// Cierre es reservado: de él solo se tipea el Capital de trabajo (ver camposTipeables); el resto no. Y solo ADMIN y FINANZAS:
+// el gerente nunca recibe ni guarda una celda de Cierre.
 const BLOQUES_DE_FLUJO: readonly Bloque[] = ["INGRESOS", "EGRESOS", "ABAJO"];
 
 export function tipeoDirectoActivo(empresaSlug: string, interruptores: InterruptoresTipeo = DE_CONFIG): boolean {
@@ -56,7 +58,9 @@ function tienePresupuestoPisable(f: Plantilla["filas"][number]): boolean {
 // Campos que se pueden tipear en el Reporte de esta empresa. Sin interruptor, ninguno.
 // - Filas de la plantilla: el Real manual (los de Disponibilidades, solo si la empresa también ve ese bloque) y el
 //   Presupuestado de las que lo tienen pisable (pisableConManual: Mantenor «Prestamos», Havanna «Acreditación Tarjetas»).
-// - Cierre: el Presupuestado del Capital de trabajo (fila `capital`); vacío = la regla de la plantilla.
+// - Cierre: el Presupuestado del Capital de trabajo (fila `capital`); vacío = la regla de la plantilla. Y el Capital que es
+//   una LÍNEA manual (Bradenton y Havanna Perú: valor tipeado en P y en R): Presupuestado y Real. El de un total (Plate
+//   Silver) y Disponible/Saldo/Excedente no abren celda. Estas celdas son solo de ADMIN y FINANZAS (ver armarVistaTipeo).
 // - Filas extra (clave «extra.<id>», solo si la plantilla que se pasa las trae): Presupuestado y Real.
 export function camposTipeables(
   plantilla: Plantilla,
@@ -68,11 +72,16 @@ export function camposTipeables(
   const conFilasExtra = (interruptores.filasExtra ?? EMPRESAS_CON_FILAS_EXTRA).includes(empresaSlug);
   const pisables = new Set(plantilla.filas.filter(tienePresupuestoPisable).map((f) => f.clave));
   const capitales = new Set(plantilla.filas.filter((f) => f.tipo === "capital").map((f) => f.clave));
+  // Capital de trabajo tipeado como línea de Cierre (P y R manuales): solo existe en Bradenton y Havanna Perú.
+  const capitalesLinea = new Set(plantilla.filas.filter((f) => f.tipo === "linea" && f.bloque === "CIERRE").map((f) => f.clave));
   return camposManuales(plantilla).filter((c) => {
     if (esClaveDeFilaExtra(c.clave)) return conFilasExtra && BLOQUES_DE_FLUJO.includes(c.bloque);
+    if (c.bloque === "CIERRE") {
+      // Del Cierre solo el Capital de trabajo: la fila `capital` (solo Presupuestado) o la línea manual (P y R). Ni Disponible
+      // ni Saldo ni el Capital que es un total.
+      return c.columna === "PRESUPUESTADO" ? capitales.has(c.clave) || capitalesLinea.has(c.clave) : capitalesLinea.has(c.clave);
+    }
     if (c.columna === "PRESUPUESTADO") {
-      // Del Cierre solo el Capital de trabajo (fila `capital`): ni Disponible ni Saldo ni el Capital que es una línea o un total.
-      if (c.bloque === "CIERRE") return capitales.has(c.clave);
       return pisables.has(c.clave) && BLOQUES_DE_FLUJO.includes(c.bloque);
     }
     return (
@@ -161,7 +170,8 @@ export function armarVistaTipeo(e: EntradaVistaTipeo): VistaTipeo | null {
   const tipeables = camposTipeables(e.plantilla, e.empresaSlug, e.interruptores);
   const disponibilidades = tipeables.some((c) => c.bloque === "DISPONIBILIDADES" && c.columna === "REAL");
   for (const c of tipeables) {
-    if (soloReal && c.columna !== "REAL") continue;
+    // El gerente con permiso recibe solo Real y nunca Cierre (el Capital de trabajo es de ADMIN y FINANZAS).
+    if (soloReal && (c.columna !== "REAL" || c.bloque === "CIERRE")) continue;
     const existente = (c.columna === "REAL" ? e.valoresReales : e.valoresPresupuesto)?.get(c.clave);
     const bloqueo = motivoBloqueo({
       periodo: e.periodo,
@@ -223,13 +233,14 @@ export function motivoRechazoTipeo(args: {
   if (!tipeoDirectoActivo(args.empresaSlug, args.interruptores)) {
     return "El tipeo directo en el Reporte no está habilitado para esta empresa.";
   }
-  const permitidos = new Set(
-    camposTipeables(args.plantilla, args.empresaSlug, args.interruptores).map((c) => `${c.clave}|${c.columna}`)
+  const permitidos = new Map(
+    camposTipeables(args.plantilla, args.empresaSlug, args.interruptores).map((c) => [`${c.clave}|${c.columna}`, c] as const)
   );
   for (const e of args.entradas) {
-    if (!permitidos.has(`${e.filaClave}|${e.columna}`)) {
-      return `"${e.filaClave}" no se puede tipear desde el Reporte.`;
-    }
+    const campo = permitidos.get(`${e.filaClave}|${e.columna}`);
+    if (!campo) return `"${e.filaClave}" no se puede tipear desde el Reporte.`;
+    // Misma regla que armarVistaTipeo: Cierre (Capital de trabajo) solo para ADMIN y FINANZAS.
+    if (!args.esAdminOFinanzas && campo.bloque === "CIERRE") return ERROR_SOLO_ADMIN_FINANZAS_CAPITAL;
   }
   return null;
 }
