@@ -118,7 +118,123 @@ function saldosDelResumen(filas: Celda[][], desde: number, enc: Encabezado): { i
   return { inicio, final };
 }
 
-export function leerChase(hoja: HojaGrilla, opciones: OpcionesLectura = {}): LecturaHavannaPeru {
+// ---- CSV original de Chase ---------------------------------------------------------------------------------------
+// El archivo que baja Chase (Chase3255_Activity_AAAAMMDD.csv): mismo encabezado que la pestaña, pero con una coma de más
+// al final de cada fila (8 campos contra 7), fechas MM/DD/AAAA, importes con punto decimal, del más nuevo al más viejo y
+// sin fila de saldo inicial. Se convierte a la misma grilla que la pestaña y se lee con el mismo lector.
+
+export type OpcionesChase = OpcionesLectura & {
+  // true = archivo crudo del banco (CSV): que venga del más nuevo al más viejo y sin saldo inicial es lo normal, no se avisa.
+  crudo?: boolean;
+};
+
+function decodificarCsv(bytes: Uint8Array): string {
+  let texto: string;
+  try {
+    texto = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    texto = new TextDecoder("windows-1252").decode(bytes);
+  }
+  return texto.replace(/^﻿/, "");
+}
+
+// Coma como separador, campos entre comillas (con "" adentro y hasta saltos de línea), CRLF o LF.
+export function partirCsv(texto: string): string[][] {
+  const filas: string[][] = [];
+  let fila: string[] = [];
+  let campo = "";
+  let entreComillas = false;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    if (entreComillas) {
+      if (c === '"' && texto[i + 1] === '"') {
+        campo += '"';
+        i++;
+      } else if (c === '"') entreComillas = false;
+      else campo += c;
+    } else if (c === '"') entreComillas = true;
+    else if (c === ",") {
+      fila.push(campo);
+      campo = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && texto[i + 1] === "\n") i++;
+      fila.push(campo);
+      filas.push(fila);
+      fila = [];
+      campo = "";
+    } else campo += c;
+  }
+  if (campo !== "" || fila.length > 0) {
+    fila.push(campo);
+    filas.push(fila);
+  }
+  return filas;
+}
+
+// MM/DD/AAAA estricto (nunca new Date(texto)). null = no tiene forma de fecha; una fecha imposible es error.
+function fechaMdy(texto: string, numeroFila: number): Date | null {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(texto);
+  if (!m) return null;
+  const mes = Number(m[1]);
+  const dia = Number(m[2]);
+  const anio = Number(m[3]);
+  const f = new Date(Date.UTC(anio, mes - 1, dia));
+  if (anio < 2000 || anio > 2100 || mes < 1 || mes > 12 || f.getUTCMonth() !== mes - 1 || f.getUTCDate() !== dia) {
+    throw new ErrorExtracto(`Fila ${numeroFila}: fecha inválida ("${texto}"; el CSV de Chase usa MM/DD/AAAA).`);
+  }
+  return f;
+}
+
+// Importe con punto decimal ("-1197.33", "87109.11", "1,234.56") a número. Nunca se adivina otro formato.
+function numeroChase(texto: string, numeroFila: number, columna: string): number | null {
+  const t = texto.trim();
+  if (t === "") return null;
+  const limpio = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t) ? t.replace(/,/g, "") : t;
+  if (!/^-?\d+(\.\d+)?$/.test(limpio)) throw new ErrorExtracto(`Fila ${numeroFila}: no pude leer ${columna} ("${t}").`);
+  return Number(limpio);
+}
+
+// ¿Son los bytes del CSV de Chase? Se decide por contenido (no por la extensión): no es un .xlsx ("PK") y la primera
+// línea trae el encabezado.
+export function esCsvChase(bytes: Uint8Array): boolean {
+  if (bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b) return false;
+  const primera = decodificarCsv(bytes.subarray(0, Math.min(bytes.length, 2048))).split(/\r\n|\n|\r/)[0] ?? "";
+  return /posting date/i.test(primera) && /description/i.test(primera) && /balance/i.test(primera);
+}
+
+export function hojaDeCsvChase(bytes: Uint8Array): HojaGrilla {
+  const crudas = partirCsv(decodificarCsv(bytes));
+  const filas: Celda[][] = [];
+  const comoCelda = (c: string): Celda => (c.trim() === "" ? null : c.trim());
+  let cols: { fecha: number; importe: number; saldo: number } | null = null;
+  crudas.forEach((campos, i) => {
+    const numeroFila = i + 1;
+    const fila = campos.map(comoCelda);
+    if (cols === null) {
+      // Hasta el encabezado, todo se copia como texto (el lector lo busca por contenido).
+      filas.push(fila);
+      const textos = fila.map(textoNormalizado);
+      if (textos.includes("POSTING DATE") && textos.includes("AMOUNT") && textos.includes("BALANCE")) {
+        cols = { fecha: textos.indexOf("POSTING DATE"), importe: textos.indexOf("AMOUNT"), saldo: textos.indexOf("BALANCE") };
+      }
+      return;
+    }
+    if (fila.every((c) => c === null)) {
+      filas.push([]);
+      return;
+    }
+    fila[cols.fecha] = fechaMdy((campos[cols.fecha] ?? "").trim(), numeroFila);
+    fila[cols.importe] = numeroChase(campos[cols.importe] ?? "", numeroFila, "el importe");
+    fila[cols.saldo] = numeroChase(campos[cols.saldo] ?? "", numeroFila, "el balance");
+    filas.push(fila);
+  });
+  if (cols === null) {
+    throw new ErrorExtracto("No encontré la fila de encabezados del CSV de Chase (Posting Date, Description, Amount, Balance). ¿Es el archivo correcto?");
+  }
+  return { nombre: "CSV de Chase", filas, date1904: false };
+}
+
+export function leerChase(hoja: HojaGrilla, opciones: OpcionesChase = {}): LecturaHavannaPeru {
   const enc = encabezadoChase(hoja.filas);
   if (!enc) {
     throw new ErrorExtracto(
@@ -191,7 +307,7 @@ export function leerChase(hoja: HojaGrilla, opciones: OpcionesLectura = {}): Lec
     const desc = cortesDeCadena(leidas, "desc");
     if (desc.cortes === 0) {
       ordenadas = [...leidas].reverse();
-      avisos.add("El extracto venía del más nuevo al más viejo: se ordenó cronológicamente por el Balance.");
+      if (!opciones.crudo) avisos.add("El extracto venía del más nuevo al más viejo: se ordenó cronológicamente por el Balance.");
     } else {
       errores.push(
         `El Balance no cierra con el movimiento anterior en ${asc.cortes} filas (la primera es la fila ${asc.primeraFila}): faltan o sobran movimientos, o están fuera de orden.`
@@ -203,7 +319,7 @@ export function leerChase(hoja: HojaGrilla, opciones: OpcionesLectura = {}): Lec
   const primera = ordenadas[0];
   if (saldoInicial === null) {
     saldoInicial = primera.saldo - primera.importe;
-    avisos.add("El extracto no trae la fila de saldo inicial: se derivó del Balance de la primera fila.");
+    if (!opciones.crudo) avisos.add("El extracto no trae la fila de saldo inicial: se derivó del Balance de la primera fila.");
   } else if (saldoInicial + primera.importe !== primera.saldo && errores.length === 0) {
     errores.push(
       `El saldo inicial (${fmt(saldoInicial)}) más el primer movimiento (${fmt(primera.importe)}) no da el Balance de la primera fila (${fmt(primera.saldo)}).`

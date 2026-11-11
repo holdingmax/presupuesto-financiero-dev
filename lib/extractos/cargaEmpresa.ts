@@ -71,14 +71,19 @@ export function configDeEmpresa(slug: string): ConfigExtractoEmpresa | null {
 }
 
 // Texto de la pantalla de subida: qué libro pedir y adónde va cada moneda. Sale de la configuración de la empresa.
+// Extensiones que acepta la subida de cada empresa: el libro PF (.xlsx) y, solo Bradenton, el .csv original de Chase.
+export function aceptaDeEmpresa(empresaSlug: string): string {
+  return configDeEmpresa(empresaSlug)?.lector === "chase" ? ".xlsx,.csv" : ".xlsx";
+}
+
 export function textoSubidaExtractoEmpresa(empresaSlug: string, maxBytes: number, maxFilas: number): string {
   const config = configDeEmpresa(empresaSlug);
   const limite = `hasta ${Math.round(maxBytes / (1024 * 1024))} MB y ${maxFilas.toLocaleString("es-AR")} movimientos por mes`;
   if (!config) return "";
   const nombresMoneda: Record<string, string> = { PEN: "soles", USD: "dólares" };
   const destinos = Object.entries(config.cuentaPorMoneda).map(([m, cuenta]) => `los de ${nombresMoneda[m] ?? m} en ${cuenta}`);
-  const libro = config.lector === "chase" ? "el libro PF de Bradenton" : "el libro PF de Perú";
-  return `Subí ${libro} (.xlsx, ${limite}). El sistema busca la pestaña de movimientos del mes, te muestra un resumen y recién cuando confirmás carga los movimientos: ${destinos.join(" y ")}. Todo entra sin clasificar.`;
+  const libro = config.lector === "chase" ? "el libro PF de Bradenton o el .csv original de Chase" : "el libro PF de Perú";
+  return `Subí ${libro} (${aceptaDeEmpresa(empresaSlug).replace(/,/g, " o ")}, ${limite}). El sistema busca la pestaña de movimientos del mes, te muestra un resumen y recién cuando confirmás carga los movimientos: ${destinos.join(" y ")}. Todo entra sin clasificar.`;
 }
 
 // ---- Cuentas forzadas ---------------------------------------------------------------------------

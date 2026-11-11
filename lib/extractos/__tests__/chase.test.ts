@@ -4,9 +4,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { decimalTextoDeCentavos } from "@/lib/conteoMovimientos";
 import { validarCuenta } from "@/lib/cuentasBancarias";
 import { BANCO_BBVA_PERU, BANCO_CHASE, CUENTAS_CHASE, monedaDeCuentaFija } from "@/lib/extractos/bancosCuenta";
-import { leerChase, referenciaDeChase } from "@/lib/extractos/chase";
+import { esCsvChase, hojaDeCsvChase, leerChase, partirCsv, referenciaDeChase } from "@/lib/extractos/chase";
 import { DETECTOR_CHASE, leerPestanaHavannaPeru, listarPestanasMovimientos, seleccionarPestanaHavannaPeru } from "@/lib/extractos/havannaPeruPestanas";
 import {
+  aceptaDeEmpresa,
   armarFilasACargar,
   configDeEmpresa,
   datosParaCrear,
@@ -305,7 +306,7 @@ test("pantalla: el texto de la subida habla del libro de Bradenton y de CHASE BR
 
 test("la acción de Perú y la de Bradenton son la misma: despacha por el lector de la configuración", () => {
   const src = readFileSync("app/ejecucion/actionsExtractoEmpresa.ts", "utf8");
-  assert.match(src, /config\.lector === "chase" \? leerChase\(hoja\)/);
+  assert.match(src, /config\.lector === "chase" \? leerChase\(hoja, \{ crudo \}\)/);
   assert.match(src, /DETECTOR_CHASE/);
   assert.ok(!/cuentas\.PEN|cuentas\.USD/.test(src), "ya no está atada a las dos cuentas de Perú");
 });
@@ -357,4 +358,145 @@ test("LIBRO REAL (octubre): la pestaña CHASE trae septiembre y también cuadra"
   assert.deepEqual(l.errores, []);
   assert.equal(l.filas.length, 172);
   assert.equal(l.control[0].estado, "cuadra");
+});
+
+// ------------------------------------------------------------------ CSV original de Chase
+
+const ENCABEZADO_CSV = "Details,Posting Date,Description,Amount,Type,Balance,Check or Slip #";
+// Como lo baja Chase: del más nuevo al más viejo, coma de más al final de cada fila (8 campos), fechas MM/DD/AAAA,
+// importes con punto, descripciones entre comillas (con comas adentro y espacios de más) y el Nº de cheque en la 7ª.
+const CSV_CHASE = [
+  ENCABEZADO_CSV,
+  'DEBIT,10/30/2026,"MONTHLY SERVICE FEE",-11.00,FEE_TRANSACTION,1015.00,,',
+  'CHECK,10/30/2026,"CHECK 1785  ",-100.50,CHECK_PAID,1026.00,1785,',
+  'CREDIT,10/05/2026,"ORIG CO NAME:ACME, INC.       ORIG ID:1 TRACE#:051000010659493 EED:261001   TRN: 2740659493TC",126.50,ACH_CREDIT,1126.50,,',
+  'DSLIP,10/01/2026,"DEPOSIT  ID NUMBER 293053",1000.00,DEPOSIT,1000.00,,',
+  "",
+].join("\r\n");
+const bytesCsv = (t: string) => new TextEncoder().encode(t);
+const leeCsv = (t: string = CSV_CHASE) => leerChase(hojaDeCsvChase(bytesCsv(t)), { crudo: true, hoy: HOY });
+
+test("CSV: se reconoce por contenido (no por la extensión) y no se confunde con un .xlsx", () => {
+  assert.equal(esCsvChase(bytesCsv(CSV_CHASE)), true);
+  assert.equal(esCsvChase(libroBradenton()), false, "un .xlsx empieza con PK");
+  assert.equal(esCsvChase(bytesCsv("a,b,c\n1,2,3\n")), false);
+  assert.equal(esCsvChase(bytesCsv("\uFEFF" + CSV_CHASE)), true, "con BOM");
+});
+
+test("CSV: lee tal cual el original de Chase (coma final, fechas MM/DD/AAAA, del más nuevo al más viejo)", () => {
+  const l = leeCsv();
+  assert.deepEqual(l.errores, []);
+  assert.equal(l.filas.length, 4);
+  // Cronológico: la más vieja primero.
+  assert.deepEqual(l.filas.map((f) => f.fecha.toISOString().slice(0, 10)), ["2026-10-01", "2026-10-05", "2026-10-30", "2026-10-30"]);
+  assert.deepEqual(l.filas.map((f) => f.importeCentavos), [100000, 12650, -10050, -1100]);
+  assert.deepEqual(l.filas.map((f) => f.saldoCentavos), [100000, 112650, 102600, 101500]);
+  const c = l.control[0];
+  assert.equal(c.inicialCentavos, 0, "sin fila de saldo inicial: se deriva de la cadena (1000 − 1000)");
+  assert.equal(c.finalCentavos, 101500);
+  assert.equal(c.estado, "cuadra");
+  assert.deepEqual(l.avisos, [], "venir del más nuevo al más viejo y sin saldo inicial es lo normal en el CSV: no se avisa");
+  // La coma dentro de las comillas no parte el campo; las referencias salen de la descripción.
+  assert.equal(l.filas[1].concepto.startsWith("ORIG CO NAME:ACME, INC."), true);
+  assert.equal(l.filas[1].referencia, "TRN 2740659493");
+  assert.equal(l.filas[2].referencia, "CHECK 1785");
+  assert.equal(l.filas[2].concepto, "CHECK 1785", "los espacios de más del final se recortan");
+  assert.equal(l.filas[0].referencia, "DEPOSIT 293053");
+});
+
+test("CSV: la fecha es MM/DD/AAAA (01/02 es el 2 de enero, no el 1 de febrero)", () => {
+  const csv = [ENCABEZADO_CSV, 'DEBIT,01/02/2026,"X",-5.00,DEBIT_CARD,95.00,,', 'DEBIT,01/01/2026,"Y",100.00,DEPOSIT,100.00,,'].join("\n");
+  const l = leeCsv(csv);
+  assert.deepEqual(l.errores, []);
+  assert.deepEqual(l.filas.map((f) => f.fecha.toISOString().slice(0, 10)), ["2026-01-01", "2026-01-02"]);
+});
+
+test("CSV: un Balance que no encadena se informa y no se carga; un movimiento que falta también", () => {
+  const roto = CSV_CHASE.replace("1026.00", "1030.00");
+  assert.match(leeCsv(roto).errores.join(" "), /Balance no cierra/);
+  const sinUno = CSV_CHASE.split("\r\n").filter((l) => !l.includes("ACME")).join("\r\n");
+  assert.ok(leeCsv(sinUno).errores.length > 0);
+});
+
+test("CSV: errores claros (fecha imposible, importe en otro formato, sin encabezado)", () => {
+  assert.throws(() => leeCsv(CSV_CHASE.replace("10/05/2026", "13/05/2026")), /fecha inválida/);
+  assert.throws(() => leeCsv(CSV_CHASE.replace("126.50,ACH_CREDIT", '"1.234,56",ACH_CREDIT')), /no pude leer el importe/);
+  assert.throws(() => hojaDeCsvChase(bytesCsv("a,b\n1,2\n")), /No encontré la fila de encabezados del CSV de Chase/);
+});
+
+test("CSV: partirCsv respeta comillas, comillas dobles y saltos de línea dentro del campo", () => {
+  assert.deepEqual(partirCsv('a,"b,c","d ""e""",\r\nf,"g\nh",,'), [["a", "b,c", 'd "e"', ""], ["f", "g\nh", "", ""]]);
+});
+
+test("CSV: pasa por el mismo camino de carga que la pestaña (cuenta, USD, unidad, SIN CLASIFICAR) y resubir no duplica", () => {
+  const r = resolverCuentasForzadas(CONFIG, EMPRESA, [CUENTA_OK]);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const filas = armarFilasACargar(leeCsv(), CONFIG, r.cuentas);
+  assert.ok(filas.every((f) => f.bancoYCuenta === "CHASE BRADENTON" && f.moneda === "USD" && f.unidadNegocio === "BRADENTON" && f.clasificacion === "SIN CLASIFICAR"));
+  assert.equal(planificarCarga(filas, [], CONFIG.etiqueta).nuevas.length, 4);
+  assert.equal(planificarCarga(filas, comoExistentes(filas), CONFIG.etiqueta).nuevas.length, 0);
+});
+
+test("la acción: el .csv solo lo acepta Bradenton (Chase); Perú sigue aceptando solo .xlsx", () => {
+  const src = readFileSync("app/ejecucion/actionsExtractoEmpresa.ts", "utf8");
+  assert.match(src, /const aceptaCsv = config\.lector === "chase"/);
+  assert.match(src, /El archivo tiene que ser un \.xlsx \(libro PF\) o el \.csv de Chase\./);
+  assert.match(src, /: "El archivo tiene que ser un \.xlsx\."/);
+  assert.match(src, /leerChase\(hoja, \{ crudo \}\)/);
+  assert.equal(aceptaDeEmpresa("bradenton"), ".xlsx,.csv");
+  assert.equal(aceptaDeEmpresa("havanna-peru"), ".xlsx");
+  assert.match(textoSubidaExtractoEmpresa("bradenton", MAX_BYTES_HAVANNA_PERU, MAX_FILAS_HAVANNA_PERU), /\.csv original de Chase \(\.xlsx o \.csv,/);
+});
+
+// ------------------------------------------------------------------ el CSV REAL de Romina (se omite si no está en esta máquina)
+
+const CSV_REAL = process.env.CSV_BRADENTON ?? "C:/Users/Usuario/Downloads/Chase3255_Activity_20261111 (1).csv";
+
+test("CSV REAL (Chase3255_Activity_20261111): 182 movimientos, 67.197,91 + 19.911,20 = 87.109,11, sin avisos", { skip: !existsSync(CSV_REAL) }, () => {
+  const bytes = new Uint8Array(readFileSync(CSV_REAL));
+  assert.equal(esCsvChase(bytes), true);
+  const l = leerChase(hojaDeCsvChase(bytes), { crudo: true, hoy: HOY });
+  assert.deepEqual(l.errores, []);
+  assert.deepEqual(l.avisos, []);
+  assert.equal(l.filas.length, 182);
+  const c = l.control[0];
+  assert.equal(c.inicialCentavos, 6719791);
+  assert.equal(c.movimientosCentavos, 1991120);
+  assert.equal(c.finalCentavos, 8710911);
+  assert.equal(c.estado, "cuadra");
+  // La más vieja primero (el CSV viene al revés): el depósito 293053 del 1/10, y la última es la del 30/10.
+  assert.equal(l.filas[0].referencia, "DEPOSIT 293053");
+  assert.equal(l.filas[0].fecha.toISOString().slice(0, 10), "2026-10-01");
+  assert.equal(l.filas[181].fecha.toISOString().slice(0, 10), "2026-10-30");
+  const r = resolverCuentasForzadas(CONFIG, EMPRESA, [CUENTA_OK]);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const filas = armarFilasACargar(l, CONFIG, r.cuentas);
+  assert.equal(errorFechasFueraDelPeriodo(filas, "2026-10"), null);
+  assert.equal(new Set(filas.map((f) => f.clave)).size, 182, "claves únicas");
+  assert.equal(planificarCarga(filas, [], CONFIG.etiqueta).nuevas.length, 182);
+  assert.equal(planificarCarga(filas, comoExistentes(filas), CONFIG.etiqueta).nuevas.length, 0, "CSV → CSV: resubir no duplica");
+});
+
+test("CSV REAL vs libro: las dos fuentes traen los mismos 182 movimientos (fecha e importe), pero NO las mismas claves", { skip: !existsSync(CSV_REAL) || !existsSync(LIBRO_NOVIEMBRE) }, () => {
+  const csv = leerChase(hojaDeCsvChase(new Uint8Array(readFileSync(CSV_REAL))), { crudo: true, hoy: HOY });
+  const sel = seleccionarPestanaHavannaPeru(new Uint8Array(readFileSync(LIBRO_NOVIEMBRE)), OCTUBRE, undefined, DETECTOR_CHASE);
+  assert.equal(sel.tipo, "elegida");
+  if (sel.tipo !== "elegida") return;
+  const libro = leerChase(sel.hoja, { hoy: HOY });
+  const par = (f: { fecha: Date; importeCentavos: number }) => `${f.fecha.toISOString().slice(0, 10)}|${f.importeCentavos}`;
+  const contar = (xs: string[]) => xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>());
+  assert.deepEqual([...contar(csv.filas.map(par))].sort(), [...contar(libro.filas.map(par))].sort(), "mismos movimientos");
+  assert.equal(csv.control[0].finalCentavos, libro.control[0].finalCentavos);
+  // Pero el Balance intermedio del libro lo reordenó Kike dentro de cada día y 44 descripciones vienen de otra exportación:
+  // las claves (que incluyen el saldo y el concepto) no coinciden. Mezclar las dos fuentes en el mismo mes se frena (no duplica).
+  const r = resolverCuentasForzadas(CONFIG, EMPRESA, [CUENTA_OK]);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const delLibro = armarFilasACargar(libro, CONFIG, r.cuentas);
+  const delCsv = armarFilasACargar(csv, CONFIG, r.cuentas);
+  const plan = planificarCarga(delCsv, comoExistentes(delLibro), CONFIG.etiqueta);
+  assert.equal(plan.cantidadYaCargadas, 0);
+  assert.ok(plan.bloqueo && /ya tienen movimientos cargados/.test(plan.bloqueo), "se bloquea: no se carga nada");
 });

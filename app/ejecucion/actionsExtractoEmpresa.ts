@@ -11,7 +11,7 @@ import { verificarTamanoHavannaPeru } from "@/lib/extractos/limites";
 import { leerHavannaPeru, type ControlPieMoneda } from "@/lib/extractos/havannaPeru";
 import { rangoDelPeriodo } from "@/lib/extractos/cargaEmpresa";
 import { DETECTOR_CHASE, DETECTOR_HAVANNA_PERU, seleccionarPestanaHavannaPeru } from "@/lib/extractos/havannaPeruPestanas";
-import { leerChase } from "@/lib/extractos/chase";
+import { esCsvChase, hojaDeCsvChase, leerChase } from "@/lib/extractos/chase";
 import { ErrorExtracto } from "@/lib/extractos/tipos";
 import {
   ERROR_EMPRESA_SIN_EXTRACTO,
@@ -93,7 +93,12 @@ export async function subirExtractoEmpresa(
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) return { ok: false, error: "Elegí un archivo antes de subir." };
-  if (!/\.xlsx$/i.test(archivo.name)) return { ok: false, error: "El archivo tiene que ser un .xlsx." };
+  // Bradenton (Chase) acepta además el .csv original que baja el banco; el resto de las empresas, solo el .xlsx.
+  const aceptaCsv = config.lector === "chase";
+  const esCsv = aceptaCsv && /\.csv$/i.test(archivo.name);
+  if (!esCsv && !/\.xlsx$/i.test(archivo.name)) {
+    return { ok: false, error: aceptaCsv ? "El archivo tiene que ser un .xlsx (libro PF) o el .csv de Chase." : "El archivo tiene que ser un .xlsx." };
+  }
   const freno = verificarTamanoHavannaPeru(archivo.size);
   if (!freno.ok) return { ok: false, error: freno.error };
 
@@ -113,28 +118,39 @@ export async function subirExtractoEmpresa(
   const bytes = new Uint8Array(await archivo.arrayBuffer());
   let hoja;
   let nombrePestana: string;
+  let crudo = false;
   try {
-    const sel = seleccionarPestanaHavannaPeru(
-      bytes,
-      rangoDelPeriodo(periodo),
-      opciones.pestana,
-      config.lector === "chase" ? DETECTOR_CHASE : DETECTOR_HAVANNA_PERU
-    );
-    if (sel.tipo === "candidatas") {
-      return {
-        ok: false,
-        requierePestana: true,
-        motivo: sel.motivo,
-        candidatas: sel.candidatas.map((c) => ({
-          nombre: c.nombre,
-          desde: c.desde.toISOString().slice(0, 10),
-          hasta: c.hasta.toISOString().slice(0, 10),
-          filas: c.filas,
-        })),
-      };
+    if (esCsv) {
+      // El CSV no tiene pestañas: es una sola tabla. Se decide por contenido, no por la extensión.
+      if (!esCsvChase(bytes)) {
+        return { ok: false, error: "El .csv no parece el extracto de Chase (no encuentro el encabezado Posting Date / Description / Amount / Balance)." };
+      }
+      hoja = hojaDeCsvChase(bytes);
+      nombrePestana = hoja.nombre;
+      crudo = true;
+    } else {
+      const sel = seleccionarPestanaHavannaPeru(
+        bytes,
+        rangoDelPeriodo(periodo),
+        opciones.pestana,
+        config.lector === "chase" ? DETECTOR_CHASE : DETECTOR_HAVANNA_PERU
+      );
+      if (sel.tipo === "candidatas") {
+        return {
+          ok: false,
+          requierePestana: true,
+          motivo: sel.motivo,
+          candidatas: sel.candidatas.map((c) => ({
+            nombre: c.nombre,
+            desde: c.desde.toISOString().slice(0, 10),
+            hasta: c.hasta.toISOString().slice(0, 10),
+            filas: c.filas,
+          })),
+        };
+      }
+      hoja = sel.hoja;
+      nombrePestana = sel.candidata.nombre;
     }
-    hoja = sel.hoja;
-    nombrePestana = sel.candidata.nombre;
   } catch (e) {
     if (e instanceof ErrorExtracto) return { ok: false, error: e.message };
     throw e;
@@ -143,7 +159,7 @@ export async function subirExtractoEmpresa(
   let lectura;
   try {
     // Perú: la moneda de la cuenta solo se usaría si faltara la columna Moneda; abajo eso se rechaza. Chase: todo USD.
-    lectura = config.lector === "chase" ? leerChase(hoja) : leerHavannaPeru(hoja, { monedaCuenta: "PEN" });
+    lectura = config.lector === "chase" ? leerChase(hoja, { crudo }) : leerHavannaPeru(hoja, { monedaCuenta: "PEN" });
   } catch (e) {
     if (e instanceof ErrorExtracto) return { ok: false, error: e.message };
     throw e;
