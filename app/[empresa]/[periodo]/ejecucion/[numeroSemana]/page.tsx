@@ -1,7 +1,7 @@
 import Link from "next/link";
 import TablaMovimientos from "@/app/ejecucion/TablaMovimientos";
 import Paginacion from "@/app/ejecucion/Paginacion";
-import { formatearImporteConCentavos } from "@/app/ejecucion/formato";
+import TotalesPorMoneda from "@/app/ejecucion/TotalesPorMoneda";
 import { obtenerDatosSemanaDeEmpresa } from "../datos";
 import { AccesoDenegadoError } from "@/lib/auth";
 import { textoTrazabilidad } from "@/lib/fecha";
@@ -193,17 +193,7 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
             <p className="text-xs font-medium uppercase tracking-wide text-ink-faint mb-0.5">
               Total
             </p>
-            <p
-              className={`tabular text-2xl font-semibold ${
-                datos.totalImporte < 0
-                  ? "text-negative"
-                  : datos.totalImporte > 0
-                    ? "text-positive"
-                    : "text-ink"
-              }`}
-            >
-              ${formatearImporteConCentavos(datos.totalImporte)}
-            </p>
+            <TotalesPorMoneda totales={datos.totalesPorMoneda} />
             {datos.hayReservados && (
               <p className="mt-0.5 text-xs text-ink-muted">No incluye movimientos reservados</p>
             )}

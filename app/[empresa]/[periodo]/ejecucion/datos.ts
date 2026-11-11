@@ -6,7 +6,8 @@ import { FILAS_POR_PAGINA, filtroDeUnidades, mapearMovimiento, sumarImporteDeUni
 import { opcionesDeClasificacion, whereMovimientosDeEmpresa } from "@/lib/filtroClasificacionEmpresa";
 import { obtenerValoresOcultos } from "@/lib/ocultasGerenteDb";
 import { slugDeEmpresa } from "@/lib/slug";
-import { avisoSemanasAbiertas, sumarTotalesSemanales, whereMovimientosDelMes } from "@/lib/ejecucionMes";
+import { avisoSemanasAbiertas, sumarTotalesSemanalesPorMoneda, whereMovimientosDelMes } from "@/lib/ejecucionMes";
+import { totalEnPesos } from "@/lib/moneda";
 
 // Pestaña "Ejecución financiera" de cada empresa (docs/ejecucion_global_plan.md §3.4 y §6): SOLO
 // LECTURA y filtrada. Ejecución se opera en el módulo global (/ejecucion); acá se ve, de cada
@@ -58,7 +59,7 @@ export async function obtenerDatosSemanaDeEmpresa(
   // Semana + unidades de la empresa (AND) + clasificación elegida, si hay (menos las ocultas).
   const where = whereMovimientosDeEmpresa(ejecucion.id, unidades, clasificacion, ocultas);
 
-  const [totalMovimientos, totalImporte, semanas, clasificacionesDeLaEmpresa, cantidadOcultos] = await Promise.all([
+  const [totalMovimientos, totalesPorMoneda, semanas, clasificacionesDeLaEmpresa, cantidadOcultos] = await Promise.all([
     prisma.movimientoBancario.count({ where }),
     sumarImporteDeUnidades(ejecucion.id, unidades, clasificacion, ocultas),
     prisma.ejecucionSemanal.findMany({
@@ -111,7 +112,9 @@ export async function obtenerDatosSemanaDeEmpresa(
     sinUnidades: unidades.length === 0,
     movimientos: movimientos.map((m) => mapearMovimiento(m, unidades)),
     totalMovimientos,
-    totalImporte,
+    // Total en pesos (como siempre) y el Total por moneda que muestra la pantalla.
+    totalImporte: totalEnPesos(totalesPorMoneda),
+    totalesPorMoneda,
     hayReservados: cantidadOcultos > 0,
     pagina: paginaEfectiva,
     totalPaginas,
@@ -172,6 +175,7 @@ export async function obtenerDatosMesDeEmpresa(
   ]);
   const totalPaginas = Math.max(1, Math.ceil(totalMovimientos / FILAS_POR_PAGINA));
   const paginaEfectiva = Math.min(Math.max(1, pagina), totalPaginas);
+  const totalesDelMes = sumarTotalesSemanalesPorMoneda(totalesSemanales);
 
   const movimientos = await prisma.movimientoBancario.findMany({
     where,
@@ -191,7 +195,9 @@ export async function obtenerDatosMesDeEmpresa(
     sinUnidades: unidades.length === 0,
     movimientos: movimientos.map((m) => ({ ...mapearMovimiento(m, unidades), semana: semanaDe.get(m.ejecucionId) })),
     totalMovimientos,
-    totalImporte: sumarTotalesSemanales(totalesSemanales),
+    // Total en pesos (como siempre) y el Total por moneda que muestra la pantalla.
+    totalImporte: totalEnPesos(totalesDelMes),
+    totalesPorMoneda: totalesDelMes,
     hayReservados: cantidadOcultos > 0,
     pagina: paginaEfectiva,
     totalPaginas,

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { guardarDesgloseMovimiento, eliminarDesgloseMovimiento } from "./actions";
 import CampoImporte from "@/components/CampoImporte";
 import { mensajeDeImporte } from "@/lib/importes";
+import { prefijoMoneda } from "@/lib/moneda";
 import { opcionesUnidad } from "@/lib/unidadesNegocio";
 import {
   CIEN_POR_CIENTO,
@@ -27,6 +28,8 @@ type Props = {
   numeroSemana: number;
   movimientoId: string;
   importeMovimiento: number;
+  // Moneda del movimiento (código ISO); sin dato es pesos.
+  moneda?: string;
   desgloseInicial: { id: string; unidadNegocio: string; importe: number }[];
   onCerrar: () => void;
 };
@@ -44,9 +47,11 @@ export default function PanelDesgloseMovimiento({
   numeroSemana,
   movimientoId,
   importeMovimiento,
+  moneda,
   desgloseInicial,
   onCerrar,
 }: Props) {
+  const simbolo = prefijoMoneda(moneda);
   const router = useRouter();
   const { periodo: periodoUrl } = useParams<{ periodo: string }>();
 
@@ -208,14 +213,14 @@ export default function PanelDesgloseMovimiento({
   const textoDiferencia =
     modo === "porcentaje"
       ? `${calculo.diferencia > 0 ? "Falta" : "Sobra"} ${formatearPorcentaje(Math.abs(calculo.diferencia))}%`
-      : `${calculo.diferencia > 0 ? "Falta" : "Sobra"} $${formatearCentavos(Math.abs(calculo.diferencia))}`;
+      : `${calculo.diferencia > 0 ? "Falta" : "Sobra"} ${simbolo}${formatearCentavos(Math.abs(calculo.diferencia))}`;
 
   return (
     <div className="rounded-md border border-line-strong border-l-4 border-l-marino bg-paper-cool px-4 py-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-medium text-ink">
           Prorrateo por unidad de negocio{" "}
-          <span className="font-normal text-ink-muted">· ${formatearCentavos(total)}</span>
+          <span className="font-normal text-ink-muted">· {simbolo}{formatearCentavos(total)}</span>
         </p>
         <div className="flex items-center gap-2 text-xs">
           <span className="text-ink-muted">Cargar por</span>
@@ -307,7 +312,7 @@ export default function PanelDesgloseMovimiento({
                   />
                 ) : (
                   <p className="flex h-10 items-center justify-end pr-1 text-sm tabular text-ink-muted">
-                    {calculo.valido[i] ? `$${formatearCentavos(calculo.montos[i])}` : "—"}
+                    {calculo.valido[i] ? `${simbolo}${formatearCentavos(calculo.montos[i])}` : "—"}
                   </p>
                 )}
                 {errorImporte && <p className="mt-1 text-xs text-terracota">{errorImporte}</p>}
@@ -359,9 +364,9 @@ export default function PanelDesgloseMovimiento({
         <span className="text-xs">
           <span className="text-ink-muted">Repartido: </span>
           <span className="tabular font-medium text-ink">
-            ${formatearCentavos(sumaMontos)} ({formatearPorcentaje(porcentajeDeCentavos(sumaMontos, total))}%)
+            {simbolo}{formatearCentavos(sumaMontos)} ({formatearPorcentaje(porcentajeDeCentavos(sumaMontos, total))}%)
           </span>
-          <span className="text-ink-muted"> de ${formatearCentavos(total)}</span>
+          <span className="text-ink-muted"> de {simbolo}{formatearCentavos(total)}</span>
           {calculo.cierra ? (
             <span className="ml-2 font-medium text-verde">✓ Cierra exacto</span>
           ) : (

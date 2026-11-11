@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
 import { ordenarPorCadenaDeSaldo } from "@/lib/ordenSaldo";
 import { coincide, type FiltrosEjecucion } from "@/lib/filtrosEjecucion";
+import { centavosEnPesos, normalizarMoneda, sumarPorMoneda, type TotalMoneda } from "@/lib/moneda";
 
 // Lectura de movimientos de Ejecución compartida por el módulo global (/ejecucion) y por la
 // pestaña de solo lectura de cada empresa (docs/ejecucion_global_plan.md §3.4 y §6). Vive fuera
@@ -94,13 +95,24 @@ export async function vistaDeLaSemana(ejecucionId: string, filtros: FiltrosEjecu
     }))
   );
   const visibles = ordenadas.filter((f) => coincide(f, filtros));
+  // El Total es POR moneda: pesos, soles y dólares nunca se suman entre sí. `totalCentavos` sigue siendo el
+  // total en pesos (lo que alimenta `totalImporte` y a sus consumidores).
+  const totalesPorMoneda = totalesVisibles(visibles);
   return {
     ids: visibles.map((f) => f.id),
     cantidad: visibles.length,
-    totalCentavos: visibles.reduce((acc, f) => (f.ignorado ? acc : acc + f.importeCentavos), 0),
+    totalCentavos: centavosEnPesos(totalesPorMoneda),
+    totalesPorMoneda,
     totalSemana: ordenadas.length,
     cuentas: Array.from(new Set(ordenadas.map((f) => f.bancoYCuenta))).sort((a, b) => a.localeCompare(b, "es")),
   };
+}
+
+// Total por moneda de las filas visibles, sin los ignorados, en centavos enteros.
+export function totalesVisibles(
+  filas: readonly { ignorado: boolean; moneda?: string | null; importeCentavos: number }[]
+): TotalMoneda[] {
+  return sumarPorMoneda(filas.filter((f) => !f.ignorado).map((f) => ({ moneda: f.moneda, centavos: f.importeCentavos })));
 }
 
 // Lo que viaja al navegador por cada movimiento. El saldo SOLO viaja con `verSaldo` (§6: ADMIN,
@@ -115,6 +127,8 @@ export function mapearMovimiento(
     concepto: string;
     importe: unknown;
     saldo?: unknown;
+    // Sin dato (filas cargadas antes de la columna) es pesos.
+    moneda?: string | null;
     bancoYCuenta: string;
     clasificacion: string;
     unidadNegocio: string;
@@ -144,6 +158,7 @@ export function mapearMovimiento(
     fecha: m.fecha.toISOString().slice(0, 10),
     concepto: m.concepto,
     importe,
+    moneda: normalizarMoneda(m.moneda),
     ...(verSaldo ? { saldo: m.saldo === null || m.saldo === undefined ? null : Number(m.saldo) } : {}),
     bancoYCuenta: m.bancoYCuenta,
     clasificacion: m.clasificacion,
@@ -176,9 +191,10 @@ export function filtroDeUnidades(unidades: string[]): Prisma.MovimientoBancarioW
   };
 }
 
-// Total en pesos de la vista de una empresa: de la semana, sin ignorados, los movimientos no
-// prorrateados de sus unidades más sus porciones de prorrateo (nunca el importe total de un
-// prorrateado). Sumado en la base (numeric exacto) y pasado a centavos como texto.
+// Total de la vista de una empresa, POR MONEDA (pesos, soles, dólares: nunca se suman entre sí): de la
+// semana, sin ignorados, los movimientos no prorrateados de sus unidades más sus porciones de prorrateo
+// (nunca el importe total de un prorrateado). Sumado en la base (numeric exacto) y pasado a centavos como
+// texto. Una moneda sin filas no aparece; si no hay ninguna, la lista queda vacía.
 //
 // `ocultas`: valores exactos de clasificación que el usuario no puede ver (lib/clasificacionesOcultas.ts); se
 // excluyen del Total igual que de la lista, para que el Total cierre con las filas visibles.
@@ -187,27 +203,28 @@ export async function sumarImporteDeUnidades(
   unidades: string[],
   clasificacion?: string,
   ocultas: string[] = []
-) {
-  if (unidades.length === 0) return 0;
+): Promise<TotalMoneda[]> {
+  if (unidades.length === 0) return [];
   const sinOcultas = ocultas.length > 0 ? Prisma.sql`AND NOT (mb.clasificacion = ANY(${ocultas}::text[]))` : Prisma.empty;
   // Fragmento parametrizado (nunca se interpola el texto); vacío si no hay filtro.
   const porClasificacion = clasificacion ? Prisma.sql`AND mb.clasificacion = ${clasificacion}` : Prisma.empty;
-  const [fila] = await prisma.$queryRaw<{ total: string }[]>`
-    SELECT COALESCE(SUM(x.importe), 0)::text AS total FROM (
-      SELECT mb.importe FROM "MovimientoBancario" mb
+  const filas = await prisma.$queryRaw<{ moneda: string; total: string }[]>`
+    SELECT x.moneda, COALESCE(SUM(x.importe), 0)::text AS total FROM (
+      SELECT mb.moneda, mb.importe FROM "MovimientoBancario" mb
       WHERE mb."ejecucionId" = ${ejecucionId} AND NOT mb.ignorado
         ${porClasificacion}
         ${sinOcultas}
         AND mb."unidadNegocio" = ANY(${unidades}::text[])
         AND NOT EXISTS (SELECT 1 FROM "MovimientoBancarioDesglose" d WHERE d."movimientoId" = mb.id)
       UNION ALL
-      SELECT d.importe FROM "MovimientoBancario" mb
+      SELECT mb.moneda, d.importe FROM "MovimientoBancario" mb
       JOIN "MovimientoBancarioDesglose" d ON d."movimientoId" = mb.id
       WHERE mb."ejecucionId" = ${ejecucionId} AND NOT mb.ignorado
         ${porClasificacion}
         ${sinOcultas}
         AND d."unidadNegocio" = ANY(${unidades}::text[])
     ) x
+    GROUP BY x.moneda
   `;
-  return centavosDeDecimalTexto(fila.total) / 100;
+  return sumarPorMoneda(filas.map((f) => ({ moneda: f.moneda, centavos: centavosDeDecimalTexto(f.total) })));
 }

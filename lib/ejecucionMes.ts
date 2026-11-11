@@ -25,6 +25,9 @@ export function sumarTotalesSemanales(totales: number[]): number {
   return totales.reduce((acc, t) => acc + Math.round(t * 100), 0) / 100;
 }
 
+// Lo mismo POR MONEDA: el total del mes en cada moneda es la suma de los totales semanales de esa moneda.
+export { unirTotales as sumarTotalesSemanalesPorMoneda } from "@/lib/moneda";
+
 export function semanasAbiertas(semanas: { estado: string }[]): number {
   return semanas.filter((s) => s.estado !== "CERRADA").length;
 }

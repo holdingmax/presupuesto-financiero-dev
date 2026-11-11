@@ -34,6 +34,8 @@ import PanelSugerenciasPendientes from "./PanelSugerenciasPendientes";
 import PanelUnidadesSugeridas, { claveGrupo } from "./PanelUnidadesSugeridas";
 import AlertaContinuidadSaldo from "./AlertaContinuidadSaldo";
 import { formatearImporteConCentavos } from "./formato";
+import TotalesPorMoneda from "./TotalesPorMoneda";
+import { prefijoMoneda, type TotalMoneda } from "@/lib/moneda";
 import { aQuery, hayFiltros, hayFiltrosAdemasDeSinClasificar, type FiltrosEjecucion } from "@/lib/filtrosEjecucion";
 import { opcionesUnidad } from "@/lib/unidadesNegocio";
 
@@ -95,7 +97,8 @@ type Props = {
   totalMovimientos: number;
   // Filas de toda la semana (sin el filtro "sin clasificar").
   totalSemana: number;
-  totalImporte: number;
+  // Total de la lista filtrada, una entrada por moneda (nunca se suman monedas distintas).
+  totalesPorMoneda: TotalMoneda[];
   pagina: number;
   totalPaginas: number;
   // Filtros activos de la lista (vienen de la URL). Los agregados de los paneles NO dependen de ellos.
@@ -128,7 +131,7 @@ export default function PanelImputacion({
   clasificacionesDisponibles,
   totalMovimientos,
   totalSemana,
-  totalImporte,
+  totalesPorMoneda,
   pagina,
   totalPaginas,
   filtros,
@@ -936,13 +939,7 @@ export default function PanelImputacion({
             <p className="text-xs font-medium uppercase tracking-wide text-ink-faint mb-0.5">
               Total
             </p>
-            <p
-              className={`tabular text-2xl font-semibold ${
-                totalImporte < 0 ? "text-negative" : totalImporte > 0 ? "text-positive" : "text-ink"
-              }`}
-            >
-              ${formatearImporteConCentavos(totalImporte)}
-            </p>
+            <TotalesPorMoneda totales={totalesPorMoneda} />
           </div>
         </div>
 
@@ -1123,7 +1120,7 @@ export default function PanelImputacion({
                   <li key={`${m.id}|${m.unidad}`} className="py-1.5 flex gap-3">
                     <span className="tabular w-20 shrink-0">{m.fecha}</span>
                     <span className="flex-1 truncate">{m.concepto}</span>
-                    <span className="tabular shrink-0">${formatearImporteConCentavos(m.importe)}</span>
+                    <span className="tabular shrink-0">{prefijoMoneda(m.moneda)}{formatearImporteConCentavos(m.importe)}</span>
                     <span className="w-28 shrink-0 truncate text-right font-medium">{m.unidad}</span>
                   </li>
                 ))}

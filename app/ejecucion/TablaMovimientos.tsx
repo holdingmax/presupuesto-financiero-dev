@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { formatearImporteConCentavos } from "./formato";
+import { prefijoMoneda } from "@/lib/moneda";
 import { eliminarDesgloseMovimiento } from "./actions";
 import { opcionesUnidad } from "@/lib/unidadesNegocio";
 import { aCentavos, formatearCentavos, formatearPorcentaje, porcentajeDeCentavos } from "@/lib/prorrateo";
@@ -150,10 +151,12 @@ function textoPorcentaje(centesimas: number) {
 // la fila es editable (abre el panel).
 function ResumenProrrateo({
   importe,
+  moneda,
   desglose,
   onAbrir,
 }: {
   importe: number;
+  moneda?: string;
   desglose: { unidadNegocio: string; importe: number }[];
   onAbrir?: () => void;
 }) {
@@ -165,7 +168,7 @@ function ResumenProrrateo({
   const visibles = partes.slice(0, 2).map((p) => `${p.unidad} ${textoPorcentaje(p.porcentaje)}`);
   const texto = visibles.join(" · ") + (partes.length > 2 ? ` · +${partes.length - 2}` : "");
   const detalle = partes
-    .map((p) => `${p.unidad}: $${formatearCentavos(p.centavos)} (${formatearPorcentaje(p.porcentaje)}%)`)
+    .map((p) => `${p.unidad}: ${prefijoMoneda(moneda)}${formatearCentavos(p.centavos)} (${formatearPorcentaje(p.porcentaje)}%)`)
     .join("\n");
   const clases = "max-w-[19rem] truncate text-left text-[13px] text-marino";
 
@@ -185,6 +188,8 @@ export type MovimientoTabla = {
   fecha: string;
   concepto: string;
   importe: number;
+  // Moneda del movimiento (código ISO). Sin dato es pesos.
+  moneda?: string;
   // Solo existe si el servidor autorizó el saldo (mapearMovimiento con verSaldo); null = el banco
   // no lo informa (BBVA).
   saldo?: number | null;
@@ -316,11 +321,12 @@ export default function TablaMovimientos({
                 m.importe < 0 ? "text-negative" : "text-positive"
               }`}
             >
-              ${formatearImporteConCentavos(m.importe)}
+              {prefijoMoneda(m.moneda)}
+              {formatearImporteConCentavos(m.importe)}
             </td>
             {mostrarSaldo && (
               <td className="py-1 pr-3 text-right tabular whitespace-nowrap text-ink-secondary">
-                {m.saldo === null || m.saldo === undefined ? "" : `$${formatearImporteConCentavos(m.saldo)}`}
+                {m.saldo === null || m.saldo === undefined ? "" : `${prefijoMoneda(m.moneda)}${formatearImporteConCentavos(m.saldo)}`}
               </td>
             )}
             <td className="py-1 pr-3 whitespace-nowrap">
@@ -354,6 +360,7 @@ export default function TablaMovimientos({
                 {desglosado ? (
                   <ResumenProrrateo
                     importe={m.importe}
+                    moneda={m.moneda}
                     desglose={m.desglose}
                     onAbrir={
                       soloLectura || deshabilitado
@@ -444,6 +451,7 @@ export default function TablaMovimientos({
                   numeroSemana={numeroSemana}
                   movimientoId={m.id}
                   importeMovimiento={m.importe}
+                  moneda={m.moneda}
                   desgloseInicial={m.desglose}
                   onCerrar={() => setDesgloseAbiertoId(null)}
                 />

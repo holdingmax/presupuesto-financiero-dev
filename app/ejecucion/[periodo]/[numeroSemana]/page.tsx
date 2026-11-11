@@ -3,7 +3,7 @@ import PanelImputacion from "@/app/ejecucion/PanelImputacion";
 import TablaMovimientos from "@/app/ejecucion/TablaMovimientos";
 import Paginacion from "@/app/ejecucion/Paginacion";
 import BarraFiltros from "@/app/ejecucion/BarraFiltros";
-import { formatearImporteConCentavos } from "@/app/ejecucion/formato";
+import TotalesPorMoneda from "@/app/ejecucion/TotalesPorMoneda";
 import { obtenerDatosSemana, calcularChequeosSumaCero, listarSemanasDelPeriodo } from "@/app/ejecucion/actions";
 import { AccesoDenegadoError } from "@/lib/auth";
 import { textoTrazabilidad } from "@/lib/fecha";
@@ -109,7 +109,7 @@ export default async function EjecucionGlobalSemanaPage({ params, searchParams }
           clasificacionesDisponibles={datos.clasificacionesDisponibles}
           totalMovimientos={datos.totalMovimientos}
           totalSemana={datos.totalSemana}
-          totalImporte={datos.totalImporte}
+          totalesPorMoneda={datos.totalesPorMoneda}
           pagina={datos.pagina}
           totalPaginas={datos.totalPaginas}
           filtros={datos.filtros}
@@ -164,13 +164,7 @@ export default async function EjecucionGlobalSemanaPage({ params, searchParams }
             <h2 className="pt-1 text-sm font-medium text-ink-secondary">Movimientos ({datos.totalMovimientos})</h2>
             <div className="text-right">
               <p className="text-xs font-medium uppercase tracking-wide text-ink-faint mb-0.5">Total</p>
-              <p
-                className={`tabular text-2xl font-semibold ${
-                  datos.totalImporte < 0 ? "text-negative" : datos.totalImporte > 0 ? "text-positive" : "text-ink"
-                }`}
-              >
-                ${formatearImporteConCentavos(datos.totalImporte)}
-              </p>
+              <TotalesPorMoneda totales={datos.totalesPorMoneda} />
             </div>
           </div>
 

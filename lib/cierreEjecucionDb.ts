@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { obtenerUnidadesConEmpresa, contarSinUnidadEnSemana } from "@/lib/reporte";
 import type { ConteosParaCierre } from "@/lib/cierreEjecucion";
+import { normalizarMoneda } from "@/lib/moneda";
 
-export type FilaSinUnidad = { id: string; fecha: string; concepto: string; importe: number; unidad: string };
+export type FilaSinUnidad = { id: string; fecha: string; concepto: string; importe: number; moneda: string; unidad: string };
 
 // Los movimientos que bloquean el cierre (para mostrarlos): no ignorados, con una unidad que no
 // pertenece a ninguna empresa activa. Un prorrateado aparece por cada porción inválida, con el
@@ -13,16 +14,16 @@ export async function listarMovimientosSinUnidad(
   limite = 100
 ): Promise<FilaSinUnidad[]> {
   const filas = await prisma.$queryRaw<
-    { id: string; fecha: Date; concepto: string; importe: string; unidad: string }[]
+    { id: string; fecha: Date; concepto: string; importe: string; moneda: string; unidad: string }[]
   >`
-    SELECT x.id, x.fecha, x.concepto, x.importe::text AS importe, x.unidad FROM (
-      SELECT mb.id, mb.fecha, mb.concepto, mb.importe, upper(btrim(mb."unidadNegocio")) AS unidad
+    SELECT x.id, x.fecha, x.concepto, x.importe::text AS importe, x.moneda, x.unidad FROM (
+      SELECT mb.id, mb.fecha, mb.concepto, mb.importe, mb.moneda, upper(btrim(mb."unidadNegocio")) AS unidad
       FROM "MovimientoBancario" mb
       WHERE mb."ejecucionId" = ${ejecucionId} AND NOT mb.ignorado
         AND NOT (upper(btrim(mb."unidadNegocio")) = ANY(${unidadesConEmpresa}::text[]))
         AND NOT EXISTS (SELECT 1 FROM "MovimientoBancarioDesglose" d WHERE d."movimientoId" = mb.id)
       UNION ALL
-      SELECT mb.id, mb.fecha, mb.concepto, d.importe, upper(btrim(d."unidadNegocio"))
+      SELECT mb.id, mb.fecha, mb.concepto, d.importe, mb.moneda, upper(btrim(d."unidadNegocio"))
       FROM "MovimientoBancario" mb
       JOIN "MovimientoBancarioDesglose" d ON d."movimientoId" = mb.id
       WHERE mb."ejecucionId" = ${ejecucionId} AND NOT mb.ignorado
@@ -36,6 +37,7 @@ export async function listarMovimientosSinUnidad(
     fecha: f.fecha.toISOString().slice(0, 10),
     concepto: f.concepto,
     importe: Number(f.importe),
+    moneda: normalizarMoneda(f.moneda),
     unidad: f.unidad,
   }));
 }

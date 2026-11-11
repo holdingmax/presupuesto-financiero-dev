@@ -20,6 +20,7 @@ import {
   type EstadoSemanaDelPeriodo,
 } from "@/lib/ejecucionSemanas";
 import { evaluarCierre, type SinUnidad } from "@/lib/cierreEjecucion";
+import { prefijoMoneda } from "@/lib/moneda";
 import { contarParaCierreDeSemana, listarMovimientosSinUnidad, type FilaSinUnidad } from "@/lib/cierreEjecucionDb";
 import {
   requireOperadorEjecucionGlobal,
@@ -267,7 +268,9 @@ export async function obtenerDatosSemana(
     totalMovimientos,
     totalSemana: vista.totalSemana,
     cuentasDeLaSemana: vista.cuentas,
+    // Total en pesos (como siempre) y el Total por moneda que muestra la pantalla.
     totalImporte: vista.totalCentavos / 100,
+    totalesPorMoneda: vista.totalesPorMoneda,
     pagina: paginaEfectiva,
     totalPaginas,
     filtros,
@@ -306,7 +309,7 @@ async function agruparSugerenciasClasificacion(
         where: { ejecucionId, sugeridaPorSistema: true, clasificacion },
         orderBy: [{ chequeIvaAmbiguo: "desc" }, { fecha: "asc" }, { id: "asc" }],
         take: MUESTRA_POR_GRUPO,
-        select: { id: true, fecha: true, concepto: true, bancoYCuenta: true, importe: true, clasificacion: true, chequeIvaAmbiguo: true },
+        select: { id: true, fecha: true, concepto: true, bancoYCuenta: true, importe: true, moneda: true, clasificacion: true, chequeIvaAmbiguo: true },
       });
       return {
         clasificacion,
@@ -1773,7 +1776,9 @@ export async function guardarDesgloseMovimiento(
   if (Object.keys(errores).length === 0) {
     const suma = limpias.reduce((acc, s) => acc + s.importeCentavos, 0);
     if (suma !== totalCentavos) {
-      errores.general = `La suma del prorrateo ($${(suma / 100).toLocaleString("es-AR")}) tiene que coincidir con el importe del movimiento ($${(totalCentavos / 100).toLocaleString("es-AR")}).`;
+      // El símbolo es el de la moneda del movimiento; en pesos queda "$" pegado, igual que siempre.
+      const simbolo = prefijoMoneda(movimiento.moneda);
+      errores.general = `La suma del prorrateo (${simbolo}${(suma / 100).toLocaleString("es-AR")}) tiene que coincidir con el importe del movimiento (${simbolo}${(totalCentavos / 100).toLocaleString("es-AR")}).`;
     }
   }
 

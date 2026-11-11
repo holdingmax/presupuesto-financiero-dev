@@ -12,6 +12,8 @@ export type FilaSugerenciaClasificacion = {
   concepto: string;
   bancoYCuenta: string;
   importe: number;
+  // Moneda del movimiento (código ISO); sin dato es pesos.
+  moneda?: string;
   clasificacion: string;
   chequeIvaAmbiguo: boolean;
 };

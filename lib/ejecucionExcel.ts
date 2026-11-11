@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import type { mapearMovimiento } from "@/lib/ejecucionVista";
+import { hayOtraMoneda } from "@/lib/moneda";
 
 // Excel de los movimientos de una semana de Ejecución (botón "Descargar Excel"). Recibe lo que ya
 // devuelve mapearMovimiento — o sea, lo que el usuario ve en pantalla: sin saldo si no corresponde
@@ -15,6 +16,9 @@ export async function construirExcelMovimientos(movimientos: MovimientoVista[], 
   const workbook = new ExcelJS.Workbook();
   const hoja = workbook.addWorksheet("Movimientos", { views: [{ state: "frozen", ySplit: 1 }] });
 
+  // La columna Moneda solo aparece si alguna fila NO es en pesos: el Excel de una semana en pesos queda
+  // exactamente como siempre (mismas columnas, mismo orden).
+  const conMoneda = hayOtraMoneda(movimientos.map((m) => m.moneda));
   const FORMATO_IMPORTE = "#,##0.00;[Red]-#,##0.00";
   hoja.columns = [
     { header: "Fecha", key: "fecha", width: 12, style: { numFmt: "dd/mm/yyyy" } },
@@ -22,6 +26,7 @@ export async function construirExcelMovimientos(movimientos: MovimientoVista[], 
     { header: "Banco y cuenta", key: "bancoYCuenta", width: 28 },
     { header: "Concepto", key: "concepto", width: 48 },
     { header: "Importe", key: "importe", width: 16, style: { numFmt: FORMATO_IMPORTE } },
+    ...(conMoneda ? [{ header: "Moneda", key: "moneda", width: 9 }] : []),
     ...(conSaldo ? [{ header: "Saldo", key: "saldo", width: 16, style: { numFmt: FORMATO_IMPORTE } }] : []),
     { header: "Clasificación", key: "clasificacion", width: 26 },
     { header: "Unidad de negocio", key: "unidadNegocio", width: 26 },
@@ -39,6 +44,7 @@ export async function construirExcelMovimientos(movimientos: MovimientoVista[], 
       bancoYCuenta: m.bancoYCuenta,
       concepto: m.concepto,
       importe: m.importe,
+      moneda: m.moneda,
       saldo: "saldo" in m ? m.saldo : null,
       clasificacion: m.clasificacion,
       unidadNegocio: prorrateado ? m.desglose.map((d) => d.unidadNegocio).join(" / ") : m.unidadNegocio,

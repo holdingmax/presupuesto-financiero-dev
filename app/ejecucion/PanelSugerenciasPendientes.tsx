@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatearImporteConCentavos } from "./formato";
+import { prefijoMoneda } from "@/lib/moneda";
 import type { GrupoSugerenciaClasificacion } from "./actions";
 
 // Sin librería de íconos en el proyecto — SVG a mano, mismo criterio que
@@ -150,7 +151,8 @@ export default function PanelSugerenciasPendientes({
                                 f.importe < 0 ? "text-negative" : "text-positive"
                               }`}
                             >
-                              ${formatearImporteConCentavos(f.importe)}
+                              {prefijoMoneda(f.moneda)}
+                              {formatearImporteConCentavos(f.importe)}
                             </td>
                             <td className="py-1.5 pr-2">
                               <select
