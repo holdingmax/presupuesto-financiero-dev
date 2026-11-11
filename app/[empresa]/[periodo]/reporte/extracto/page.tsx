@@ -7,6 +7,7 @@ import { nombreDePeriodo } from "@/lib/ejecucionSemanas";
 import { errorPeriodoNoHabilitado } from "@/lib/periodosHabilitados";
 import { puedeVerSubidaExtractoEmpresa, semanasParaCargar } from "@/lib/extractos/pantallaExtractoEmpresa";
 import { MAX_BYTES_HAVANNA_PERU, MAX_FILAS_HAVANNA_PERU } from "@/lib/extractos/limites";
+import { textoSubidaExtractoEmpresa } from "@/lib/extractos/cargaEmpresa";
 import SubidaExtractoEmpresa from "./SubidaExtractoEmpresa";
 
 type Props = { params: Promise<{ empresa: string; periodo: string }> };
@@ -17,7 +18,7 @@ function Aviso({ texto }: { texto: string }) {
   return <p className="mx-auto max-w-3xl px-6 py-10 text-sm text-ink-secondary">{texto}</p>;
 }
 
-// Subida del extracto propio de una empresa (hoy solo Havanna Perú). Vive en la vista de la empresa, no en la
+// Subida del extracto propio de una empresa (hoy Havanna Perú y Bradenton). Vive en la vista de la empresa, no en la
 // Ejecución global. Solo se abre para una empresa de EMPRESAS_CON_EXTRACTO_POR_EMPRESA y para quien puede cargar el
 // Real de ESA empresa; lo demás lo vuelve a validar el servidor (subirExtractoEmpresa).
 export default async function ExtractoEmpresaPage({ params }: Props) {
@@ -52,10 +53,7 @@ export default async function ExtractoEmpresaPage({ params }: Props) {
       </p>
       <h1 className="mt-1 text-3xl font-serif font-semibold tracking-tight">Subir extracto</h1>
       <p className="mt-2 text-sm text-ink-secondary">
-        Subí el libro PF de Perú (.xlsx, hasta {Math.round(MAX_BYTES_HAVANNA_PERU / (1024 * 1024))} MB y{" "}
-        {MAX_FILAS_HAVANNA_PERU.toLocaleString("es-AR")} movimientos por mes). El sistema busca la pestaña de movimientos
-        del mes, te muestra un resumen y recién cuando confirmás carga los movimientos: los de soles en BBVA PERÚ SOLES y
-        los de dólares en BBVA PERÚ USD. Todo entra sin clasificar.
+        {textoSubidaExtractoEmpresa(slug, MAX_BYTES_HAVANNA_PERU, MAX_FILAS_HAVANNA_PERU)}
       </p>
       <Link href={`/${slug}/${periodo}/reporte`} className="mt-3 inline-block text-sm underline">
         Volver al reporte

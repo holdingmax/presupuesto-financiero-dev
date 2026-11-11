@@ -1,6 +1,6 @@
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { BANCOS_EXTRACTO, esBancoExtracto, NOMBRE_BANCO, type BancoExtracto } from "@/lib/extractos/tipos";
-import { BANCO_BBVA_PERU, BANCOS_CUENTA, CUENTAS_BBVA_PERU, monedaDeCuentaBbvaPeru, type BancoCuenta } from "@/lib/extractos/bancosCuenta";
+import { BANCOS_CUENTA, CUENTAS_FIJAS_POR_BANCO, NOMBRE_BANCO_CUENTA, monedaDeCuentaFija, tieneCuentasFijas, type BancoCuenta } from "@/lib/extractos/bancosCuenta";
 
 // Reglas de la lista de cuentas bancarias por empresa (plan docs/lector_bancos_plan.md
 // §4.1). Funciones puras, sin base de datos: las usa la pantalla /admin/cuentas-bancarias
@@ -14,7 +14,8 @@ export type CuentaExistente = { id: string; nombre: string; activa: boolean };
 
 export type DatosCuenta = { nombre: string; banco: string; terminacion: string };
 
-// moneda: solo la fijan las cuentas de BBVA Perú (por su nombre); en los demás bancos no viene y queda el default.
+// moneda: la fijan las cuentas de los bancos con cuentas fijas (BBVA Perú, Chase: por su nombre canónico); en los
+// demás bancos no viene y queda el default.
 export type CuentaValidada = { nombre: string; banco: BancoCuenta; terminacion: string; moneda?: "PEN" | "USD" };
 
 export type ResultadoValidacionCuenta =
@@ -32,7 +33,7 @@ export function validarCuenta(
   existentes: CuentaExistente[],
   editandoId?: string
 ): ResultadoValidacionCuenta {
-  if (datos.banco === BANCO_BBVA_PERU) return validarCuentaBbvaPeru(datos, existentes, editandoId);
+  if (tieneCuentasFijas(datos.banco)) return validarCuentaFija(datos, existentes, editandoId);
 
   const nombre = normalizarCuenta(datos.nombre);
   const forma = FORMA_NOMBRE.exec(nombre);
@@ -77,14 +78,17 @@ export function validarCuenta(
   return { ok: true, cuenta: { nombre, banco: datos.banco, terminacion } };
 }
 
-// BBVA Perú: no es un banco de los lectores y sus cuentas no llevan número en el nombre. Solo valen sus dos
-// nombres canónicos (soles y dólares); se guardan con el nombre canónico (con tilde). El archivo de Perú no
-// trae número de cuenta, así que la terminación es opcional (si se pone, 3 a 6 dígitos).
-function validarCuentaBbvaPeru(datos: DatosCuenta, existentes: CuentaExistente[], editandoId?: string): ResultadoValidacionCuenta {
+// Bancos con cuentas fijas (BBVA Perú, Chase): no son bancos de los lectores y sus cuentas no llevan número en el
+// nombre. Solo valen sus nombres canónicos (uno por moneda); se guardan con el nombre canónico y su moneda. El archivo
+// de la empresa no trae número de cuenta, así que la terminación es opcional (si se pone, 3 a 6 dígitos).
+function validarCuentaFija(datos: DatosCuenta, existentes: CuentaExistente[], editandoId?: string): ResultadoValidacionCuenta {
+  const banco = datos.banco as BancoCuenta;
+  const nombres = Object.values(CUENTAS_FIJAS_POR_BANCO[banco]);
   const clave = normalizarCuenta(datos.nombre);
-  const canonico = Object.values(CUENTAS_BBVA_PERU).find((n) => normalizarCuenta(n) === clave);
+  const canonico = nombres.find((n) => normalizarCuenta(n) === clave);
   if (!canonico) {
-    return { ok: false, error: `Las cuentas de BBVA Perú son: ${Object.values(CUENTAS_BBVA_PERU).join(" y ")}.` };
+    const unica = nombres.length === 1;
+    return { ok: false, error: `${unica ? "La cuenta" : "Las cuentas"} de ${NOMBRE_BANCO_CUENTA[banco]} ${unica ? "es" : "son"}: ${nombres.join(" y ")}.` };
   }
   const terminacion = datos.terminacion.trim();
   if (terminacion !== "" && !/^[0-9]{3,6}$/.test(terminacion)) {
@@ -96,7 +100,8 @@ function validarCuentaBbvaPeru(datos: DatosCuenta, existentes: CuentaExistente[]
       ? { ok: false, error: `Ya existe la cuenta ${canonico}.` }
       : { ok: false, error: `Ya existe la cuenta ${canonico}, pero está inactiva. Reactivala en vez de crear otra.`, reactivarId: repetida.id };
   }
-  return { ok: true, cuenta: { nombre: canonico, banco: BANCO_BBVA_PERU, terminacion, moneda: monedaDeCuentaBbvaPeru(canonico) ?? undefined } };
+  const moneda = monedaDeCuentaFija(banco, canonico);
+  return { ok: true, cuenta: { nombre: canonico, banco, terminacion, moneda: (moneda as "PEN" | "USD" | null) ?? undefined } };
 }
 
 // El selector de subida muestra solo las activas; las inactivas siguen existiendo (no se
