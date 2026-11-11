@@ -3,6 +3,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { prisma } from "@/lib/prisma";
+import { CLASIFICACIONES_POR_EMPRESA } from "@/lib/config";
+import { CLASIFICACIONES_SUGERIDAS } from "@/lib/clasificaciones";
+import { normalizarClasificacion } from "@/lib/clasificacionesOcultas";
 import { puedeCerrarEjecucion, puedeOperarEjecucionGlobal } from "@/lib/permisosEjecucion";
 import {
   ERROR_CAMBIO_CONCURRENTE,
@@ -11,6 +14,7 @@ import {
   ERROR_MOVIMIENTO_PRORRATEADO,
   ERROR_SEMANA_CERRADA,
   ERROR_SIN_PERMISO_DE_CLASIFICAR,
+  clasificacionesPropiasDeEmpresa,
   puedeClasificarEnEmpresa,
   validarEdicionEmpresa,
 } from "@/lib/clasificarPorEmpresa";
@@ -555,4 +559,139 @@ test("TablaMovimientos: las dos opciones nuevas son aditivas (sin ellas, el comp
   const editable = leer("app", "[empresa]", "[periodo]", "ejecucion", "[numeroSemana]", "MovimientosEditablesEmpresa.tsx");
   assert.equal(/onQuitar/.test(editable), false);
   assert.match(editable, /sinProrrateo/);
+});
+
+// ---------- lista PROPIA de clasificaciones (Bradenton) ----------
+
+// Los 17 nombres tal cual los pasó Kike/Romina (pestañas "Presup 11-2026" y "Ejecutado 10-2026"), en el orden del libro.
+const LISTA_BRADENTON = [
+  "COBRANZAS",
+  "DEP EFECTIVO",
+  "COBRO FOOD TRUCK",
+  "VENTA ICE MACHINE-TC",
+  "REBATE",
+  "DIVIDENDOS",
+  "CHEQ EMITIDOS (DEBITADOS)",
+  "COM Y GTOS BRIOS",
+  "HONORARIOS + ABONOS MENSUALES",
+  "TAX",
+  "LOTTERY",
+  "COMPRA MERCS C-STORE",
+  "COMPRA C-STORE-CASH",
+  "SERVICIOS",
+  "MANTENIMIENTO Y REPARACIONES",
+  "SUELDOS",
+  "EXPENSAS",
+];
+
+test("config: la lista de Bradenton son exactamente los 17 nombres del libro, en su orden, sin repetidos", () => {
+  assert.deepEqual(CLASIFICACIONES_POR_EMPRESA.bradenton, LISTA_BRADENTON);
+  assert.equal(LISTA_BRADENTON.length, 17);
+  assert.equal(new Set(LISTA_BRADENTON.map(normalizarClasificacion)).size, 17, "ninguno repetido (ni siquiera sin mayúsculas/tildes)");
+  assert.ok(LISTA_BRADENTON.every((c) => c === c.trim() && c !== ""));
+  // Solo Bradenton tiene lista propia: Plate Silver, Havanna Perú y las demás siguen con la general.
+  assert.deepEqual(Object.keys(CLASIFICACIONES_POR_EMPRESA), ["bradenton"]);
+});
+
+test("clasificacionesPropiasDeEmpresa: null si la empresa no tiene lista; devuelve una copia; no confunde claves heredadas", () => {
+  assert.deepEqual(clasificacionesPropiasDeEmpresa("bradenton"), LISTA_BRADENTON);
+  assert.equal(clasificacionesPropiasDeEmpresa("plate-silver"), null);
+  assert.equal(clasificacionesPropiasDeEmpresa("havanna-peru"), null);
+  assert.equal(clasificacionesPropiasDeEmpresa("constructor"), null);
+  assert.equal(clasificacionesPropiasDeEmpresa("toString"), null);
+  const copia = clasificacionesPropiasDeEmpresa("bradenton")!;
+  copia.push("INVENTADA");
+  assert.deepEqual(CLASIFICACIONES_POR_EMPRESA.bradenton, LISTA_BRADENTON, "modificar la copia no toca la config");
+  assert.deepEqual(clasificacionesPropiasDeEmpresa("x", { x: ["A", "B"] }), ["A", "B"]);
+});
+
+test("Bradenton: se ofrece SIN CLASIFICAR primero y después las 17 en el orden del libro, sin consultar la base ni traer lo global", async () => {
+  const m = mundoBase();
+  m.movs = [mov("a", { clasificacion: "PROV Y SERV" }), mov("b", { unidadNegocio: "BRILLANTE", clasificacion: "SOLO DE BRILLANTE" })];
+  await conMundo(m, async () => {
+    const p = prisma as unknown as { movimientoBancario: { groupBy: () => Promise<never> } };
+    p.movimientoBancario.groupBy = async () => {
+      throw new Error("la lista propia no debe consultar la base");
+    };
+    const lista = await clasificacionesParaEditar(["BRADENTON"], [], "bradenton");
+    assert.deepEqual(lista, ["SIN CLASIFICAR", ...LISTA_BRADENTON]);
+    assert.equal(lista.length, 18);
+    for (const ajena of ["PROV Y SERV", "IMP Y PREVISIONALES", "Gastos bancarios", "SOLO DE BRILLANTE", "AVION"]) {
+      assert.equal(lista.includes(ajena), false, `${ajena} no se ofrece en Bradenton`);
+    }
+  });
+});
+
+test("Romina (Bradenton) puede poner cada una de las 17 y volver a SIN CLASIFICAR", async () => {
+  const m = mundoBase();
+  m.movs = [mov("a")];
+  await conMundo(m, async () => {
+    for (const c of LISTA_BRADENTON) {
+      assert.deepEqual(await editar(ROMINA, "emp-brad", "a", { clasificacion: c }), { ok: true }, c);
+      assert.equal(m.movs[0].clasificacion, c);
+    }
+    assert.deepEqual(await editar(ROMINA, "emp-brad", "a", { clasificacion: "SIN CLASIFICAR" }), { ok: true });
+    assert.equal(m.movs[0].clasificacion, "SIN CLASIFICAR");
+  });
+});
+
+test("Romina NO puede poner un valor de la lista general que no está en la de Bradenton (ni uno inventado)", async () => {
+  const m = mundoBase();
+  m.movs = [mov("a")];
+  await conMundo(m, async () => {
+    for (const c of ["PROV Y SERV", "IMP Y PREVISIONALES", "Gastos bancarios", "SAC", "AVION", "INVENTADA XYZ", "cobranzas ", "Cobranzas"]) {
+      const r = await editar(ROMINA, "emp-brad", "a", { clasificacion: c });
+      assert.equal(r.ok, false, c);
+    }
+  });
+  assert.equal(m.movs[0].clasificacion, "SIN CLASIFICAR");
+  assert.equal(m.escrituras, 0);
+});
+
+test("una fila de Bradenton con un valor viejo fuera de la lista: se puede corregir a uno de la lista, pero no volver a ese valor", async () => {
+  const m = mundoBase();
+  m.movs = [mov("vieja", { clasificacion: "PROV Y SERV" })];
+  await conMundo(m, async () => {
+    assert.equal((await editar(ROMINA, "emp-brad", "vieja", { clasificacion: "PROV Y SERV" })).ok, false, "no se vuelve a elegir");
+    assert.deepEqual(await editar(ROMINA, "emp-brad", "vieja", { clasificacion: "COMPRA MERCS C-STORE" }), { ok: true });
+    assert.equal(m.movs[0].clasificacion, "COMPRA MERCS C-STORE");
+    assert.equal((await editar(ROMINA, "emp-brad", "vieja", { clasificacion: "PROV Y SERV" })).ok, false);
+  });
+});
+
+test("las demás empresas NO cambian: Conexión, Plate Silver y Havanna Perú siguen con la lista general (canónicas + las suyas + SIN CLASIFICAR)", async () => {
+  const m = mundoBase();
+  m.movs = [mov("c", { unidadNegocio: "LOGISTICA", clasificacion: "UNA PROPIA DE CONEXION" }), mov("b", { unidadNegocio: "BRILLANTE", clasificacion: "SOLO DE BRILLANTE" })];
+  await conMundo(m, async () => {
+    const conexion = await clasificacionesParaEditar(["LOGISTICA", "SPP"], ["AVION", "MS", "PRESTAMO MS"], "conexion-logistica");
+    for (const c of CLASIFICACIONES_SUGERIDAS.filter((x) => !["AVION"].includes(x))) assert.ok(conexion.includes(c), `Conexión sigue ofreciendo ${c}`);
+    assert.ok(conexion.includes("UNA PROPIA DE CONEXION") && conexion.includes("SIN CLASIFICAR"));
+    assert.equal(conexion.includes("AVION"), false, "las ocultas para el gerente siguen ocultas");
+    assert.equal(conexion.includes("SOLO DE BRILLANTE"), false);
+    assert.equal(conexion.includes("DEP EFECTIVO"), false, "lo de Bradenton no se filtra a las demás");
+    for (const slug of ["plate-silver", "havanna-peru", "brillante"]) {
+      const lista = await clasificacionesParaEditar(["X"], [], slug);
+      for (const c of CLASIFICACIONES_SUGERIDAS) assert.ok(lista.includes(c), `${slug} sigue ofreciendo ${c}`);
+      assert.equal(lista.includes("LOTTERY"), false);
+    }
+    // Sin slug (como antes de este cambio) también es la lista general.
+    assert.ok((await clasificacionesParaEditar(["LOGISTICA"], [])).includes("PROV Y SERV"));
+  });
+});
+
+test("las clasificaciones ocultas para el gerente se siguen aplicando también sobre una lista propia", async () => {
+  const m = mundoBase();
+  await conMundo(m, async () => {
+    assert.deepEqual(await clasificacionesParaEditar(["BRADENTON"], ["LOTTERY", "TAX"], "bradenton"), ["SIN CLASIFICAR", ...LISTA_BRADENTON.filter((c) => c !== "LOTTERY" && c !== "TAX")]);
+  });
+});
+
+test("Ejecución global, el Reporte y las equivalencias NO se tocaron: nadie más lee la lista propia", () => {
+  const usan = ["app/ejecucion/actions.ts", "lib/rubros.ts", "lib/reporte.ts", "lib/clasificaciones.ts", "lib/reporte/motor.ts", "lib/reporte/cargarMeses.ts"];
+  for (const ruta of usan) assert.equal(/CLASIFICACIONES_POR_EMPRESA|clasificacionesPropiasDeEmpresa/.test(leer(...ruta.split("/"))), false, ruta);
+  // La pantalla de la empresa y la acción le pasan el slug a la función; solo eso la activa.
+  assert.match(leer("app", "[empresa]", "[periodo]", "ejecucion", "datos.ts"), /clasificacionesParaEditar\(unidades, clasificacionesOcultasParaUsuario\(slugDeEmpresa\(empresa\.nombre\), usuario\), slugDeEmpresa\(empresa\.nombre\)\)/);
+  assert.match(leer("lib", "clasificarPorEmpresaDb.ts"), /clasificacionesParaEditar\(empresa\.unidadesNegocio, ocultasNormalizadas, slugDeEmpresa\(empresa\.nombre\)\)/);
+  // Ejecución global sigue ofreciendo la lista global de siempre.
+  assert.match(leer("app", "ejecucion", "actions.ts"), /const clasificacionesPromise = calcularClasificacionesDisponibles\(\);/);
 });

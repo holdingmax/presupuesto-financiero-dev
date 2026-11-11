@@ -200,3 +200,33 @@ export const CLASIFICACIONES_OCULTAS_PARA_GERENTE: Readonly<Record<string, reado
   "conexion-logistica": ["AVION", "MS", "PRESTAMO MS"],
   "conexion-logistica-spp": ["AVION", "MS", "PRESTAMO MS"],
 };
+
+// Lista PROPIA de clasificaciones de una empresa, solo para la pantalla "Ejecución financiera" de esa empresa cuando el gerente
+// con la casilla clasifica sus movimientos (lib/clasificarPorEmpresaDb.ts: clasificacionesParaEditar). Por slug. Una empresa
+// que no está acá sigue con la lista general de siempre. NO cambia Ejecución global (que sigue ofreciendo lo suyo), ni el Reporte,
+// ni las demás empresas. «SIN CLASIFICAR» no se escribe acá: se agrega siempre, primero.
+//
+// Bradenton: los 17 conceptos de las pestañas "Presup 11-2026" y "Ejecutado 10-2026" del libro PF, con sus nombres exactos y en el
+// orden del libro (ingresos y después egresos). Confirmado por Romina: formato fijo de la pestaña Presup, no se agrega ni se
+// quita nada. Los depósitos (DEP EFECTIVO) los clasifica ella a mano.
+export const CLASIFICACIONES_POR_EMPRESA: Readonly<Record<string, readonly string[]>> = {
+  bradenton: [
+    "COBRANZAS",
+    "DEP EFECTIVO",
+    "COBRO FOOD TRUCK",
+    "VENTA ICE MACHINE-TC",
+    "REBATE",
+    "DIVIDENDOS",
+    "CHEQ EMITIDOS (DEBITADOS)",
+    "COM Y GTOS BRIOS",
+    "HONORARIOS + ABONOS MENSUALES",
+    "TAX",
+    "LOTTERY",
+    "COMPRA MERCS C-STORE",
+    "COMPRA C-STORE-CASH",
+    "SERVICIOS",
+    "MANTENIMIENTO Y REPARACIONES",
+    "SUELDOS",
+    "EXPENSAS",
+  ],
+};

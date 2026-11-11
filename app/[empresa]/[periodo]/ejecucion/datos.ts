@@ -104,7 +104,7 @@ export async function obtenerDatosSemanaDeEmpresa(
     });
     if (puedeClasificarEnEmpresa(usuario, acceso)) {
       const [clasificaciones, sugeridas] = await Promise.all([
-        clasificacionesParaEditar(unidades, clasificacionesOcultasParaUsuario(slugDeEmpresa(empresa.nombre), usuario)),
+        clasificacionesParaEditar(unidades, clasificacionesOcultasParaUsuario(slugDeEmpresa(empresa.nombre), usuario), slugDeEmpresa(empresa.nombre)),
         contarSugerenciasDeEmpresa(ejecucion.id, unidades, ocultas),
       ]);
       edicion = {

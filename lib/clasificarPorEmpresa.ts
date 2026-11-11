@@ -1,4 +1,5 @@
 import type { Rol } from "@prisma/client";
+import { CLASIFICACIONES_POR_EMPRESA } from "@/lib/config";
 import { normalizarClasificacion } from "@/lib/clasificacionesOcultas";
 
 // Clasificar los movimientos de UNA empresa desde la pestaña "Ejecución financiera" de esa empresa (decisión de negocio:
@@ -113,6 +114,15 @@ export function validarEdicionEmpresa(e: EntradaValidacion): ResultadoValidacion
   // Nada que escribir (p. ej. se eligió la misma unidad que ya tenía): no es un cambio.
   if (Object.keys(data).length === 0) return { ok: false, error: "No hay nada para cambiar." };
   return { ok: true, data };
+}
+
+// Lista propia de clasificaciones de la empresa (lib/config.ts: CLASIFICACIONES_POR_EMPRESA), o null si la empresa no tiene una y
+// sigue con la lista general. Devuelve una copia, en el orden configurado, sin «SIN CLASIFICAR» (la agrega quien arma el desplegable).
+export function clasificacionesPropiasDeEmpresa(
+  slugEmpresa: string,
+  mapa: Readonly<Record<string, readonly string[]>> = CLASIFICACIONES_POR_EMPRESA
+): string[] | null {
+  return Object.prototype.hasOwnProperty.call(mapa, slugEmpresa) ? [...mapa[slugEmpresa]] : null;
 }
 
 export type TipoSugerencia = "clasificacion" | "unidad";

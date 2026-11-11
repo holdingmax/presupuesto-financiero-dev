@@ -10,6 +10,7 @@ import {
   ERROR_MOVIMIENTO_NO_ENCONTRADO,
   ERROR_SEMANA_CERRADA,
   ERROR_SIN_PERMISO_DE_CLASIFICAR,
+  clasificacionesPropiasDeEmpresa,
   puedeClasificarEnEmpresa,
   validarEdicionEmpresa,
   type TipoSugerencia,
@@ -72,7 +73,21 @@ async function resolverContexto(
 // que ya usan los movimientos de SUS unidades, sin las que este usuario no ve. «SIN CLASIFICAR» siempre está: es lo que entra
 // por defecto y tiene que poder volver a elegirse para deshacer. A propósito NO es la lista global de la base
 // (calcularClasificacionesDisponibles): esa trae valores de otras empresas y las pantallas de empresa no la usan.
-export async function clasificacionesParaEditar(unidades: string[], ocultasNormalizadas: readonly string[]): Promise<string[]> {
+//
+// Si la empresa tiene lista PROPIA (lib/config.ts: CLASIFICACIONES_POR_EMPRESA, hoy solo Bradenton), esa lista —y nada más— es
+// lo que se ofrece y se acepta: «SIN CLASIFICAR» primero y después las suyas en el orden configurado, sin consultar la base. Un
+// valor que una fila ya tenga fuera de la lista se sigue mostrando (la tabla lo agrega como opción actual) pero no se puede
+// volver a elegir.
+export async function clasificacionesParaEditar(
+  unidades: string[],
+  ocultasNormalizadas: readonly string[],
+  slugEmpresa?: string
+): Promise<string[]> {
+  const propias = slugEmpresa === undefined ? null : clasificacionesPropiasDeEmpresa(slugEmpresa);
+  if (propias !== null) {
+    const ocultas = new Set(ocultasNormalizadas);
+    return Array.from(new Set([CLASIFICACION_SIN_CLASIFICAR, ...propias])).filter((c) => !ocultas.has(normalizarClasificacion(c)));
+  }
   const usadas =
     unidades.length === 0
       ? []
@@ -109,7 +124,7 @@ export async function editarMovimientoDeEmpresa(
     movimiento: { unidadNegocio: movimiento.unidadNegocio, clasificacion: movimiento.clasificacion, cantidadDesglose: movimiento._count.desglose },
     unidadesEmpresa: empresa.unidadesNegocio,
     estadoSemana: ejecucion.estado,
-    clasificacionesValidas: await clasificacionesParaEditar(empresa.unidadesNegocio, ocultasNormalizadas),
+    clasificacionesValidas: await clasificacionesParaEditar(empresa.unidadesNegocio, ocultasNormalizadas, slugDeEmpresa(empresa.nombre)),
     ocultasNormalizadas,
   });
   if (!v.ok) return v;
