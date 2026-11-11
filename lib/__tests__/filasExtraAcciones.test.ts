@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { EMPRESAS_CON_FILAS_EXTRA, EMPRESAS_CON_TIPEO_DIRECTO } from "@/lib/config";
-import { armarReporte, camposManuales, esBloqueReservado, type DatosMes, type Reporte } from "@/lib/reporte/motor";
+import { armarReporte, camposManuales, esBloqueReservado, type DatosMes, type Fila, type Plantilla, type Reporte } from "@/lib/reporte/motor";
 import { PLANTILLAS_POR_SLUG } from "@/lib/reporte/plantillas";
 import { accesoReservadosDelReporte } from "@/lib/reporte/visibilidad";
 import { planDeCarga, vistaDeCarga } from "@/lib/reporte/cargaGerente";
@@ -34,8 +34,18 @@ import { CON_FILAS_EXTRA_HOY } from "./filasExtraEmpresasLista";
 
 const SLUGS = Object.keys(PLANTILLAS_POR_SLUG);
 const BRILLANTE = PLANTILLAS_POR_SLUG["brillante"];
-// Una plantilla que NO marca los totales de flujo (Plate Silver): no admite filas extra.
-const SIN_ROLES = PLANTILLAS_POR_SLUG["plate-silver"];
+// Una plantilla que NO marca los totales de flujo (la de Brillante sin los tres roles): no admite filas extra.
+const SIN_ROLES: Plantilla = {
+  ...BRILLANTE,
+  filas: BRILLANTE.filas.map((f): Fila => {
+    if (f.tipo === "total" && f.rol && ["totalIngresos", "totalEgresosOperativos", "totalEgresos"].includes(f.rol)) {
+      const { rol: _rol, ...resto } = f;
+      void _rol;
+      return resto;
+    }
+    return f;
+  }),
+};
 
 const ING: FilaExtra = { id: "i1", bloque: "INGRESOS", nombre: "PRÉSTAMO COCOS", desdePeriodo: "2026-10", hastaPeriodo: null };
 const EGR: FilaExtra = { id: "e1", bloque: "EGRESOS", nombre: "PAGOS ESPECIALES", desdePeriodo: "2026-10", hastaPeriodo: null };
@@ -453,16 +463,25 @@ test("la foto del gerente de Brillante tampoco cambia con el interruptor prendid
 
 const leerFuente = (ruta: string) => readFileSync(new URL(`../../app/[empresa]/[periodo]/reporte/${ruta}`, import.meta.url), "utf-8");
 
-test("acciones de crear y borrar: cada una pide ADMIN/FINANZAS ANTES de tocar la base", () => {
+test("acciones de crear y borrar: cada una autoriza ANTES de tocar la base; fuera de las empresas del gerente, solo ADMIN/FINANZAS como siempre", () => {
   const fuente = leerFuente("actionsFilasExtra.ts");
   for (const nombre of ["crearFilaExtra", "borrarFilaExtra"]) {
     const desde = fuente.indexOf(`export async function ${nombre}`);
     const cuerpo = fuente.slice(desde, fuente.indexOf("export async function", desde + 10) === -1 ? undefined : fuente.indexOf("export async function", desde + 10));
-    const exige = cuerpo.indexOf("await requireAdminOFinanzas()");
+    const exige = cuerpo.indexOf("await autorizarFilasExtra(");
     const prisma = cuerpo.indexOf("prisma.");
     assert.ok(exige > 0 && prisma > exige, nombre);
-    assert.ok(cuerpo.indexOf("requireAccesoEmpresa(empresa.id)") > exige, `${nombre}: acceso a la empresa`);
   }
+  // El helper: empresas fuera de EMPRESAS_CON_FILAS_EXTRA_GERENTE → requireAdminOFinanzas primero (el gerente es rechazado antes de
+  // mirar nada más, igual que antes); las de la lista → sesión, empresa y requireCargaRealEmpresa (casilla de ESA empresa).
+  const helper = fuente.slice(fuente.indexOf("async function autorizarFilasExtra"), fuente.indexOf("export async function crearFilaExtra"));
+  const lista = helper.indexOf("EMPRESAS_CON_FILAS_EXTRA_GERENTE.includes(empresaSlug)");
+  const admin = helper.indexOf("await requireAdminOFinanzas()");
+  const acceso = helper.indexOf("requireAccesoEmpresa(empresa.id)");
+  const sesion = helper.indexOf("await requireUsuarioAlDia()");
+  const carga = helper.indexOf("await requireCargaRealEmpresa(empresa.id)");
+  assert.ok(lista > 0 && admin > lista && acceso > admin && sesion > acceso && carga > sesion);
+  assert.ok(helper.indexOf("errorPeriodoNoHabilitado(periodo)") > carga, "el gerente no escribe fuera de los períodos habilitados");
   // Las reglas son las puras (probadas arriba), no copias.
   assert.match(fuente, /validarCreacionFilaExtra\(/);
   assert.match(fuente, /decidirBorradoFilaExtra\(/);
@@ -500,7 +519,7 @@ test("guardado del tipeo: la acción usa la plantilla del mes con las filas extr
   assert.ok(exige > 0 && resuelve > exige && motivo > resuelve && guarda > motivo);
 });
 
-test("pantalla: los botones y el borrado solo se arman para ADMIN/FINANZAS; al componente le llega null para el gerente", () => {
+test("pantalla: los botones y el borrado solo se arman para quien corresponde; al componente le llega null para el resto", () => {
   const page = leerFuente("page.tsx").replace(/\r\n/g, "\n");
   // Las dos vistas nacen null y solo se asignan dentro del if de tipeo directo, que exige `edicion.tipeo`
   // (lib/reporte/vistaReporte.ts, edicionDelReporte: ADMIN/FINANZAS o gerente con permiso de Real, y fuera de la vista histórica del mes en curso).
@@ -510,8 +529,9 @@ test("pantalla: los botones y el borrado solo se arman para ADMIN/FINANZAS; al c
   assert.ok(nace > 0 && si > nace && asigna > si);
   // El rol sigue entrando por ese helper: `edicion` se arma con el rol del usuario.
   assert.match(page, /edicionDelReporte\(\{ periodo, marca: marcaModo, esAdminOFinanzas: esAdminOFinanzas\(usuario\), puedeCargarReal \}\)/);
-  // Las filas extra siguen solo para ADMIN/FINANZAS aunque el gerente tenga tipeo: la vista no recibe el permiso de Real.
-  assert.match(page, /plantillaReporte,\n\s+\/\/[^\n]*\n\s+esAdminOFinanzas: esAdminOFinanzas\(usuario\),\n\s+periodo,/);
+  // La vista de filas extra recibe el rol Y el permiso de Real de ESTA empresa: ADMIN/FINANZAS siempre; un gerente solo con la casilla y
+  // solo en las empresas de EMPRESAS_CON_FILAS_EXTRA_GERENTE (lo decide armarVistaFilasExtra, probado arriba).
+  assert.match(page, /plantillaReporte,\n\s+\/\/[^\n]*\n\s+esAdminOFinanzas: esAdminOFinanzas\(usuario\),\n\s+puedeCargarReal,\n\s+periodo,/);
   assert.match(page, /filasExtra=\{filasExtra\}/);
   // El componente muestra el botón y la «×» solo con la vista.
   const tabla = leerFuente("ReportePlantilla.tsx");

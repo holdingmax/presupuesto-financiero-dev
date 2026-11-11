@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireAdminOFinanzas, requireAccesoEmpresa, esAdminOFinanzas } from "@/lib/auth";
+import { requireAdminOFinanzas, requireAccesoEmpresa, requireUsuarioAlDia, esAdminOFinanzas } from "@/lib/auth";
+import type { Usuario } from "@prisma/client";
+import { EMPRESAS_CON_FILAS_EXTRA_GERENTE } from "@/lib/config";
+import { puedeCargarRealEmpresa, requireCargaRealEmpresa } from "@/lib/cargaRealEmpresa";
+import { errorPeriodoNoHabilitado } from "@/lib/periodosHabilitados";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { periodoActual } from "@/lib/reporte/bloqueo";
 import { plantillaDeEmpresa } from "@/lib/reporte/plantillas";
@@ -16,8 +20,36 @@ export type ResultadoBorrarFila = { ok: true } | { ok: false; error: string };
 
 const FORMATO_PERIODO = /^\d{4}-\d{2}$/;
 
-// Agrega UNA fila extra al Reporte de la empresa (la ve desde `periodo` en adelante). Solo ADMIN y FINANZAS con
-// acceso a la empresa. Todas las reglas (interruptor, bloque, nombre, mes no bloqueado) están en
+// Quién llama, validado en el servidor. En las empresas donde el gerente también puede (EMPRESAS_CON_FILAS_EXTRA_GERENTE): ADMIN,
+// FINANZAS o un gerente con la casilla de ESA empresa (requireCargaRealEmpresa), y fuera de PERIODOS_HABILITADOS no escribe nadie.
+// En todas las demás empresas, igual que siempre: solo ADMIN y FINANZAS, y el gerente es rechazado antes de mirar nada más.
+type Autorizado =
+  | { ok: true; usuario: Usuario; empresa: { id: string }; puedeCargarReal: boolean }
+  | { ok: false; error: string };
+
+async function autorizarFilasExtra(empresaSlug: string, periodo: string): Promise<Autorizado> {
+  if (!EMPRESAS_CON_FILAS_EXTRA_GERENTE.includes(empresaSlug)) {
+    const usuario = await requireAdminOFinanzas();
+    if (!FORMATO_PERIODO.test(periodo)) return { ok: false, error: "Período inválido." };
+    const empresa = await resolverEmpresaPorSlug(empresaSlug);
+    if (!empresa) return { ok: false, error: "No encontré esa empresa." };
+    await requireAccesoEmpresa(empresa.id);
+    return { ok: true, usuario, empresa, puedeCargarReal: true };
+  }
+  await requireUsuarioAlDia();
+  if (!FORMATO_PERIODO.test(periodo)) return { ok: false, error: "Período inválido." };
+  const empresa = await resolverEmpresaPorSlug(empresaSlug);
+  if (!empresa) return { ok: false, error: "No encontré esa empresa." };
+  const usuario = await requireCargaRealEmpresa(empresa.id);
+  if (!esAdminOFinanzas(usuario)) {
+    const noHabilitado = errorPeriodoNoHabilitado(periodo);
+    if (noHabilitado) return { ok: false, error: noHabilitado };
+  }
+  return { ok: true, usuario, empresa, puedeCargarReal: await puedeCargarRealEmpresa(usuario, empresa.id) };
+}
+
+// Agrega UNA fila extra al Reporte de la empresa (la ve desde `periodo` en adelante). ADMIN y FINANZAS con
+// acceso a la empresa (o, en las empresas de EMPRESAS_CON_FILAS_EXTRA_GERENTE, un gerente con la casilla de esa empresa). Todas las reglas (interruptor, bloque, nombre, mes no bloqueado) están en
 // lib/reporte/accionesFilasExtra.ts y se aplican acá, en el servidor: la pantalla no decide nada.
 export async function crearFilaExtra(
   empresaSlug: string,
@@ -25,12 +57,9 @@ export async function crearFilaExtra(
   bloque: string,
   nombre: string
 ): Promise<ResultadoCrearFila> {
-  // Rechaza al gerente antes de mirar nada más.
-  const usuario = await requireAdminOFinanzas();
-  if (!FORMATO_PERIODO.test(periodo)) return { ok: false, error: "Período inválido." };
-  const empresa = await resolverEmpresaPorSlug(empresaSlug);
-  if (!empresa) return { ok: false, error: "No encontré esa empresa." };
-  await requireAccesoEmpresa(empresa.id);
+  const auth = await autorizarFilasExtra(empresaSlug, periodo);
+  if (!auth.ok) return auth;
+  const { usuario, empresa } = auth;
   const plantilla = plantillaDeEmpresa(empresaSlug);
   if (!plantilla) return { ok: false, error: "Esta empresa no tiene reporte por plantilla." };
 
@@ -42,6 +71,7 @@ export async function crearFilaExtra(
     empresaSlug,
     plantilla,
     esAdminOFinanzas: esAdminOFinanzas(usuario),
+    puedeCargarReal: auth.puedeCargarReal,
     bloque,
     nombre,
     extras,
@@ -77,13 +107,10 @@ export async function crearFilaExtra(
 // Borra una fila extra SOLO si no tiene ningún valor (en ningún mes ni columna). El conteo y el borrado van en la
 // misma transacción, serializable: un valor que alguien guarde justo en ese momento no se pierde en silencio.
 export async function borrarFilaExtra(empresaSlug: string, periodo: string, id: string): Promise<ResultadoBorrarFila> {
-  // Rechaza al gerente antes de mirar nada más.
-  const usuario = await requireAdminOFinanzas();
-  if (!FORMATO_PERIODO.test(periodo)) return { ok: false, error: "Período inválido." };
+  const auth = await autorizarFilasExtra(empresaSlug, periodo);
+  if (!auth.ok) return auth;
+  const { usuario, empresa } = auth;
   if (typeof id !== "string" || id === "" || id.length > 64) return { ok: false, error: "No encontré esa fila." };
-  const empresa = await resolverEmpresaPorSlug(empresaSlug);
-  if (!empresa) return { ok: false, error: "No encontré esa empresa." };
-  await requireAccesoEmpresa(empresa.id);
   const plantilla = plantillaDeEmpresa(empresaSlug);
   if (!plantilla) return { ok: false, error: "Esta empresa no tiene reporte por plantilla." };
 
@@ -98,6 +125,7 @@ export async function borrarFilaExtra(empresaSlug: string, periodo: string, id: 
           empresaSlug,
           plantilla,
           esAdminOFinanzas: esAdminOFinanzas(usuario),
+          puedeCargarReal: auth.puedeCargarReal,
           existe: fila !== null,
           cantidadDeValores,
         });

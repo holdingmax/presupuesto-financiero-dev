@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { crearFilaExtra, borrarFilaExtra } from "./actionsFilasExtra";
 import type { BloqueExtra } from "@/lib/reporte/filasExtra";
 
-// Agregar y borrar filas extra del Reporte (solo ADMIN y FINANZAS: el servidor no manda nada de esto a nadie
-// más). Compacto, como el resto de la tabla. Las reglas las aplican las acciones del servidor
+// Agregar y borrar filas extra del Reporte (ADMIN y FINANZAS, y el gerente con la casilla de su empresa en las empresas de
+// EMPRESAS_CON_FILAS_EXTRA_GERENTE: el servidor no manda nada de esto a nadie más). Compacto, como el resto de la tabla. Las reglas las aplican las acciones del servidor
 // (reporte/actionsFilasExtra.ts): acá no se decide nada.
 
 const CLASE_INPUT =
