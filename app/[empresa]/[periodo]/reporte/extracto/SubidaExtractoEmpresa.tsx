@@ -14,6 +14,8 @@ type Props = {
   periodo: string;
   semanasAbiertas: number[];
   semanaPorDefecto: number | null;
+  // Extensiones que acepta el selector de archivo (".xlsx"; Bradenton también ".csv").
+  acepta?: string;
 };
 
 const BOTON =
@@ -54,7 +56,7 @@ function TablaControl({ control }: { control: ControlPieMoneda[] }) {
 
 // Elegir archivo → (selector de pestaña si hace falta) → resumen → Confirmar. Nada se carga hasta Confirmar, y con
 // errores (pie que no cuadra incluido) no hay botón. Lo que decide es el servidor (subirExtractoEmpresa).
-export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbiertas, semanaPorDefecto }: Props) {
+export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbiertas, semanaPorDefecto, acepta = ".xlsx" }: Props) {
   const router = useRouter();
   const [archivo, setArchivo] = useState<File | null>(null);
   const [semana, setSemana] = useState<number | null>(semanaPorDefecto);
@@ -126,10 +128,10 @@ export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbier
     <div className="mt-6 space-y-4">
       <div className="flex flex-wrap items-end gap-4">
         <label className="text-sm">
-          <span className="mb-1 block text-xs text-ink-secondary">Archivo (.xlsx)</span>
+          <span className="mb-1 block text-xs text-ink-secondary">Archivo ({acepta.replace(/,/g, " o ")})</span>
           <input
             type="file"
-            accept=".xlsx"
+            accept={acepta}
             disabled={ocupado}
             onChange={(e) => {
               setArchivo(e.target.files?.[0] ?? null);

@@ -10,7 +10,8 @@ import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { verificarTamanoHavannaPeru } from "@/lib/extractos/limites";
 import { leerHavannaPeru, type ControlPieMoneda } from "@/lib/extractos/havannaPeru";
 import { rangoDelPeriodo } from "@/lib/extractos/cargaEmpresa";
-import { seleccionarPestanaHavannaPeru } from "@/lib/extractos/havannaPeruPestanas";
+import { DETECTOR_CHASE, DETECTOR_HAVANNA_PERU, seleccionarPestanaHavannaPeru } from "@/lib/extractos/havannaPeruPestanas";
+import { esCsvChase, hojaDeCsvChase, leerChase } from "@/lib/extractos/chase";
 import { ErrorExtracto } from "@/lib/extractos/tipos";
 import {
   ERROR_EMPRESA_SIN_EXTRACTO,
@@ -19,12 +20,13 @@ import {
   datosParaCrear,
   errorDeLectura,
   errorFechasFueraDelPeriodo,
+  monedasDeConfig,
   planificarCarga,
   resolverCuentasForzadas,
   type FilaExistente,
 } from "@/lib/extractos/cargaEmpresa";
 
-// Extracto de UNA empresa por su propio camino (Etapa 2, Havanna Perú): el libro PF de la empresa, no el extracto de
+// Extracto de UNA empresa por su propio camino (Etapa 2: Havanna Perú y Bradenton): el libro PF de la empresa, no el extracto de
 // un banco. NO toca subirExtracto ni subirMadre. Toda la lógica que decide está en lib/extractos/cargaEmpresa.ts
 // (pura y probada); acá solo se lee la base, se llama a eso y se escribe. Mismas reglas de siempre: lo ya cargado
 // se reconoce CONTANDO (N − M) y no se toca, y todo lo que decide qué se carga y la carga misma van en UNA
@@ -91,7 +93,12 @@ export async function subirExtractoEmpresa(
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) return { ok: false, error: "Elegí un archivo antes de subir." };
-  if (!/\.xlsx$/i.test(archivo.name)) return { ok: false, error: "El archivo tiene que ser un .xlsx." };
+  // Bradenton (Chase) acepta además el .csv original que baja el banco; el resto de las empresas, solo el .xlsx.
+  const aceptaCsv = config.lector === "chase";
+  const esCsv = aceptaCsv && /\.csv$/i.test(archivo.name);
+  if (!esCsv && !/\.xlsx$/i.test(archivo.name)) {
+    return { ok: false, error: aceptaCsv ? "El archivo tiene que ser un .xlsx (libro PF) o el .csv de Chase." : "El archivo tiene que ser un .xlsx." };
+  }
   const freno = verificarTamanoHavannaPeru(archivo.size);
   if (!freno.ok) return { ok: false, error: freno.error };
 
@@ -111,23 +118,39 @@ export async function subirExtractoEmpresa(
   const bytes = new Uint8Array(await archivo.arrayBuffer());
   let hoja;
   let nombrePestana: string;
+  let crudo = false;
   try {
-    const sel = seleccionarPestanaHavannaPeru(bytes, rangoDelPeriodo(periodo), opciones.pestana);
-    if (sel.tipo === "candidatas") {
-      return {
-        ok: false,
-        requierePestana: true,
-        motivo: sel.motivo,
-        candidatas: sel.candidatas.map((c) => ({
-          nombre: c.nombre,
-          desde: c.desde.toISOString().slice(0, 10),
-          hasta: c.hasta.toISOString().slice(0, 10),
-          filas: c.filas,
-        })),
-      };
+    if (esCsv) {
+      // El CSV no tiene pestañas: es una sola tabla. Se decide por contenido, no por la extensión.
+      if (!esCsvChase(bytes)) {
+        return { ok: false, error: "El .csv no parece el extracto de Chase (no encuentro el encabezado Posting Date / Description / Amount / Balance)." };
+      }
+      hoja = hojaDeCsvChase(bytes);
+      nombrePestana = hoja.nombre;
+      crudo = true;
+    } else {
+      const sel = seleccionarPestanaHavannaPeru(
+        bytes,
+        rangoDelPeriodo(periodo),
+        opciones.pestana,
+        config.lector === "chase" ? DETECTOR_CHASE : DETECTOR_HAVANNA_PERU
+      );
+      if (sel.tipo === "candidatas") {
+        return {
+          ok: false,
+          requierePestana: true,
+          motivo: sel.motivo,
+          candidatas: sel.candidatas.map((c) => ({
+            nombre: c.nombre,
+            desde: c.desde.toISOString().slice(0, 10),
+            hasta: c.hasta.toISOString().slice(0, 10),
+            filas: c.filas,
+          })),
+        };
+      }
+      hoja = sel.hoja;
+      nombrePestana = sel.candidata.nombre;
     }
-    hoja = sel.hoja;
-    nombrePestana = sel.candidata.nombre;
   } catch (e) {
     if (e instanceof ErrorExtracto) return { ok: false, error: e.message };
     throw e;
@@ -135,8 +158,8 @@ export async function subirExtractoEmpresa(
 
   let lectura;
   try {
-    // La moneda de la cuenta solo se usaría si faltara la columna Moneda; abajo eso se rechaza.
-    lectura = leerHavannaPeru(hoja, { monedaCuenta: "PEN" });
+    // Perú: la moneda de la cuenta solo se usaría si faltara la columna Moneda; abajo eso se rechaza. Chase: todo USD.
+    lectura = config.lector === "chase" ? leerChase(hoja, { crudo }) : leerHavannaPeru(hoja, { monedaCuenta: "PEN" });
   } catch (e) {
     if (e instanceof ErrorExtracto) return { ok: false, error: e.message };
     throw e;
@@ -149,7 +172,8 @@ export async function subirExtractoEmpresa(
   const fuera = errorFechasFueraDelPeriodo(filas, ejecucion.periodo);
   if (fuera) return { ok: false, error: fuera };
 
-  const nombresCuentas = [cuentas.PEN.nombre, cuentas.USD.nombre];
+  const monedas = monedasDeConfig(config);
+  const nombresCuentas = monedas.map((m) => cuentas[m].nombre);
   const { desde, hasta } = rangoDelPeriodo(periodo);
 
   // 6) Locks + reconocimiento + carga, en UNA transacción (mismos locks que subirExtracto: por cuenta y por período).
@@ -175,10 +199,10 @@ export async function subirExtractoEmpresa(
           AND mb.fecha < (${hasta.toISOString().slice(0, 10)}::date + 1)
           AND mb."bancoYCuenta" = ANY(${nombresCuentas}::text[])
       `;
-      const plan = planificarCarga(filas, existentes);
+      const plan = planificarCarga(filas, existentes, config.etiqueta);
       if (plan.bloqueo) return { ok: false as const, error: plan.bloqueo };
 
-      const porCuenta = (["PEN", "USD"] as const).map((m) => ({
+      const porCuenta = monedas.map((m) => ({
         cuenta: cuentas[m].nombre,
         moneda: m,
         filas: filas.filter((f) => f.moneda === m).length,

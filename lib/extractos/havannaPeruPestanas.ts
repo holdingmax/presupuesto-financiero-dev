@@ -1,5 +1,7 @@
 import * as XLSX from "xlsx";
 import { encabezadoHavannaPeru } from "./havannaPeru";
+import { encabezadoChase, pestanaChaseValida } from "./chase";
+import type { Encabezado } from "./bancos/comun";
 import { fechaDeCelda } from "./fechas";
 import { verificarCantidadFilasHavannaPeru, verificarTamanoHavannaPeru } from "./limites";
 import { ErrorExtracto, type Celda, type HojaGrilla } from "./tipos";
@@ -13,6 +15,20 @@ import { ErrorExtracto, type Celda, type HojaGrilla } from "./tipos";
 //   y al final se lee COMPLETA solo la pestaña elegida.
 
 const FILAS_PARA_DETECTAR = 45;
+
+// Qué es una "pestaña de movimientos" de cada lector: su encabezado (por contenido) y, si hace falta, una condición
+// más sobre sus filas. Hoy Havanna Perú (por defecto) y Chase (Bradenton). Todo lo demás de este archivo es común.
+export type DetectorPestana = {
+  encabezado: (filas: Celda[][]) => Encabezado | null;
+  // Condición extra una vez leída la pestaña completa (p. ej. Chase: todas sus filas traen Balance, así "Ch deb" y
+  // "LOTTERY", que repiten movimientos de CHASE, no cuentan). Sin esto, basta el encabezado.
+  valida?: (filas: Celda[][], enc: Encabezado, date1904: boolean) => boolean;
+  // Texto para el mensaje cuando la pestaña pedida no tiene el encabezado.
+  nombreLector: string;
+};
+
+export const DETECTOR_HAVANNA_PERU: DetectorPestana = { encabezado: encabezadoHavannaPeru, nombreLector: "Havanna Perú" };
+export const DETECTOR_CHASE: DetectorPestana = { encabezado: encabezadoChase, valida: pestanaChaseValida, nombreLector: "Chase" };
 
 export type PeriodoHavannaPeru = { desde: Date; hasta: Date }; // medianoche UTC, ambos inclusive
 
@@ -70,20 +86,21 @@ function verificarBytes(bytes: Uint8Array) {
 }
 
 // Pasadas 1-3: pestañas con encabezado de movimientos, con su rango de fechas y cantidad de filas.
-export function listarPestanasMovimientos(bytes: Uint8Array): PestanaCandidata[] {
+export function listarPestanasMovimientos(bytes: Uint8Array, detector: DetectorPestana = DETECTOR_HAVANNA_PERU): PestanaCandidata[] {
   verificarBytes(bytes);
   const nombres = leerLibro(bytes, { bookSheets: true }).SheetNames;
 
   const primeras = leerLibro(bytes, { sheetRows: FILAS_PARA_DETECTAR });
-  const conEncabezado = nombres.filter((n) => encabezadoHavannaPeru(grillaDeHoja(primeras, n).filas) !== null);
+  const conEncabezado = nombres.filter((n) => detector.encabezado(grillaDeHoja(primeras, n).filas) !== null);
   if (conEncabezado.length === 0) return [];
 
   const libro = leerLibro(bytes, { sheets: conEncabezado });
   const candidatas: PestanaCandidata[] = [];
   for (const nombre of conEncabezado) {
     const { filas, date1904 } = grillaDeHoja(libro, nombre);
-    const enc = encabezadoHavannaPeru(filas);
+    const enc = detector.encabezado(filas);
     if (!enc) continue;
+    if (detector.valida && !detector.valida(filas, enc, date1904)) continue;
     let desde = Infinity;
     let hasta = -Infinity;
     let cantidad = 0;
@@ -101,13 +118,13 @@ export function listarPestanasMovimientos(bytes: Uint8Array): PestanaCandidata[]
 }
 
 // Lee SOLO la pestaña pedida (y verifica el tope de filas del camino).
-export function leerPestanaHavannaPeru(bytes: Uint8Array, nombre: string): HojaGrilla {
+export function leerPestanaHavannaPeru(bytes: Uint8Array, nombre: string, detector: DetectorPestana = DETECTOR_HAVANNA_PERU): HojaGrilla {
   verificarBytes(bytes);
   const libro = leerLibro(bytes, { sheets: [nombre] });
   if (!libro.Sheets[nombre]) throw new ErrorExtracto(`No encontré la pestaña "${nombre}" en el archivo.`);
   const hoja = grillaDeHoja(libro, nombre);
-  const enc = encabezadoHavannaPeru(hoja.filas);
-  if (!enc) throw new ErrorExtracto(`La pestaña "${nombre}" no tiene el encabezado de movimientos de Havanna Perú.`);
+  const enc = detector.encabezado(hoja.filas);
+  if (!enc) throw new ErrorExtracto(`La pestaña "${nombre}" no tiene el encabezado de movimientos de ${detector.nombreLector}.`);
   const lim = verificarCantidadFilasHavannaPeru(Math.max(0, hoja.filas.length - enc.indiceFila - 1));
   if (!lim.ok) throw new ErrorExtracto(lim.error);
   return hoja;
@@ -119,17 +136,18 @@ export function leerPestanaHavannaPeru(bytes: Uint8Array, nombre: string): HojaG
 export function seleccionarPestanaHavannaPeru(
   bytes: Uint8Array,
   periodo: PeriodoHavannaPeru,
-  nombreElegido?: string
+  nombreElegido?: string,
+  detector: DetectorPestana = DETECTOR_HAVANNA_PERU
 ): SeleccionPestana {
-  const candidatas = listarPestanasMovimientos(bytes);
+  const candidatas = listarPestanasMovimientos(bytes, detector);
   if (nombreElegido !== undefined) {
     const c = candidatas.find((x) => x.nombre === nombreElegido);
     if (!c) throw new ErrorExtracto(`La pestaña "${nombreElegido}" no es una pestaña de movimientos del archivo.`);
-    return { tipo: "elegida", hoja: leerPestanaHavannaPeru(bytes, c.nombre), candidata: c };
+    return { tipo: "elegida", hoja: leerPestanaHavannaPeru(bytes, c.nombre, detector), candidata: c };
   }
   const dentro = candidatas.filter((c) => c.desde >= periodo.desde && c.hasta <= periodo.hasta);
   if (dentro.length === 1) {
-    return { tipo: "elegida", hoja: leerPestanaHavannaPeru(bytes, dentro[0].nombre), candidata: dentro[0] };
+    return { tipo: "elegida", hoja: leerPestanaHavannaPeru(bytes, dentro[0].nombre, detector), candidata: dentro[0] };
   }
   if (dentro.length > 1) return { tipo: "candidatas", motivo: "varias_en_periodo", candidatas: dentro };
   return { tipo: "candidatas", motivo: "ninguna_en_periodo", candidatas };

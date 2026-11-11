@@ -59,8 +59,8 @@ const comoExistentes = (filas: FilaACargar[]): FilaExistente[] =>
 
 // ------------------------------------------------------------------ config y lista
 
-test("config: solo Havanna Perú, con su entrada, y con Reporte por plantilla", () => {
-  assert.deepEqual([...EMPRESAS_CON_EXTRACTO_POR_EMPRESA], ["havanna-peru"]);
+test("config: Havanna Perú y Bradenton, cada una con su entrada, y con Reporte por plantilla", () => {
+  assert.deepEqual([...EMPRESAS_CON_EXTRACTO_POR_EMPRESA], ["havanna-peru", "bradenton"]);
   for (const slug of EMPRESAS_CON_EXTRACTO_POR_EMPRESA) {
     assert.ok(CONFIG_EXTRACTO_EMPRESA[slug], `falta la entrada de ${slug}`);
     assert.ok(EMPRESAS_CON_CARGA_EN_REPORTE.includes(slug));
@@ -323,9 +323,9 @@ test("misma transacción y mismos locks que subirExtracto (por cuenta y por per�
 
 // ------------------------------------------------------------------ banco BBVA Perú y no regresión
 
-test("BBVA Perú se suma a la lista de bancos de las cuentas sin tocar los 6 de los lectores", () => {
+test("BBVA Perú y Chase se suman a la lista de bancos de las cuentas sin tocar los 6 de los lectores", () => {
   assert.deepEqual([...BANCOS_EXTRACTO], ["MACRO", "GALICIA", "FRANCES", "BNA", "SANT", "BSE"]);
-  assert.deepEqual([...BANCOS_CUENTA], [...BANCOS_EXTRACTO, "BBVA_PERU"]);
+  assert.deepEqual([...BANCOS_CUENTA], [...BANCOS_EXTRACTO, "BBVA_PERU", "CHASE"]);
 });
 
 test("cuentas: BBVA PERÚ SOLES y USD se validan; otro nombre o repetida no", () => {
