@@ -4,6 +4,8 @@ import Paginacion from "@/app/ejecucion/Paginacion";
 import TotalesPorMoneda from "@/app/ejecucion/TotalesPorMoneda";
 import MovimientosEditablesEmpresa from "./MovimientosEditablesEmpresa";
 import { obtenerDatosSemanaDeEmpresa } from "../datos";
+import SelectorMes from "../SelectorMes";
+import { opcionesDeMes } from "@/lib/mesesEjecucion";
 import { AccesoDenegadoError } from "@/lib/auth";
 import { textoTrazabilidad } from "@/lib/fecha";
 import { hrefConFiltro, leerClasificacion, queryClasificacion } from "@/lib/filtroClasificacionEmpresa";
@@ -122,6 +124,11 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
           )}
         </div>
       </div>
+
+      <SelectorMes
+        periodo={periodo}
+        opciones={opcionesDeMes(empresa, datos.meses, periodo, (b) => hrefConFiltro(b, clasificacion))}
+      />
 
       {datos.semanas.length > 1 && (
         <nav className="mb-6 flex flex-wrap items-center gap-2 text-sm">
