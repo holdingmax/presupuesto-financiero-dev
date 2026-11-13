@@ -8,7 +8,8 @@ import { obtenerValoresOcultos } from "@/lib/ocultasGerenteDb";
 import { slugDeEmpresa } from "@/lib/slug";
 import { avisoSemanasAbiertas, sumarTotalesSemanalesPorMoneda, whereMovimientosDelMes } from "@/lib/ejecucionMes";
 import { totalEnPesos } from "@/lib/moneda";
-import { clasificacionesOcultasParaUsuario } from "@/lib/clasificacionesOcultas";
+import { clasificacionesOcultasParaUsuario, valoresGuardadosOcultos } from "@/lib/clasificacionesOcultas";
+import { elegirMesDeEntrada, resumirMeses } from "@/lib/mesesEjecucion";
 import { puedeClasificarEnEmpresa } from "@/lib/clasificarPorEmpresa";
 import { clasificacionesParaEditar, contarSugerenciasDeEmpresa } from "@/lib/clasificarPorEmpresaDb";
 
@@ -44,6 +45,43 @@ export async function obtenerNumeroSemanaParaVer(empresaSlug: string, periodo: s
   return ultima?.numeroSemana ?? null;
 }
 
+// Meses con movimientos de ESTA empresa (sin ignorados, sin las clasificaciones que este usuario no ve), del más
+// nuevo al más viejo, cada uno con la semana a la que lleva (la abierta, o la última). SOLO LECTURA: lee las
+// semanas que ya existen y cuenta movimientos en dos consultas; nunca crea una semana, así que el selector solo
+// puede llevar a semanas que ya están.
+async function mesesDeLaEmpresa(
+  empresa: { nombre: string; unidadesNegocio: string[] },
+  usuario: { rol: string; operaEjecucion: boolean }
+) {
+  const unidades = empresa.unidadesNegocio;
+  if (unidades.length === 0) return [];
+  const [semanas, filas] = await Promise.all([
+    prisma.ejecucionSemanal.findMany({ select: { id: true, periodo: true, numeroSemana: true, estado: true } }),
+    prisma.movimientoBancario.groupBy({
+      by: ["ejecucionId", "clasificacion"],
+      where: { ...filtroDeUnidades(unidades), ignorado: false },
+      _count: { _all: true },
+    }),
+  ]);
+  const ocultas = valoresGuardadosOcultos(
+    filas.map((f) => f.clasificacion),
+    clasificacionesOcultasParaUsuario(slugDeEmpresa(empresa.nombre), usuario)
+  );
+  return resumirMeses(
+    semanas,
+    filas.map((f) => ({ ejecucionId: f.ejecucionId, clasificacion: f.clasificacion, cantidad: f._count._all })),
+    ocultas
+  );
+}
+
+// Para el índice de la pestaña: si el mes de la URL no tiene movimientos de la empresa, a qué mes y semana
+// ir (el más reciente con movimientos sin clasificar o, si no hay, el más reciente con movimientos). null =
+// quedarse en el mes de la URL.
+export async function obtenerMesDeEntrada(empresaSlug: string, periodo: string) {
+  const { empresa, usuario } = await resolverEmpresaParaLeer(empresaSlug, periodo);
+  return elegirMesDeEntrada(await mesesDeLaEmpresa(empresa, usuario), periodo);
+}
+
 export async function obtenerDatosSemanaDeEmpresa(
   empresaSlug: string,
   periodo: string,
@@ -62,7 +100,7 @@ export async function obtenerDatosSemanaDeEmpresa(
   // Semana + unidades de la empresa (AND) + clasificación elegida, si hay (menos las ocultas).
   const where = whereMovimientosDeEmpresa(ejecucion.id, unidades, clasificacion, ocultas);
 
-  const [totalMovimientos, totalesPorMoneda, semanas, clasificacionesDeLaEmpresa, cantidadOcultos] = await Promise.all([
+  const [totalMovimientos, totalesPorMoneda, semanas, clasificacionesDeLaEmpresa, cantidadOcultos, meses] = await Promise.all([
     prisma.movimientoBancario.count({ where }),
     sumarImporteDeUnidades(ejecucion.id, unidades, clasificacion, ocultas),
     prisma.ejecucionSemanal.findMany({
@@ -84,6 +122,7 @@ export async function obtenerDatosSemanaDeEmpresa(
       : prisma.movimientoBancario.count({
           where: { ejecucionId: ejecucion.id, ...filtroDeUnidades(unidades), clasificacion: { in: ocultas } },
         }),
+    mesesDeLaEmpresa(empresa, usuario),
   ]);
   const totalPaginas = Math.max(1, Math.ceil(totalMovimientos / FILAS_POR_PAGINA));
   const paginaEfectiva = Math.min(Math.max(1, pagina), totalPaginas);
@@ -142,6 +181,7 @@ export async function obtenerDatosSemanaDeEmpresa(
     // Para el enlace "Operar en Ejecución global" (quien opera, ADMIN o FINANZAS).
     puedeIrAlModuloGlobal: puedeOperarEjecucionGlobal(usuario) || veTodoEjecucion(usuario),
     semanas,
+    meses,
     sinUnidades: unidades.length === 0,
     movimientos: movimientos.map((m) => mapearMovimiento(m, unidades)),
     totalMovimientos,
@@ -190,7 +230,7 @@ export async function obtenerDatosMesDeEmpresa(
   const ids = semanas.map((s) => s.id);
   const where = whereMovimientosDelMes(ids, unidades, clasificacion, ocultas);
 
-  const [totalMovimientos, totalesSemanales, clasificacionesDeLaEmpresa, cantidadOcultos] = await Promise.all([
+  const [totalMovimientos, totalesSemanales, clasificacionesDeLaEmpresa, cantidadOcultos, meses] = await Promise.all([
     prisma.movimientoBancario.count({ where }),
     Promise.all(semanas.map((s, i) => sumarImporteDeUnidades(s.id, unidades, clasificacion, ocultasPorSemana[i]))),
     unidades.length === 0
@@ -205,6 +245,7 @@ export async function obtenerDatosMesDeEmpresa(
       : prisma.movimientoBancario.count({
           where: { ejecucionId: { in: ids }, ...filtroDeUnidades(unidades), ignorado: false, clasificacion: { in: ocultas } },
         }),
+    mesesDeLaEmpresa(empresa, usuario),
   ]);
   const totalPaginas = Math.max(1, Math.ceil(totalMovimientos / FILAS_POR_PAGINA));
   const paginaEfectiva = Math.min(Math.max(1, pagina), totalPaginas);
@@ -223,6 +264,7 @@ export async function obtenerDatosMesDeEmpresa(
     empresaNombre: empresa.nombre,
     puedeIrAlModuloGlobal: puedeOperarEjecucionGlobal(usuario) || veTodoEjecucion(usuario),
     semanas: semanas.map((s) => ({ numeroSemana: s.numeroSemana, estado: s.estado })),
+    meses,
     todasCerradas: semanas.every((s) => s.estado === "CERRADA"),
     avisoAbiertas: avisoSemanasAbiertas(semanas),
     sinUnidades: unidades.length === 0,
