@@ -22,8 +22,10 @@ import {
   obtenerUnidadesConEmpresa,
   calcularRealPorRubro,
   calcularNoAsignadoDelPeriodo,
+  calcularSinClasificarDelPeriodo,
   type NoAsignado,
 } from "@/lib/reporte";
+import { armarBloqueSinClasificar } from "@/lib/reporte/sinClasificar";
 import { armarIndiceRubros, rubroDe } from "@/lib/rubros";
 import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
 import { armarReporte, clasificacionesDePlantilla, periodosHasta, type Plantilla } from "@/lib/reporte/motor";
@@ -189,7 +191,7 @@ export default async function ReportePage({ params, searchParams }: Props) {
   // CERRADAS (una semana abierta es provisoria) e ignorado:false — mismo criterio
   // que antes. Sumado en la base (numeric exacto) y devuelto en centavos.
   const unidadesConEmpresa = await obtenerUnidadesConEmpresa();
-  const [realPorRubro, noAsignado] = await Promise.all([
+  const [realPorRubro, noAsignado, sinClasificar] = await Promise.all([
     calcularRealPorRubro(periodo, unidadesEmpresa, RUBROS_EGRESOS),
     // Importes del período cuya unidad no pertenece a ninguna empresa (SIN ASIGNAR,
     // valores viejos fuera de lista). Van en un bloque aparte, sin sumarse a ningún
@@ -198,6 +200,8 @@ export default async function ReportePage({ params, searchParams }: Props) {
     esAdminOFinanzas(usuario)
       ? calcularNoAsignadoDelPeriodo(periodo, RUBROS_EGRESOS, unidadesConEmpresa)
       : Promise.resolve({ porUnidad: [] as NoAsignado[], semanas: [] as number[] }),
+    // Bloque «Sin clasificar»: solo lectura, lo ven todos los que ven este Reporte.
+    calcularSinClasificarDelPeriodo(periodo, unidadesEmpresa).then(armarBloqueSinClasificar),
   ]);
   // Mismo criterio que antes para mostrar: magnitud del neto del rubro, en pesos.
   const realPorClasificacion = new Map<string, number>();
@@ -227,6 +231,7 @@ export default async function ReportePage({ params, searchParams }: Props) {
       sinUnidades={unidadesEmpresa.length === 0}
       noAsignado={noAsignadoPesos.map((n) => ({ unidad: n.unidad, importe: n.pesos, movimientos: n.movimientos }))}
       semanasConNoAsignado={noAsignado.semanas}
+      sinClasificar={sinClasificar}
     />
   );
 }
@@ -306,13 +311,15 @@ async function ReportePorPlantilla({
   // Qué bloques reservados llegan a este usuario: todo (ADMIN/FINANZAS), nada, o lo que prendan los
   // interruptores de su empresa (lib/config.ts).
   const acceso = accesoReservadosDelReporte(verBloquesReservados, empresaSlug);
-  const [meses, noAsignado] = await Promise.all([
+  const [meses, noAsignado, sinClasificar] = await Promise.all([
     cargarDatosMeses(empresaId, unidadesEmpresa, plantillaReporte, periodos, acceso),
     // Mismo bloque de control que la Fase 1, para el mes de la URL (de todo el holding:
     // solo ADMIN y FINANZAS).
     verBloquesReservados
       ? calcularNoAsignadoDelPeriodo(periodo, clasificaciones, unidadesConEmpresa)
       : Promise.resolve({ porUnidad: [] as NoAsignado[], semanas: [] as number[] }),
+    // Bloque «Sin clasificar»: solo lectura, lo ven todos los que ven este Reporte (no depende de los bloques reservados).
+    calcularSinClasificarDelPeriodo(periodo, unidadesEmpresa).then(armarBloqueSinClasificar),
   ]);
   const reporte = armarReporte(plantillaReporte, meses, 1, { verBloquesReservados: acceso });
 
@@ -429,6 +436,7 @@ async function ReportePorPlantilla({
         movimientos: n.movimientos,
       }))}
       semanasConNoAsignado={noAsignado.semanas}
+      sinClasificar={sinClasificar}
       controlVista={<VistaSelector empresaSlug={empresaSlug} periodo={periodo} vista={vista} marca={marcaModo} />}
     />
     </>

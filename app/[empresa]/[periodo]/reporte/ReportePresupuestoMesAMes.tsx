@@ -1,6 +1,8 @@
 import { nombreParaMostrar } from "@/lib/clasificaciones";
 import { formatearImporte } from "@/app/ejecucion/formato";
 import BloqueNoAsignado from "./BloqueNoAsignado";
+import BloqueSinClasificar from "./BloqueSinClasificar";
+import type { BloqueSinClasificar as DatosSinClasificar } from "@/lib/reporte/sinClasificar";
 import {
   CLASE_BORDE_MES,
   CLASE_CABECERA_COLUMNA,
@@ -43,6 +45,7 @@ type Props = {
   // empresa. No se suman a ningún rubro (ver lib/reporte.ts).
   noAsignado: { unidad: string; importe: number; movimientos: number }[];
   semanasConNoAsignado: number[];
+  sinClasificar: DatosSinClasificar | null;
 };
 
 export default function ReportePresupuestoMesAMes({
@@ -53,6 +56,7 @@ export default function ReportePresupuestoMesAMes({
   sinUnidades,
   noAsignado,
   semanasConNoAsignado,
+  sinClasificar,
 }: Props) {
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-10">
@@ -124,6 +128,7 @@ export default function ReportePresupuestoMesAMes({
         noAsignado={noAsignado}
         semanasConNoAsignado={semanasConNoAsignado}
       />
+      <BloqueSinClasificar sinClasificar={sinClasificar} />
 
       <p className="mt-8 text-xs text-ink-muted">Disponibilidades e Ingresos: próximamente</p>
     </div>
