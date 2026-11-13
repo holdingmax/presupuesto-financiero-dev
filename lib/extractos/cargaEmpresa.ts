@@ -8,6 +8,7 @@ import {
   separarNuevas,
 } from "@/lib/conteoMovimientos";
 import { periodoDeFecha } from "@/lib/ejecucionSemanas";
+import { sugerir, type IndiceHistorial } from "@/lib/clasificacionHistorial";
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { BANCO_BBVA_PERU, BANCO_BROU, BANCO_CHASE, CUENTAS_BBVA_PERU, CUENTAS_BROU, CUENTAS_CHASE, NUMEROS_CUENTA_BROU } from "./bancosCuenta";
 import { claveBrou } from "./brou";
@@ -36,7 +37,17 @@ export type ConfigExtractoEmpresa = {
   // Solo cuando el archivo es de UNA cuenta (BROU: un archivo por cuenta): el número de cuenta que muestra el banco en
   // el encabezado, por moneda. Con esto la carga resuelve, bloquea y reconoce SOLO la cuenta del archivo.
   numeroCuentaPorMoneda?: Partial<Record<MonedaHavannaPeru, string>>;
+  // true = al cargar, los movimientos nuevos reciben una clasificación SUGERIDA por el historial de ESTA empresa (lib/
+  // clasificacionHistorialDb.ts), a confirmar en el panel de sugerencias. Sin esto (Bradenton y Plate Silver, por ahora) todo
+  // entra SIN CLASIFICAR.
+  sugerenciasPorHistorial?: boolean;
 };
+
+// Unidades de negocio de las empresas con carga propia: su historial NO entra al índice global de las demás empresas (cada una
+// tiene su lista de clasificaciones y sus propios conceptos).
+export function unidadesConCargaPropia(): string[] {
+  return Object.values(CONFIG_EXTRACTO_EMPRESA).map((c) => c.unidad);
+}
 
 // ¿El archivo de esta empresa trae una sola cuenta (y por eso se cargan solo sus movimientos)?
 export function archivoDeUnaCuenta(config: ConfigExtractoEmpresa): boolean {
@@ -57,6 +68,7 @@ export const CONFIG_EXTRACTO_EMPRESA: Record<string, ConfigExtractoEmpresa> = {
     nombreBanco: "BBVA Perú",
     etiqueta: "Perú",
     cuentaPorMoneda: { PEN: CUENTAS_BBVA_PERU.PEN, USD: CUENTAS_BBVA_PERU.USD },
+    sugerenciasPorHistorial: true,
   },
   // Bradenton: una sola cuenta, Chase en dólares.
   bradenton: {
@@ -108,6 +120,9 @@ export function aceptaVariosArchivos(empresaSlug: string): boolean {
 const HISTORICO_PERU =
   " También podés subir el «Histórico de Movimientos» crudo del BBVA Perú (.xls tal cual lo baja el banco): uno por cuenta (la moneda sale del encabezado «Importes en») o varios tramos de la misma cuenta aunque se pisen las fechas. El resumen muestra los movimientos nuevos y ya cargados y el control de saldo (saldo inicial + movimientos = saldo final); si no cuadra, no se carga nada.";
 
+const SUGERENCIAS_POR_HISTORIAL =
+  "Los movimientos entran sin clasificar; a los que se parecen a movimientos ya clasificados de la empresa el sistema les propone la clasificación, y quedan para que la confirmes en el panel de sugerencias.";
+
 export function textoSubidaExtractoEmpresa(empresaSlug: string, maxBytes: number, maxFilas: number): string {
   const config = configDeEmpresa(empresaSlug);
   const limite = `hasta ${Math.round(maxBytes / (1024 * 1024))} MB y ${maxFilas.toLocaleString("es-AR")} movimientos por mes`;
@@ -118,7 +133,7 @@ export function textoSubidaExtractoEmpresa(empresaSlug: string, maxBytes: number
   const nombresMoneda: Record<string, string> = { PEN: "soles", USD: "dólares" };
   const destinos = Object.entries(config.cuentaPorMoneda).map(([m, cuenta]) => `los de ${nombresMoneda[m] ?? m} en ${cuenta}`);
   const libro = config.lector === "chase" ? "el libro PF de Bradenton o el .csv original de Chase" : "el libro PF de Perú";
-  return `Subí ${libro} (${aceptaDeEmpresa(empresaSlug).replace(/,/g, " o ")}, ${limite}). El sistema busca la pestaña de movimientos del mes, te muestra un resumen y recién cuando confirmás carga los movimientos: ${destinos.join(" y ")}. Todo entra sin clasificar.${config.lector === "havanna-peru" ? HISTORICO_PERU : ""}`;
+  return `Subí ${libro} (${aceptaDeEmpresa(empresaSlug).replace(/,/g, " o ")}, ${limite}). El sistema busca la pestaña de movimientos del mes, te muestra un resumen y recién cuando confirmás carga los movimientos: ${destinos.join(" y ")}. ${config.sugerenciasPorHistorial ? SUGERENCIAS_POR_HISTORIAL : "Todo entra sin clasificar."}${config.lector === "havanna-peru" ? HISTORICO_PERU : ""}`;
 }
 
 // ---- Cuentas forzadas ---------------------------------------------------------------------------
@@ -202,7 +217,8 @@ export type FilaACargar = {
   unidadNegocio: string;
   detalle: null;
   detalle2: null;
-  sugeridaPorSistema: false;
+  // true solo si la clasificación la propuso el historial (ver aplicarSugerenciasAFilas); si no, false.
+  sugeridaPorSistema: boolean;
   chequeIvaAmbiguo: false;
   // La unidad es EXPLÍCITA (fijada por la configuración), no una sugerencia a confirmar.
   unidadSugeridaPorSistema: false;
@@ -248,6 +264,21 @@ export function armarFilasACargar(
             : claveHavannaPeru(f, bancoYCuenta),
     };
   });
+}
+
+// Para las empresas con `sugerenciasPorHistorial`: la fila que todavía está SIN CLASIFICAR y cuyo concepto (con su signo) tiene
+// historial suficiente y dominante queda con esa clasificación y sugeridaPorSistema = true (va al panel de confirmación, nunca se
+// confirma sola); la que no, queda como está. Devuelve filas nuevas (no muta) y cuántas se sugirieron. La unidad no se toca.
+export function aplicarSugerenciasAFilas(filas: readonly FilaACargar[], indice: IndiceHistorial): { filas: FilaACargar[]; sugeridas: number } {
+  let sugeridas = 0;
+  const resultado = filas.map((f) => {
+    if (f.clasificacion !== CLASIFICACION_SIN_CLASIFICAR) return f;
+    const s = sugerir(f.concepto, f.importeCentavos, indice);
+    if (!s) return f;
+    sugeridas++;
+    return { ...f, clasificacion: s.clasificacion, sugeridaPorSistema: true };
+  });
+  return { filas: resultado, sugeridas };
 }
 
 // Todas las fechas tienen que caer en el período de la semana: este camino no reparte entre meses.
