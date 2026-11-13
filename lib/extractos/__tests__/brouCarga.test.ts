@@ -169,7 +169,9 @@ test("pantalla: Plate Silver ve la subida (con permiso); acepta solo .xls; el te
   assert.match(t, /\.xls del BROU/);
   assert.match(t, /BROU UYU o BROU USD/);
   assert.match(t, /no trae saldo/);
-  assert.match(t, /Todo entra sin clasificar/);
+  // Desde la Fase 2 Plate Silver sugiere por historial y por regla de ingresos: ya no todo entra sin clasificar.
+  assert.match(t, /ingresos sin coincidencia/);
+  assert.doesNotMatch(t, /Todo entra sin clasificar/);
 });
 
 test("la acción: BROU solo acepta .xls, resuelve la cuenta del archivo y bloquea y reconoce solo esa cuenta; Perú y Bradenton quedan igual", () => {

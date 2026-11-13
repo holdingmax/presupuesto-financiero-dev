@@ -1,7 +1,16 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { clasificacionesPropiasDeEmpresa } from "@/lib/clasificarPorEmpresa";
-import { construirIndice, construirIndiceDeEmpresa, type GrupoHistorial, type IndiceHistorial } from "@/lib/clasificacionHistorial";
+import {
+  calcularSugerenciasParaMovimientos,
+  construirIndice,
+  construirIndiceDeEmpresa,
+  normalizarConcepto,
+  type GrupoHistorial,
+  type IndiceHistorial,
+  type UmbralesSugerencia,
+} from "@/lib/clasificacionHistorial";
+import { bloquearPeriodo } from "@/lib/ejecucion";
 import { unidadesConCargaPropia } from "@/lib/extractos/cargaEmpresa";
 
 // Parte con base de datos del historial de sugerencias (reglas puras en lib/clasificacionHistorial.ts). NO es "use server": lo
@@ -55,4 +64,93 @@ export async function cargarIndiceDeEmpresa(db: Cliente, empresaId: string, slug
   });
   const grupos: GrupoHistorial[] = [...movimientos, ...arranque];
   return construirIndiceDeEmpresa(grupos, lista);
+}
+
+// ---- Aplicar sugerencias a movimientos YA CARGADOS --------------------------------------------------------------------------
+
+export type AlcanceExistentes = { empresaId: string; slug: string; unidad: string; periodo: string; numeroSemana?: number; ingresoPorDefecto?: string | null; umbrales?: UmbralesSugerencia };
+
+export type InformeExistentes = {
+  // Contexto del alcance (para ver que lo ya clasificado no se toca).
+  totalEnAlcance: number;
+  yaClasificados: number;
+  sugeridasSinConfirmar: number;
+  // Lo que se podía tocar: SIN CLASIFICAR, no sugerido, no ignorado, sin prorrateo, de una semana ABIERTA.
+  pendientes: number;
+  sugeridasPorHistorial: number;
+  sugeridasPorRegla: number;
+  sinSugerencia: number;
+  aplicadas: number;
+  porClasificacion: Record<string, number>;
+  conceptosSinSugerencia: { concepto: string; veces: number }[];
+};
+
+// Condición ÚNICA de "se puede tocar": la usan la lectura y cada UPDATE. Un movimiento clasificado (a mano, sugerido o confirmado),
+// ignorado, prorrateado o de una semana cerrada NO entra, y si cambia mientras se corre, el UPDATE no lo pisa.
+function dondePendiente(a: AlcanceExistentes): Prisma.MovimientoBancarioWhereInput {
+  return {
+    unidadNegocio: a.unidad,
+    clasificacion: "SIN CLASIFICAR",
+    sugeridaPorSistema: false,
+    ignorado: false,
+    desglose: { none: {} },
+    ejecucion: { estado: "ABIERTA", periodo: a.periodo, ...(a.numeroSemana !== undefined ? { numeroSemana: a.numeroSemana } : {}) },
+  };
+}
+
+// Sugiere clasificación a lo que ya está cargado SIN CLASIFICAR, con el índice de la empresa y su regla de respaldo. Con
+// `aplicar = false` solo informa (no escribe nada). Todo en UNA transacción, con el lock del período (el mismo de las cargas).
+export async function sugerirAExistentes(db: PrismaClient, a: AlcanceExistentes, aplicar: boolean): Promise<InformeExistentes> {
+  return db.$transaction(
+    async (tx) => {
+      await bloquearPeriodo(tx, a.periodo);
+      const indice = await cargarIndiceDeEmpresa(tx, a.empresaId, a.slug, a.unidad);
+      if (indice === null) throw new Error(`La empresa ${a.slug} no tiene lista propia de clasificaciones: no hay con qué sugerir.`);
+
+      const enAlcance = { unidadNegocio: a.unidad, ejecucion: { periodo: a.periodo, ...(a.numeroSemana !== undefined ? { numeroSemana: a.numeroSemana } : {}) } };
+      const [totalEnAlcance, yaClasificados, sugeridasSinConfirmar] = await Promise.all([
+        tx.movimientoBancario.count({ where: enAlcance }),
+        tx.movimientoBancario.count({ where: { ...enAlcance, clasificacion: { not: "SIN CLASIFICAR" } } }),
+        tx.movimientoBancario.count({ where: { ...enAlcance, sugeridaPorSistema: true } }),
+      ]);
+
+      const filas = await tx.movimientoBancario.findMany({ where: dondePendiente(a), select: { id: true, concepto: true, importe: true } });
+      const movimientos = filas.map((f) => ({ id: f.id, concepto: f.concepto, importe: Number(f.importe.toString()) }));
+      const { sugerencias, sinSugerencia } = calcularSugerenciasParaMovimientos(movimientos, indice, a.ingresoPorDefecto, a.umbrales);
+
+      // Por clasificación: un UPDATE por valor, con la condición completa repetida (no pisa lo que cambió mientras tanto).
+      const porClasificacion: Record<string, number> = {};
+      const idsPorClasificacion = new Map<string, string[]>();
+      for (const s of sugerencias) idsPorClasificacion.set(s.clasificacion, [...(idsPorClasificacion.get(s.clasificacion) ?? []), s.id]);
+      let aplicadas = 0;
+      for (const [clasificacion, ids] of idsPorClasificacion) {
+        porClasificacion[clasificacion] = ids.length;
+        if (!aplicar) continue;
+        const r = await tx.movimientoBancario.updateMany({
+          where: { ...dondePendiente(a), id: { in: ids } },
+          data: { clasificacion, sugeridaPorSistema: true },
+        });
+        aplicadas += r.count;
+      }
+
+      const sinTexto = new Map<string, number>();
+      for (const m of sinSugerencia) {
+        const k = normalizarConcepto(m.concepto) || m.concepto;
+        sinTexto.set(k, (sinTexto.get(k) ?? 0) + 1);
+      }
+      return {
+        totalEnAlcance,
+        yaClasificados,
+        sugeridasSinConfirmar,
+        pendientes: movimientos.length,
+        sugeridasPorHistorial: sugerencias.filter((s) => s.origen === "historial").length,
+        sugeridasPorRegla: sugerencias.filter((s) => s.origen === "regla").length,
+        sinSugerencia: sinSugerencia.length,
+        aplicadas,
+        porClasificacion,
+        conceptosSinSugerencia: [...sinTexto.entries()].sort((x, y) => y[1] - x[1]).slice(0, 10).map(([concepto, veces]) => ({ concepto, veces })),
+      };
+    },
+    { maxWait: 10_000, timeout: 120_000 }
+  );
 }

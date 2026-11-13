@@ -274,18 +274,25 @@ export async function subirExtractoEmpresa(
       // sin respaldo global. Se leen acá, dentro de la transacción, antes de armar lo que se muestra y lo que se escribe.
       let nuevas = plan.nuevas;
       let sugeridas = 0;
+      let aplicadoPorRegla = 0;
       if (config.sugerenciasPorHistorial && nuevas.length > 0) {
         const indice = await cargarIndiceDeEmpresa(tx, empresa.id, slugDeEmpresa(empresa.nombre), config.unidad);
         if (indice !== null) {
-          const aplicado = aplicarSugerenciasAFilas(nuevas, indice);
+          const aplicado = aplicarSugerenciasAFilas(nuevas, indice, config.ingresoPorDefecto, config.umbralesSugerencia);
           nuevas = aplicado.filas;
           sugeridas = aplicado.sugeridas;
+          aplicadoPorRegla = aplicado.porRegla;
         }
         avisos.push(
           sugeridas > 0
             ? `${sugeridas} de ${nuevas.length} movimientos nuevos tienen una clasificación sugerida por el historial de ${config.etiqueta}: quedan para confirmar en el panel de sugerencias.`
             : `Ninguno de los ${nuevas.length} movimientos nuevos tiene historial suficiente para sugerirle clasificación: entran SIN CLASIFICAR.`
         );
+        if (indice !== null && aplicadoPorRegla > 0) {
+          avisos.push(
+            `De ellas, ${aplicadoPorRegla} son ingresos sin coincidencia en el historial: se les sugiere «${config.ingresoPorDefecto}» por regla (a revisar).`
+          );
+        }
       }
 
       if (!opciones.confirmarVistaPrevia && plan.nuevas.length > 0) {
