@@ -3,6 +3,7 @@ import { centavosDeDecimalTexto, MONEDA_PREDETERMINADA } from "@/lib/conteoMovim
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { armarIndiceRubros, rubroDe } from "@/lib/rubros";
 import { claveEquivalencia } from "@/lib/reporte/motor";
+import type { FilaSinClasificar } from "@/lib/reporte/sinClasificar";
 
 // REAL del Reporte por UNIDAD DE NEGOCIO, no por empresa del extracto (decisión
 // 2026-10-07). Una cuenta bancaria puede mezclar unidades: un gasto de RADIO
@@ -253,4 +254,54 @@ export async function contarSinUnidadEnSemana(
     GROUP BY x.unidad
     ORDER BY movimientos DESC, x.unidad
   `;
+}
+
+// Bloque "Sin clasificar" del Reporte: movimientos no ignorados con clasificación «SIN CLASIFICAR» del PERÍODO,
+// atribuidos a la empresa con el MISMO criterio que el Real (por unidad de negocio: los no prorrateados cuya unidad
+// es de la empresa, más las porciones de prorrateo de la empresa). Por estado de la semana (CERRADA / ABIERTA), por
+// moneda y por sentido: ingresos (importe > 0) y egresos (importe < 0) por separado, sin netear. Un importe 0 no
+// cuenta en ninguno. Solo lee: no toca ningún total del Reporte. Importes en centavos con signo.
+export async function calcularSinClasificarDelPeriodo(
+  periodo: string,
+  unidades: string[]
+): Promise<FilaSinClasificar[]> {
+  if (unidades.length === 0) return [];
+  const filas = await prisma.$queryRaw<
+    {
+      estado: "ABIERTA" | "CERRADA";
+      moneda: string;
+      ing_movimientos: number;
+      ing_total: string;
+      egr_movimientos: number;
+      egr_total: string;
+    }[]
+  >`
+    WITH mov AS (
+      SELECT mb.id, mb.importe, mb.moneda, mb."unidadNegocio", es.estado::text AS estado
+      FROM "MovimientoBancario" mb
+      JOIN "EjecucionSemanal" es ON mb."ejecucionId" = es.id
+      WHERE es.periodo = ${periodo} AND NOT mb.ignorado AND mb.clasificacion = 'SIN CLASIFICAR'
+    )
+    SELECT x.estado, x.moneda,
+           (COUNT(DISTINCT x.id) FILTER (WHERE x.importe > 0))::int AS ing_movimientos,
+           COALESCE(SUM(x.importe) FILTER (WHERE x.importe > 0), 0)::text AS ing_total,
+           (COUNT(DISTINCT x.id) FILTER (WHERE x.importe < 0))::int AS egr_movimientos,
+           COALESCE(SUM(x.importe) FILTER (WHERE x.importe < 0), 0)::text AS egr_total
+    FROM (
+      SELECT m.id, m.estado, m.moneda, m.importe FROM mov m
+      WHERE upper(btrim(m."unidadNegocio")) = ANY(${unidades}::text[])
+        AND NOT EXISTS (SELECT 1 FROM "MovimientoBancarioDesglose" d WHERE d."movimientoId" = m.id)
+      UNION ALL
+      SELECT m.id, m.estado, m.moneda, d.importe FROM mov m
+      JOIN "MovimientoBancarioDesglose" d ON d."movimientoId" = m.id
+      WHERE upper(btrim(d."unidadNegocio")) = ANY(${unidades}::text[])
+    ) x
+    GROUP BY x.estado, x.moneda
+  `;
+  return filas.map((f) => ({
+    estado: f.estado,
+    moneda: f.moneda,
+    ingresos: { movimientos: f.ing_movimientos, centavos: centavosDeDecimalTexto(f.ing_total) },
+    egresos: { movimientos: f.egr_movimientos, centavos: centavosDeDecimalTexto(f.egr_total) },
+  }));
 }

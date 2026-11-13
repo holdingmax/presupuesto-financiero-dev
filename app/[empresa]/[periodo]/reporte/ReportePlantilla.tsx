@@ -4,6 +4,8 @@ import { EMPRESAS_EN_DOLARES } from "@/lib/config";
 import { formatearImporte } from "@/app/ejecucion/formato";
 import Link from "next/link";
 import BloqueNoAsignado from "./BloqueNoAsignado";
+import BloqueSinClasificar from "./BloqueSinClasificar";
+import type { BloqueSinClasificar as DatosSinClasificar } from "@/lib/reporte/sinClasificar";
 import { AccionesFlujo, AvisosFlujo, EstadoBadge } from "../FlujoPresupuesto";
 import type { EstadoFlujo } from "@/lib/presupuestoAcceso";
 import type { VistaCarga } from "@/lib/reporte/cargaGerente";
@@ -78,6 +80,7 @@ type Props = {
   sinUnidades: boolean;
   noAsignado: { unidad: string; importe: number; movimientos: number }[];
   semanasConNoAsignado: number[];
+  sinClasificar: DatosSinClasificar | null;
   // Control de vista (VistaSelector), armado en page.tsx: va en el encabezado, junto a las acciones.
   controlVista?: ReactNode;
 };
@@ -120,6 +123,7 @@ export default function ReportePlantilla({
   sinUnidades,
   noAsignado,
   semanasConNoAsignado,
+  sinClasificar,
   controlVista,
 }: Props) {
   const { periodos, sinPresupuesto, sinEjecucion } = reporte;
@@ -327,6 +331,7 @@ export default function ReportePlantilla({
         noAsignado={noAsignado}
         semanasConNoAsignado={semanasConNoAsignado}
       />
+      <BloqueSinClasificar sinClasificar={sinClasificar} />
     </div>
   );
 }
