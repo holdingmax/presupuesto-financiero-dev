@@ -8,7 +8,7 @@ import {
   separarNuevas,
 } from "@/lib/conteoMovimientos";
 import { periodoDeFecha } from "@/lib/ejecucionSemanas";
-import { sugerir, type IndiceHistorial } from "@/lib/clasificacionHistorial";
+import { UMBRALES_INICIALES, sugerirConRegla, type IndiceHistorial, type UmbralesSugerencia } from "@/lib/clasificacionHistorial";
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { BANCO_BBVA_PERU, BANCO_BROU, BANCO_CHASE, CUENTAS_BBVA_PERU, CUENTAS_BROU, CUENTAS_CHASE, NUMEROS_CUENTA_BROU } from "./bancosCuenta";
 import { claveBrou } from "./brou";
@@ -41,6 +41,12 @@ export type ConfigExtractoEmpresa = {
   // clasificacionHistorialDb.ts), a confirmar en el panel de sugerencias. Sin esto (Bradenton y Plate Silver, por ahora) todo
   // entra SIN CLASIFICAR.
   sugerenciasPorHistorial?: boolean;
+  // Regla de respaldo (solo con sugerenciasPorHistorial): clasificación que se SUGIERE a un INGRESO (importe > 0) que no tiene
+  // coincidencia en el historial. Tiene que ser un valor de la lista de la empresa (CLASIFICACIONES_POR_EMPRESA).
+  ingresoPorDefecto?: string;
+  // Umbrales propios del motor para ESTA empresa (solo con sugerenciasPorHistorial). Sin esto, los generales (UMBRALES_INICIALES: 3
+  // apariciones y 90 % de dominancia).
+  umbralesSugerencia?: UmbralesSugerencia;
 };
 
 // Unidades de negocio de las empresas con carga propia: su historial NO entra al índice global de las demás empresas (cada una
@@ -78,6 +84,11 @@ export const CONFIG_EXTRACTO_EMPRESA: Record<string, ConfigExtractoEmpresa> = {
     nombreBanco: "Chase",
     etiqueta: "Bradenton",
     cuentaPorMoneda: { USD: CUENTAS_CHASE.USD },
+    sugerenciasPorHistorial: true,
+    // Aprobado (2026-11): en Bradenton los depósitos («DEPOSIT ID NUMBER …», casi 1 de cada 5 movimientos) tienen el mismo texto y son
+    // casi todos DEP EFECTIVO (cerca del 90 %: unos pocos son de FOOD TRUCK o ICE MACHINE). Con el 90 % general quedaban justo por
+    // debajo y no se sugería ninguno; con 85 % se sugieren y los pocos distintos se corrigen en el panel.
+    umbralesSugerencia: { minApariciones: UMBRALES_INICIALES.minApariciones, minDominancia: 0.85 },
   },
   // Plate Silver: BROU, un archivo .xls por cuenta (pesos uruguayos y dólares).
   "plate-silver": {
@@ -88,6 +99,10 @@ export const CONFIG_EXTRACTO_EMPRESA: Record<string, ConfigExtractoEmpresa> = {
     etiqueta: "Plate Silver",
     cuentaPorMoneda: { UYU: CUENTAS_BROU.UYU, USD: CUENTAS_BROU.USD },
     numeroCuentaPorMoneda: { UYU: NUMEROS_CUENTA_BROU.UYU, USD: NUMEROS_CUENTA_BROU.USD },
+    sugerenciasPorHistorial: true,
+    // Aprobada por Romina: casi todos los ingresos del BROU son cobranzas y cada pagador escribe distinto, así que el historial
+    // rara vez coincide. Es solo una sugerencia, a confirmar en el panel.
+    ingresoPorDefecto: "COBRANZA DE CLIENTE",
   },
 };
 
@@ -123,12 +138,15 @@ const HISTORICO_PERU =
 const SUGERENCIAS_POR_HISTORIAL =
   "Los movimientos entran sin clasificar; a los que se parecen a movimientos ya clasificados de la empresa el sistema les propone la clasificación, y quedan para que la confirmes en el panel de sugerencias.";
 
+const SUGERENCIAS_POR_HISTORIAL_BROU =
+  "Los movimientos entran sin clasificar; a los que se parecen a movimientos ya clasificados de la empresa, y a los ingresos sin coincidencia (como cobranza de cliente), el sistema les propone la clasificación, y quedan para que la confirmes en el panel de sugerencias.";
+
 export function textoSubidaExtractoEmpresa(empresaSlug: string, maxBytes: number, maxFilas: number): string {
   const config = configDeEmpresa(empresaSlug);
   const limite = `hasta ${Math.round(maxBytes / (1024 * 1024))} MB y ${maxFilas.toLocaleString("es-AR")} movimientos por mes`;
   if (!config) return "";
   if (config.lector === "brou") {
-    return `Subí el extracto .xls del BROU tal cual lo baja el banco («Detalle de Movimiento de Cuenta», ${limite}). Es un archivo por cuenta: el sistema lee la cuenta y la moneda del encabezado y los carga en ${Object.values(config.cuentaPorMoneda).join(" o ")}. Te muestra un resumen con la cantidad de movimientos y los totales de débito y crédito (el archivo no trae saldo) para que los compares con el banco, y recién cuando confirmás carga los movimientos. Todo entra sin clasificar.`;
+    return `Subí el extracto .xls del BROU tal cual lo baja el banco («Detalle de Movimiento de Cuenta», ${limite}). Es un archivo por cuenta: el sistema lee la cuenta y la moneda del encabezado y los carga en ${Object.values(config.cuentaPorMoneda).join(" o ")}. Te muestra un resumen con la cantidad de movimientos y los totales de débito y crédito (el archivo no trae saldo) para que los compares con el banco, y recién cuando confirmás carga los movimientos. ${config.sugerenciasPorHistorial ? SUGERENCIAS_POR_HISTORIAL_BROU : "Todo entra sin clasificar."}`;
   }
   const nombresMoneda: Record<string, string> = { PEN: "soles", USD: "dólares" };
   const destinos = Object.entries(config.cuentaPorMoneda).map(([m, cuenta]) => `los de ${nombresMoneda[m] ?? m} en ${cuenta}`);
@@ -268,17 +286,25 @@ export function armarFilasACargar(
 
 // Para las empresas con `sugerenciasPorHistorial`: la fila que todavía está SIN CLASIFICAR y cuyo concepto (con su signo) tiene
 // historial suficiente y dominante queda con esa clasificación y sugeridaPorSistema = true (va al panel de confirmación, nunca se
-// confirma sola); la que no, queda como está. Devuelve filas nuevas (no muta) y cuántas se sugirieron. La unidad no se toca.
-export function aplicarSugerenciasAFilas(filas: readonly FilaACargar[], indice: IndiceHistorial): { filas: FilaACargar[]; sugeridas: number } {
-  let sugeridas = 0;
+// confirma sola); si no hay coincidencia y la empresa declara `ingresoPorDefecto`, un ingreso recibe esa (también sugerida); la que
+// no, queda como está. Devuelve filas nuevas (no muta) y cuántas se sugirieron, por historial y por regla. La unidad no se toca.
+export function aplicarSugerenciasAFilas(
+  filas: readonly FilaACargar[],
+  indice: IndiceHistorial,
+  ingresoPorDefecto?: string | null,
+  umbrales: UmbralesSugerencia = UMBRALES_INICIALES
+): { filas: FilaACargar[]; sugeridas: number; porHistorial: number; porRegla: number } {
+  let porHistorial = 0;
+  let porRegla = 0;
   const resultado = filas.map((f) => {
     if (f.clasificacion !== CLASIFICACION_SIN_CLASIFICAR) return f;
-    const s = sugerir(f.concepto, f.importeCentavos, indice);
+    const s = sugerirConRegla(f.concepto, f.importeCentavos, indice, ingresoPorDefecto, umbrales);
     if (!s) return f;
-    sugeridas++;
+    if (s.origen === "historial") porHistorial++;
+    else porRegla++;
     return { ...f, clasificacion: s.clasificacion, sugeridaPorSistema: true };
   });
-  return { filas: resultado, sugeridas };
+  return { filas: resultado, sugeridas: porHistorial + porRegla, porHistorial, porRegla };
 }
 
 // Todas las fechas tienen que caer en el período de la semana: este camino no reparte entre meses.

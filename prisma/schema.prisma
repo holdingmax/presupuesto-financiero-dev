@@ -478,9 +478,9 @@ model FilaExtraReporte {
   @@index([empresaId, desdePeriodo])
 }
 
-// Historial de arranque de las sugerencias de clasificación de UNA empresa (hoy Havanna Perú): cuántas veces el contador clasificó
+// Historial de arranque de las sugerencias de clasificación de UNA empresa (Havanna Perú, Bradenton, Plate Silver): cuántas veces el contador clasificó
 // un concepto (ya normalizado con normalizarConcepto) con cada clasificación de la lista de la empresa, según su libro PF. Lo
-// carga el script prisma/scripts/sembrar-historial-peru.ts; el índice de sugerencias (lib/clasificacionHistorialDb.ts) lo suma a lo
+// carga el script prisma/scripts/sembrar-historial-empresa.ts; el índice de sugerencias (lib/clasificacionHistorialDb.ts) lo suma a lo
 // que ya clasificaron en el sistema. NO son movimientos: no entran a Ejecución ni al Reporte.
 model HistorialClasificacionEmpresa {
   id            String   @id @default(uuid())

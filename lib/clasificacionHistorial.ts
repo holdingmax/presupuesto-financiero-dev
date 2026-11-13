@@ -144,3 +144,44 @@ export function construirIndiceDeEmpresa(grupos: Iterable<GrupoHistorial>, lista
   }
   return construirIndice(validos);
 }
+
+// ---- Sugerencia con regla de respaldo ---------------------------------------------------------------------------------------
+
+export type OrigenSugerencia = "historial" | "regla";
+
+// Lo que propone el motor para UN movimiento: primero el historial de la empresa; si no hay coincidencia, y solo si la empresa
+// declara una regla de respaldo para los ingresos (importe > 0), esa clasificación. Nunca pisa al historial y nunca se aplica a un
+// egreso. Todo es una SUGERENCIA (quien la usa la marca sugeridaPorSistema = true).
+export function sugerirConRegla(
+  concepto: string,
+  importe: number,
+  indice: IndiceHistorial,
+  ingresoPorDefecto?: string | null,
+  umbrales: UmbralesSugerencia = UMBRALES_INICIALES
+): { clasificacion: string; origen: OrigenSugerencia } | null {
+  const s = sugerir(concepto, importe, indice, umbrales);
+  if (s) return { clasificacion: s.clasificacion, origen: "historial" };
+  if (ingresoPorDefecto && importe > 0) return { clasificacion: ingresoPorDefecto, origen: "regla" };
+  return null;
+}
+
+// Para movimientos YA CARGADOS (aplicar sugerencias a lo que está SIN CLASIFICAR): una sugerencia por movimiento que la tenga. Solo
+// calcula; quien escribe (lib/clasificacionHistorialDb.ts) vuelve a exigir en la base que el movimiento siga SIN CLASIFICAR.
+export type MovimientoParaSugerir = { id: string; concepto: string; importe: number };
+export type SugerenciaParaMovimiento = { id: string; clasificacion: string; origen: OrigenSugerencia };
+
+export function calcularSugerenciasParaMovimientos(
+  movimientos: readonly MovimientoParaSugerir[],
+  indice: IndiceHistorial,
+  ingresoPorDefecto?: string | null,
+  umbrales: UmbralesSugerencia = UMBRALES_INICIALES
+): { sugerencias: SugerenciaParaMovimiento[]; sinSugerencia: MovimientoParaSugerir[] } {
+  const sugerencias: SugerenciaParaMovimiento[] = [];
+  const sinSugerencia: MovimientoParaSugerir[] = [];
+  for (const m of movimientos) {
+    const s = sugerirConRegla(m.concepto, m.importe, indice, ingresoPorDefecto, umbrales);
+    if (s) sugerencias.push({ id: m.id, ...s });
+    else sinSugerencia.push(m);
+  }
+  return { sugerencias, sinSugerencia };
+}

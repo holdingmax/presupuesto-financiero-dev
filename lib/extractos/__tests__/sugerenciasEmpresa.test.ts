@@ -45,10 +45,11 @@ function fila(concepto: string, importeCentavos: number, extra: Partial<FilaACar
 
 // ---- Configuración ------------------------------------------------------------------------------
 
-test("config: solo Havanna Perú usa sugerencias por historial; Bradenton y Plate Silver siguen sin clasificar", () => {
-  assert.equal(configDeEmpresa("havanna-peru")!.sugerenciasPorHistorial, true);
-  assert.notEqual(configDeEmpresa("bradenton")!.sugerenciasPorHistorial, true);
-  assert.notEqual(configDeEmpresa("plate-silver")!.sugerenciasPorHistorial, true);
+test("config: las tres empresas con carga propia usan sugerencias por historial; solo Plate Silver tiene regla de ingresos", () => {
+  for (const slug of ["havanna-peru", "bradenton", "plate-silver"]) assert.equal(configDeEmpresa(slug)!.sugerenciasPorHistorial, true, slug);
+  assert.equal(configDeEmpresa("havanna-peru")!.ingresoPorDefecto, undefined);
+  assert.equal(configDeEmpresa("bradenton")!.ingresoPorDefecto, undefined);
+  assert.equal(configDeEmpresa("plate-silver")!.ingresoPorDefecto, "COBRANZA DE CLIENTE");
 });
 
 test("las unidades de Perú, Bradenton y Plate Silver quedan fuera del índice global", () => {
@@ -56,12 +57,13 @@ test("las unidades de Perú, Bradenton y Plate Silver quedan fuera del índice g
   assert.equal(unidadesConCargaPropia().length, Object.keys(CONFIG_EXTRACTO_EMPRESA).length);
 });
 
-test("texto de subida: Perú explica las sugerencias; Bradenton y Plate Silver siguen diciendo que todo entra sin clasificar", () => {
-  const peru = textoSubidaExtractoEmpresa("havanna-peru", 1024 * 1024, 100);
-  assert.match(peru, /el sistema les propone la clasificación/);
-  assert.doesNotMatch(peru, /Todo entra sin clasificar/);
-  assert.match(textoSubidaExtractoEmpresa("bradenton", 1024 * 1024, 100), /Todo entra sin clasificar/);
-  assert.match(textoSubidaExtractoEmpresa("plate-silver", 1024 * 1024, 100), /Todo entra sin clasificar/);
+test("texto de subida: las tres explican las sugerencias; ninguna dice ya que todo entra sin clasificar", () => {
+  for (const slug of ["havanna-peru", "bradenton", "plate-silver"]) {
+    const t = textoSubidaExtractoEmpresa(slug, 1024 * 1024, 100);
+    assert.match(t, /el sistema les propone la clasificación/, slug);
+    assert.doesNotMatch(t, /Todo entra sin clasificar/, slug);
+  }
+  assert.match(textoSubidaExtractoEmpresa("plate-silver", 1024 * 1024, 100), /ingresos sin coincidencia/);
 });
 
 // ---- Índice de la empresa -----------------------------------------------------------------------

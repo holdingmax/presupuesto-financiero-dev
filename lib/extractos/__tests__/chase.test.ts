@@ -298,7 +298,9 @@ test("pantalla: el texto de la subida habla del libro de Bradenton y de CHASE BR
   const t = textoSubidaExtractoEmpresa("bradenton", MAX_BYTES_HAVANNA_PERU, MAX_FILAS_HAVANNA_PERU);
   assert.match(t, /libro PF de Bradenton/);
   assert.match(t, /los de dólares en CHASE BRADENTON/);
-  assert.match(t, /Todo entra sin clasificar/);
+  // Desde la Fase 2 Bradenton también sugiere por historial: ya no todo entra sin clasificar.
+  assert.match(t, /el sistema les propone la clasificación/);
+  assert.doesNotMatch(t, /Todo entra sin clasificar/);
   const peru = textoSubidaExtractoEmpresa("havanna-peru", MAX_BYTES_HAVANNA_PERU, MAX_FILAS_HAVANNA_PERU);
   assert.match(peru, /los de soles en BBVA PERÚ SOLES y los de dólares en BBVA PERÚ USD/);
   assert.equal(textoSubidaExtractoEmpresa("brillante", 1, 1), "");
