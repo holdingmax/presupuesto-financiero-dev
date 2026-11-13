@@ -163,7 +163,7 @@ test("pantalla: Plate Silver ve la subida (con permiso); acepta solo .xls; el te
   assert.equal(puedeVerSubidaExtractoEmpresa("plate-silver", true), true);
   assert.equal(puedeVerSubidaExtractoEmpresa("plate-silver", false), false);
   assert.equal(aceptaDeEmpresa("plate-silver"), ".xls");
-  assert.equal(aceptaDeEmpresa("havanna-peru"), ".xlsx");
+  assert.equal(aceptaDeEmpresa("havanna-peru"), ".xlsx,.xls");
   assert.equal(aceptaDeEmpresa("bradenton"), ".xlsx,.csv");
   const t = textoSubidaExtractoEmpresa("plate-silver", MAX_BYTES_HAVANNA_PERU, MAX_FILAS_HAVANNA_PERU);
   assert.match(t, /\.xls del BROU/);

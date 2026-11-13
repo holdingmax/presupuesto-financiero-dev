@@ -95,8 +95,18 @@ export function aceptaDeEmpresa(empresaSlug: string): string {
   const lector = configDeEmpresa(empresaSlug)?.lector;
   if (lector === "chase") return ".xlsx,.csv";
   if (lector === "brou") return ".xls";
+  // Perú: el libro PF (.xlsx) y, además, el «Histórico de Movimientos» crudo del BBVA Perú (.xls, que es HTML).
+  if (lector === "havanna-peru") return ".xlsx,.xls";
   return ".xlsx";
 }
+
+// ¿Se pueden elegir varios archivos a la vez? Solo el histórico crudo de BBVA Perú (varios tramos de la misma cuenta).
+export function aceptaVariosArchivos(empresaSlug: string): boolean {
+  return configDeEmpresa(empresaSlug)?.lector === "havanna-peru";
+}
+
+const HISTORICO_PERU =
+  " También podés subir el «Histórico de Movimientos» crudo del BBVA Perú (.xls tal cual lo baja el banco): uno por cuenta (la moneda sale del encabezado «Importes en») o varios tramos de la misma cuenta aunque se pisen las fechas. El resumen muestra los movimientos nuevos y ya cargados y el control de saldo (saldo inicial + movimientos = saldo final); si no cuadra, no se carga nada.";
 
 export function textoSubidaExtractoEmpresa(empresaSlug: string, maxBytes: number, maxFilas: number): string {
   const config = configDeEmpresa(empresaSlug);
@@ -108,7 +118,7 @@ export function textoSubidaExtractoEmpresa(empresaSlug: string, maxBytes: number
   const nombresMoneda: Record<string, string> = { PEN: "soles", USD: "dólares" };
   const destinos = Object.entries(config.cuentaPorMoneda).map(([m, cuenta]) => `los de ${nombresMoneda[m] ?? m} en ${cuenta}`);
   const libro = config.lector === "chase" ? "el libro PF de Bradenton o el .csv original de Chase" : "el libro PF de Perú";
-  return `Subí ${libro} (${aceptaDeEmpresa(empresaSlug).replace(/,/g, " o ")}, ${limite}). El sistema busca la pestaña de movimientos del mes, te muestra un resumen y recién cuando confirmás carga los movimientos: ${destinos.join(" y ")}. Todo entra sin clasificar.`;
+  return `Subí ${libro} (${aceptaDeEmpresa(empresaSlug).replace(/,/g, " o ")}, ${limite}). El sistema busca la pestaña de movimientos del mes, te muestra un resumen y recién cuando confirmás carga los movimientos: ${destinos.join(" y ")}. Todo entra sin clasificar.${config.lector === "havanna-peru" ? HISTORICO_PERU : ""}`;
 }
 
 // ---- Cuentas forzadas ---------------------------------------------------------------------------

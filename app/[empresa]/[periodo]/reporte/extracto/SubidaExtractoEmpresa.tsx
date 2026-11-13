@@ -16,6 +16,8 @@ type Props = {
   semanaPorDefecto: number | null;
   // Extensiones que acepta el selector de archivo (".xlsx"; Bradenton también ".csv"; Plate Silver ".xls").
   acepta?: string;
+  // Se pueden elegir varios archivos (Perú: tramos del histórico del BBVA).
+  varios?: boolean;
 };
 
 const BOTON =
@@ -95,9 +97,9 @@ function TablaControl({ control }: { control: ControlPieMoneda[] }) {
 
 // Elegir archivo → (selector de pestaña si hace falta) → resumen → Confirmar. Nada se carga hasta Confirmar, y con
 // errores (pie que no cuadra incluido) no hay botón. Lo que decide es el servidor (subirExtractoEmpresa).
-export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbiertas, semanaPorDefecto, acepta = ".xlsx" }: Props) {
+export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbiertas, semanaPorDefecto, acepta = ".xlsx", varios = false }: Props) {
   const router = useRouter();
-  const [archivo, setArchivo] = useState<File | null>(null);
+  const [archivos, setArchivos] = useState<File[]>([]);
   const [semana, setSemana] = useState<number | null>(semanaPorDefecto);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<{ texto: string; control?: ControlPieMoneda[] } | null>(null);
@@ -114,7 +116,7 @@ export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbier
   }
 
   async function enviar(pestanaElegida: string | undefined, confirmar: boolean) {
-    if (!archivo || semana === null) return;
+    if (archivos.length === 0 || semana === null) return;
     setOcupado(true);
     setError(null);
     if (!confirmar) {
@@ -123,7 +125,7 @@ export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbier
     }
     try {
       const fd = new FormData();
-      fd.set("archivo", archivo);
+      for (const a of archivos) fd.append("archivo", a);
       const r = await subirExtractoEmpresa(empresaId, periodo, semana, fd, {
         pestana: pestanaElegida,
         confirmarVistaPrevia: confirmar,
@@ -171,9 +173,10 @@ export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbier
           <input
             type="file"
             accept={acepta}
+            multiple={varios}
             disabled={ocupado}
             onChange={(e) => {
-              setArchivo(e.target.files?.[0] ?? null);
+              setArchivos(Array.from(e.target.files ?? []));
               setPestana(undefined);
               limpiar();
             }}
@@ -198,7 +201,7 @@ export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbier
             ))}
           </select>
         </label>
-        <button type="button" className={BOTON} disabled={!archivo || ocupado} onClick={() => enviar(pestana, false)}>
+        <button type="button" className={BOTON} disabled={archivos.length === 0 || ocupado} onClick={() => enviar(pestana, false)}>
           {ocupado ? "Leyendo…" : "Ver resumen"}
         </button>
       </div>
@@ -247,6 +250,12 @@ export default function SubidaExtractoEmpresa({ empresaId, periodo, semanasAbier
           <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-xs tabular">
             <dt>Pestaña</dt>
             <dd>{vista.pestana}</dd>
+            {vista.detalleArchivos?.map((d) => (
+              <div key={d} className="contents">
+                <dt>Archivo</dt>
+                <dd>{d}</dd>
+              </div>
+            ))}
             <dt>Fechas del archivo</dt>
             <dd>
               {vista.desde} a {vista.hasta}

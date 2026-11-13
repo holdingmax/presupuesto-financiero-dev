@@ -438,14 +438,14 @@ test("CSV: pasa por el mismo camino de carga que la pestaña (cuenta, USD, unida
   assert.equal(planificarCarga(filas, comoExistentes(filas), CONFIG.etiqueta).nuevas.length, 0);
 });
 
-test("la acción: el .csv solo lo acepta Bradenton (Chase); Perú sigue aceptando solo .xlsx", () => {
+test("la acción: el .csv solo lo acepta Bradenton (Chase); Perú acepta el libro .xlsx y, además, el histórico .xls de BBVA", () => {
   const src = readFileSync("app/ejecucion/actionsExtractoEmpresa.ts", "utf8");
   assert.match(src, /const aceptaCsv = config\.lector === "chase"/);
   assert.match(src, /El archivo tiene que ser un \.xlsx \(libro PF\) o el \.csv de Chase\./);
   assert.match(src, /: "El archivo tiene que ser un \.xlsx\."/);
   assert.match(src, /leerChase\(hoja, \{ crudo \}\)/);
   assert.equal(aceptaDeEmpresa("bradenton"), ".xlsx,.csv");
-  assert.equal(aceptaDeEmpresa("havanna-peru"), ".xlsx");
+  assert.equal(aceptaDeEmpresa("havanna-peru"), ".xlsx,.xls");
   assert.match(textoSubidaExtractoEmpresa("bradenton", MAX_BYTES_HAVANNA_PERU, MAX_FILAS_HAVANNA_PERU), /\.csv original de Chase \(\.xlsx o \.csv,/);
 });
 
