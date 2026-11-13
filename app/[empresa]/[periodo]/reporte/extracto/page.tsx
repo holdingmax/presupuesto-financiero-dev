@@ -7,7 +7,7 @@ import { nombreDePeriodo } from "@/lib/ejecucionSemanas";
 import { errorPeriodoNoHabilitado } from "@/lib/periodosHabilitados";
 import { puedeVerSubidaExtractoEmpresa, semanasParaCargar } from "@/lib/extractos/pantallaExtractoEmpresa";
 import { MAX_BYTES_HAVANNA_PERU, MAX_FILAS_HAVANNA_PERU } from "@/lib/extractos/limites";
-import { aceptaDeEmpresa, textoSubidaExtractoEmpresa } from "@/lib/extractos/cargaEmpresa";
+import { aceptaDeEmpresa, aceptaVariosArchivos, textoSubidaExtractoEmpresa } from "@/lib/extractos/cargaEmpresa";
 import SubidaExtractoEmpresa from "./SubidaExtractoEmpresa";
 
 type Props = { params: Promise<{ empresa: string; periodo: string }> };
@@ -64,6 +64,7 @@ export default async function ExtractoEmpresaPage({ params }: Props) {
         semanasAbiertas={abiertas}
         semanaPorDefecto={porDefecto}
         acepta={aceptaDeEmpresa(slug)}
+        varios={aceptaVariosArchivos(slug)}
       />
     </div>
   );

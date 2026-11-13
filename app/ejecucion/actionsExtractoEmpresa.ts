@@ -13,7 +13,8 @@ import { rangoDelPeriodo } from "@/lib/extractos/cargaEmpresa";
 import { DETECTOR_CHASE, DETECTOR_HAVANNA_PERU, seleccionarPestanaHavannaPeru } from "@/lib/extractos/havannaPeruPestanas";
 import { esCsvChase, hojaDeCsvChase, leerChase } from "@/lib/extractos/chase";
 import { hojaDeBytesBrou, leerBrou } from "@/lib/extractos/brou";
-import { ErrorExtracto } from "@/lib/extractos/tipos";
+import { leerHistoricosBbvaPeru } from "@/lib/extractos/bbvaPeruHistorico";
+import { ErrorExtracto, type HojaGrilla } from "@/lib/extractos/tipos";
 import {
   ERROR_EMPRESA_SIN_EXTRACTO,
   archivoDeUnaCuenta,
@@ -70,6 +71,8 @@ export type ResultadoExtractoEmpresa =
         porCuenta: { cuenta: string; moneda: string; filas: number; nuevas: number }[];
         control: ControlPieMoneda[];
         avisos: string[];
+        // Solo el histórico crudo de BBVA Perú: una línea por archivo leído (cuenta, moneda, titular, fechas).
+        detalleArchivos?: string[];
       };
     };
 
@@ -96,12 +99,30 @@ export async function subirExtractoEmpresa(
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) return { ok: false, error: "Elegí un archivo antes de subir." };
+  // Perú: el «Histórico de Movimientos» crudo del BBVA (.xls, HTML) puede venir en VARIOS archivos (tramos de la misma
+  // cuenta). El libro PF (.xlsx) sigue siendo de UN archivo y por su camino de siempre.
+  const subidos = formData.getAll("archivo").filter((a): a is File => a instanceof File && a.size > 0);
+  const esHistorico = config.lector === "havanna-peru" && /\.xls$/i.test(archivo.name);
+  if (esHistorico) {
+    if (subidos.some((a) => !/\.xls$/i.test(a.name))) {
+      return { ok: false, error: "No se pueden mezclar el libro PF (.xlsx) con el histórico del BBVA (.xls) en la misma subida. Subí uno u otro." };
+    }
+    for (const a of subidos) {
+      const f = verificarTamanoHavannaPeru(a.size);
+      if (!f.ok) return { ok: false, error: `${a.name}: ${f.error}` };
+    }
+  } else if (subidos.length > 1) {
+    return { ok: false, error: "Por este camino se sube un solo archivo a la vez." };
+  }
   // Bradenton (Chase) acepta además el .csv original que baja el banco; Plate Silver (BROU) solo el .xls tal cual lo baja
   // el banco; el resto de las empresas, solo el .xlsx.
   const esBrou = config.lector === "brou";
+  const cuentasSeResuelvenDespues = esBrou || esHistorico;
   const aceptaCsv = config.lector === "chase";
   const esCsv = aceptaCsv && /\.csv$/i.test(archivo.name);
-  if (esBrou) {
+  if (esHistorico) {
+    // validado arriba
+  } else if (esBrou) {
     if (!/\.xls$/i.test(archivo.name)) return { ok: false, error: "El archivo tiene que ser el .xls que baja el BROU, tal cual se descargó." };
   } else if (!esCsv && !/\.xlsx$/i.test(archivo.name)) {
     return { ok: false, error: aceptaCsv ? "El archivo tiene que ser un .xlsx (libro PF) o el .csv de Chase." : "El archivo tiene que ser un .xlsx." };
@@ -115,7 +136,7 @@ export async function subirExtractoEmpresa(
   });
   // El archivo del BROU es de UNA cuenta: sus cuentas se resuelven DESPUÉS de leerlo (la cuenta sale de su encabezado).
   let cuentas: CuentasPorMoneda = {};
-  if (!esBrou) {
+  if (!cuentasSeResuelvenDespues) {
     const resCuentas = resolverCuentasForzadas(config, empresa.id, cuentasDeLaBase);
     if (!resCuentas.ok) return { ok: false, error: resCuentas.error };
     cuentas = resCuentas.cuentas;
@@ -127,11 +148,17 @@ export async function subirExtractoEmpresa(
 
   // 5) Pestaña por contenido y lectura.
   const bytes = new Uint8Array(await archivo.arrayBuffer());
-  let hoja;
+  let hoja!: HojaGrilla; // sin asignar en el histórico de BBVA (no usa hoja)
   let nombrePestana: string;
   let crudo = false;
+  let lecturaHistorica: ReturnType<typeof leerHistoricosBbvaPeru> | null = null;
   try {
-    if (esBrou) {
+    if (esHistorico) {
+      // Todas las tablas del histórico se leen y combinan acá; no hay pestaña que elegir.
+      const crudos = await Promise.all(subidos.map(async (a) => ({ nombre: a.name, bytes: new Uint8Array(await a.arrayBuffer()) })));
+      lecturaHistorica = leerHistoricosBbvaPeru(crudos);
+      nombrePestana = subidos.length === 1 ? "Histórico de Movimientos" : `Histórico de Movimientos (${subidos.length} archivos)`;
+    } else if (esBrou) {
       // Una sola tabla en una sola hoja: no hay pestaña que elegir.
       hoja = hojaDeBytesBrou(bytes);
       nombrePestana = hoja.nombre;
@@ -174,7 +201,9 @@ export async function subirExtractoEmpresa(
   let lectura;
   try {
     // Perú: la moneda de la cuenta solo se usaría si faltara la columna Moneda; abajo eso se rechaza. Chase: todo USD.
-    lectura = config.lector === "brou"
+    lectura = lecturaHistorica
+      ? lecturaHistorica
+      : config.lector === "brou"
       ? leerBrou(hoja, { cuentaPorMoneda: config.numeroCuentaPorMoneda ?? {} })
       : config.lector === "chase" ? leerChase(hoja, { crudo }) : leerHavannaPeru(hoja, { monedaCuenta: "PEN" });
   } catch (e) {
@@ -186,8 +215,8 @@ export async function subirExtractoEmpresa(
   if (errorLectura) return { ok: false, error: errorLectura, control: lectura.control };
 
   // BROU: las cuentas de ESTE archivo (la de su moneda) tienen que existir, estar activas y ser de la empresa.
-  const monedas = archivoDeUnaCuenta(config) ? [...new Set(lectura.filas.map((f) => f.moneda))] : monedasDeConfig(config);
-  if (esBrou) {
+  const monedas = archivoDeUnaCuenta(config) || esHistorico ? [...new Set(lectura.filas.map((f) => f.moneda))] : monedasDeConfig(config);
+  if (cuentasSeResuelvenDespues) {
     const lim = verificarCantidadFilasHavannaPeru(lectura.filas.length);
     if (!lim.ok) return { ok: false, error: lim.error };
     const resCuentas = resolverCuentasForzadas(config, empresa.id, cuentasDeLaBase, monedas);
@@ -251,6 +280,7 @@ export async function subirExtractoEmpresa(
             porCuenta,
             control: lectura.control,
             avisos,
+            ...(lecturaHistorica ? { detalleArchivos: lecturaHistorica.detalleArchivos } : {}),
           },
         };
       }
