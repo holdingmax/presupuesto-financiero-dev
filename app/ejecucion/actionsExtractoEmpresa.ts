@@ -9,7 +9,8 @@ import { bloquearPeriodo, obtenerEjecucionPorSemana } from "@/lib/ejecucion";
 import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { verificarCantidadFilasHavannaPeru, verificarTamanoHavannaPeru } from "@/lib/extractos/limites";
 import { leerHavannaPeru, type ControlPieMoneda } from "@/lib/extractos/havannaPeru";
-import { rangoDelPeriodo } from "@/lib/extractos/cargaEmpresa";
+import { cargarIndiceDeEmpresa } from "@/lib/clasificacionHistorialDb";
+import { aplicarSugerenciasAFilas, rangoDelPeriodo } from "@/lib/extractos/cargaEmpresa";
 import { DETECTOR_CHASE, DETECTOR_HAVANNA_PERU, seleccionarPestanaHavannaPeru } from "@/lib/extractos/havannaPeruPestanas";
 import { esCsvChase, hojaDeCsvChase, leerChase } from "@/lib/extractos/chase";
 import { hojaDeBytesBrou, leerBrou } from "@/lib/extractos/brou";
@@ -52,6 +53,8 @@ export type ResultadoExtractoEmpresa =
       ok: true;
       filasNuevas: number;
       filasYaCargadas: number;
+      // Cuántas de las nuevas quedaron con una clasificación sugerida por el historial (0 si la empresa no usa sugerencias).
+      sugeridas: number;
       pestana: string;
       control: ControlPieMoneda[];
       avisos: string[];
@@ -68,6 +71,8 @@ export type ResultadoExtractoEmpresa =
         filas: number;
         nuevas: number;
         yaCargadas: number;
+        // Cuántas de las nuevas llegan con una clasificación sugerida (a confirmar en el panel de sugerencias).
+        sugeridas: number;
         porCuenta: { cuenta: string; moneda: string; filas: number; nuevas: number }[];
         control: ControlPieMoneda[];
         avisos: string[];
@@ -265,6 +270,24 @@ export async function subirExtractoEmpresa(
       }));
       const avisos = [...lectura.avisos, ...plan.avisos];
 
+      // Sugerencias de clasificación (solo las empresas con `sugerenciasPorHistorial`): del historial de ESTA empresa y de SU lista,
+      // sin respaldo global. Se leen acá, dentro de la transacción, antes de armar lo que se muestra y lo que se escribe.
+      let nuevas = plan.nuevas;
+      let sugeridas = 0;
+      if (config.sugerenciasPorHistorial && nuevas.length > 0) {
+        const indice = await cargarIndiceDeEmpresa(tx, empresa.id, slugDeEmpresa(empresa.nombre), config.unidad);
+        if (indice !== null) {
+          const aplicado = aplicarSugerenciasAFilas(nuevas, indice);
+          nuevas = aplicado.filas;
+          sugeridas = aplicado.sugeridas;
+        }
+        avisos.push(
+          sugeridas > 0
+            ? `${sugeridas} de ${nuevas.length} movimientos nuevos tienen una clasificación sugerida por el historial de ${config.etiqueta}: quedan para confirmar en el panel de sugerencias.`
+            : `Ninguno de los ${nuevas.length} movimientos nuevos tiene historial suficiente para sugerirle clasificación: entran SIN CLASIFICAR.`
+        );
+      }
+
       if (!opciones.confirmarVistaPrevia && plan.nuevas.length > 0) {
         return {
           ok: false as const,
@@ -277,6 +300,7 @@ export async function subirExtractoEmpresa(
             filas: filas.length,
             nuevas: plan.nuevas.length,
             yaCargadas: plan.cantidadYaCargadas,
+            sugeridas,
             porCuenta,
             control: lectura.control,
             avisos,
@@ -286,12 +310,13 @@ export async function subirExtractoEmpresa(
       }
 
       if (plan.nuevas.length > 0) {
-        await tx.movimientoBancario.createMany({ data: plan.nuevas.map((f) => datosParaCrear(f, ejecucion.id)) });
+        await tx.movimientoBancario.createMany({ data: nuevas.map((f) => datosParaCrear(f, ejecucion.id)) });
       }
       return {
         ok: true as const,
         filasNuevas: plan.nuevas.length,
         filasYaCargadas: plan.cantidadYaCargadas,
+        sugeridas,
         pestana: nombrePestana,
         control: lectura.control,
         avisos,

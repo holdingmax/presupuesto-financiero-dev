@@ -48,6 +48,7 @@ model Empresa {
   valoresManualesReporte ValorManualReporte[]
   filasExtraReporte      FilaExtraReporte[]
   cuentasBancarias       CuentaBancaria[]
+  historialClasificacion HistorialClasificacionEmpresa[]
 
   @@index([cuit])
 }
@@ -475,4 +476,23 @@ model FilaExtraReporte {
 
   @@unique([empresaId, nombreClave])
   @@index([empresaId, desdePeriodo])
+}
+
+// Historial de arranque de las sugerencias de clasificación de UNA empresa (hoy Havanna Perú): cuántas veces el contador clasificó
+// un concepto (ya normalizado con normalizarConcepto) con cada clasificación de la lista de la empresa, según su libro PF. Lo
+// carga el script prisma/scripts/sembrar-historial-peru.ts; el índice de sugerencias (lib/clasificacionHistorialDb.ts) lo suma a lo
+// que ya clasificaron en el sistema. NO son movimientos: no entran a Ejecución ni al Reporte.
+model HistorialClasificacionEmpresa {
+  id            String   @id @default(uuid())
+  empresaId     String
+  concepto      String   // normalizado (mayúsculas, sin tildes ni números largos)
+  signo         Int      // 1 ingreso, -1 egreso
+  clasificacion String   // un valor de la lista de la empresa (CLASIFICACIONES_POR_EMPRESA)
+  veces         Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, concepto, signo, clasificacion], map: "HistClasifEmpresa_unico")
 }

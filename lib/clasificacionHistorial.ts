@@ -125,3 +125,22 @@ export function aplicarSugerenciasDeHistorial<
   });
   return { filas: resultado, sugeridas };
 }
+
+// ---- Índice de UNA empresa --------------------------------------------------------------------------------------------------
+
+// Una fila ya agrupada (concepto + signo + clasificación + cuántas veces), venga de los movimientos confirmados de la empresa o de
+// su historial de arranque.
+export type GrupoHistorial = { concepto: string; signo: number; clasificacion: string; veces: number };
+
+// Índice que aprende SOLO de lo de la empresa y SOLO de valores de su lista de clasificaciones: lo que no esté en la lista (o sea
+// «SIN CLASIFICAR») no cuenta, así nunca se sugiere un valor que la empresa no puede elegir. No hay respaldo global: si la
+// empresa no tiene historial, el índice queda vacío y no se sugiere nada.
+export function construirIndiceDeEmpresa(grupos: Iterable<GrupoHistorial>, lista: readonly string[]): IndiceHistorial {
+  const permitidas = new Set(lista.map((c) => c.trim()));
+  const validos: MovimientoParaIndice[] = [];
+  for (const g of grupos) {
+    if (!permitidas.has(g.clasificacion.trim())) continue;
+    validos.push({ concepto: g.concepto, importe: g.signo, clasificacion: g.clasificacion, ignorado: false, sugeridaPorSistema: false, veces: g.veces });
+  }
+  return construirIndice(validos);
+}
