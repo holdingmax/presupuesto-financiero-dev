@@ -14,8 +14,12 @@ import {
 
 export const CENTINELA = 7_000_000_000_000;
 
+// Avianor (octubre 2026): Cobranza clientes, Sueldos, Expensas y Proveedores pasaron a sumar su Real tipeado (sumarManual). Sin numerar
+// esas cuatro celdas, el resto de Avianor conserva los valores de las fotos JSON (que no se regeneran).
+const CELDAS_SIN_NUMERAR_AVIANOR = ["av.cobranzaClientes|REAL", "av.sueldos|REAL", "av.expensas|REAL", "av.proveedores|REAL"];
+
 // SAC de Brillante, Conexión y Mantenor (desde 2026-10 suma su Real tipeado, sumarManual) y «Cheques en cartera despues del 10» de Conexión (Real tipeado desde 2026-10). Sin numerar esas celdas, el resto conserva los valores de las fotos JSON.
-const CELDAS_SIN_NUMERAR_SAC = ["br.sac|REAL", "cx.sac|REAL", "mn.sac|REAL", "cx.chequesDespuesDel10|REAL"];
+const CELDAS_SIN_NUMERAR_SAC = ["br.sac|REAL", "cx.sac|REAL", "mn.sac|REAL", "cx.chequesDespuesDel10|REAL", ...CELDAS_SIN_NUMERAR_AVIANOR];
 
 // «Cheques en cartera» (nov-2026) también queda sin numerar: es una fila nueva de Disponibilidades y no debe correr los valores de las demás.
 // «Devolucion prestamo - Prestamo MS» (Presupuestado pisable, nov-2026): sin numerar queda derivada del Disponible, como en la foto.

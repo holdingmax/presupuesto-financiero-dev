@@ -62,6 +62,7 @@ const ESPERADO: Record<
   },
   avianor: {
     ingresos: [
+      "av.cobranzaClientes",
       "av.otrasOperaciones",
       "av.ventaPropiedades",
       "av.cobroCapitalPrestamos",
@@ -69,7 +70,7 @@ const ESPERADO: Record<
       "av.aporteMs",
       "av.otroIngreso",
     ],
-    egresos: ["av.comisiones", "av.tarjetas", "av.adicionales", "av.expensasNoSocios", "av.otroEgreso"],
+    egresos: ["av.sueldos", "av.comisiones", "av.tarjetas", "av.adicionales", "av.expensas", "av.expensasNoSocios", "av.proveedores", "av.otroEgreso"],
     abajo: ["av.reembolsosPrestamos", "av.cuentaParticular", "av.otroAbajo"],
     disponibilidades: ["av.dEfectivo"],
   },
@@ -152,9 +153,9 @@ const ESPERADO: Record<
 };
 
 // Filas con `sumarManual` (Real = clasificaciones + valor tipeado): exactamente estas, y ninguna más en ninguna plantilla.
-const SUMAR_MANUAL: Record<string, string[]> = { brillante: ["br.sac"], "conexion-logistica": ["cx.sac"], "conexion-logistica-spp": ["cx.sac"], mantenor: ["mn.sac"] };
+const SUMAR_MANUAL: Record<string, string[]> = { brillante: ["br.sac"], "conexion-logistica": ["cx.sac"], "conexion-logistica-spp": ["cx.sac"], mantenor: ["mn.sac"], avianor: ["av.cobranzaClientes", "av.sueldos", "av.expensas", "av.proveedores"] };
 
-test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac, cx.sac y mn.sac (conexion-logistica-spp comparte plantilla)", () => {
+test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac, cx.sac, mn.sac y cuatro de Avianor (conexion-logistica-spp comparte plantilla)", () => {
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     const filas = plantilla.filas
       .filter((f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined)
@@ -164,12 +165,12 @@ test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac,
   assert.equal(PLANTILLAS_POR_SLUG["conexion-logistica-spp"], PLANTILLAS_POR_SLUG["conexion-logistica"]);
 });
 
-// Flujo + Disponibilidades (+ Presupuestado pisable + Capital de trabajo): Fredy 3 + 9 + 1, HWC 5 + 8 + 1, Avianor 14 + 1,
+// Flujo + Disponibilidades (+ Presupuestado pisable + Capital de trabajo): Fredy 3 + 9 + 1, HWC 5 + 8 + 1, Avianor 18 + 1,
 // Mantenor 9 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 7 + 2 de P + 1, Conexión 6 + 11 + 1.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 13,
   hwc: 14,
-  avianor: 15,
+  avianor: 19,
   mantenor: 16,
   radio: 11,
   brillante: 20,
@@ -336,11 +337,11 @@ for (const [slug, clave] of PISABLES) {
   });
 }
 
-test("Avianor: 6 de Ingresos + 5 de Egresos + 3 de abajo + 1 de Disponibilidades; su Presupuestado manual queda fuera del tipeo", () => {
+test("Avianor: 7 de Ingresos + 8 de Egresos + 3 de abajo + 1 de Disponibilidades; su Presupuestado manual queda fuera del tipeo", () => {
   const plantilla = PLANTILLAS_POR_SLUG["avianor"];
   const campos = camposTipeables(plantilla, "avianor");
   assert.equal(campos.filter((c) => c.bloque === "DISPONIBILIDADES").length, 1);
-  assert.deepEqual([6, 5, 3], [
+  assert.deepEqual([7, 8, 3], [
     campos.filter((c) => c.bloque === "INGRESOS").length,
     campos.filter((c) => c.bloque === "EGRESOS").length,
     campos.filter((c) => c.bloque === "ABAJO").length,
@@ -349,6 +350,7 @@ test("Avianor: 6 de Ingresos + 5 de Egresos + 3 de abajo + 1 de Disponibilidades
   assert.equal(presupuestoManual.length, 14);
   assert.deepEqual(
     presupuestoManual.map((c) => c.clave).sort(),
-    campos.filter((c) => c.bloque !== "DISPONIBILIDADES").map((c) => c.clave).sort()
+    // Las cuatro filas con sumarManual tienen Presupuestado por categorías (no manual): son tipeables solo en Real.
+    campos.filter((c) => c.bloque !== "DISPONIBILIDADES" && !SUMAR_MANUAL["avianor"].includes(c.clave)).map((c) => c.clave).sort()
   );
 });

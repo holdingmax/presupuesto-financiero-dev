@@ -3,6 +3,7 @@ import {
   abajo,
   cat,
   clasif,
+  clasifMasManual,
   disp,
   egreso,
   ingreso,
@@ -26,12 +27,17 @@ import {
 // ningún total con rol "totalDisponibilidades" (el motor deja el arrastre en null).
 // Sin Capital de trabajo ni Disponible, como la planilla.
 //
+// Cobranza clientes, Sueldos, Expensas y Proveedores suman, desde 2026-10, lo que dan las clasificaciones MÁS el valor tipeado
+// de la misma fila (sumarManual). El valor manual en estas cuatro filas es para OCTUBRE 2026: se cargó a mano el Real que Kike
+// arma por clasificación en su Excel. Desde noviembre, si los movimientos llegan por la unidad AVIANOR, NO hay que tipear a
+// mano en estas filas: se contaría dos veces (lo de Ejecución y lo tipeado).
+//
 // Los tres totales de flujo llevan rol para admitir filas extra del Reporte (lib/reporte/filasExtra.ts). El Saldo lleva
 // rol "saldo" (desde que el gerente ve el Cierre, config EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE): es lo único de Cierre
 // que tiene Avianor.
 
 const ingresos = [
-  ingreso("av.cobranzaClientes", "Cobranza clientes", clasif("COBRANZAS"), cat("COBRANZAS")),
+  ingreso("av.cobranzaClientes", "Cobranza clientes", clasifMasManual("2026-10", "COBRANZAS"), cat("COBRANZAS")),
   ingreso("av.otrasOperaciones", "Otras operaciones", REAL_MANUAL, PRESUPUESTO_MANUAL),
   ingreso("av.ventaPropiedades", "Venta de Propiedades y Equipos", REAL_MANUAL, PRESUPUESTO_MANUAL),
   ingreso("av.cobroCapitalPrestamos", "Cobro de Capital de Préstamos", REAL_MANUAL, PRESUPUESTO_MANUAL),
@@ -42,16 +48,16 @@ const ingresos = [
 
 const egresos = [
   egreso("av.chequesDiferidos", "Cheques diferidos", clasif("CHEQUES DIFERIDOS"), cat("CHEQUES DIFERIDOS")),
-  egreso("av.sueldos", "Sueldos", clasif("SUELDOS"), cat("SUELDOS")),
+  egreso("av.sueldos", "Sueldos", clasifMasManual("2026-10", "SUELDOS"), cat("SUELDOS")),
   egreso("av.sac", "SAC", clasif("SAC"), cat("SAC")),
   egreso("av.comisiones", "Comisiones", REAL_MANUAL, PRESUPUESTO_MANUAL),
   egreso("av.tarjetas", "Tarjetas", REAL_MANUAL, PRESUPUESTO_MANUAL),
   egreso("av.adicionales", "Adicionales", REAL_MANUAL, PRESUPUESTO_MANUAL),
   egreso("av.impuestos", "Impuestos", clasif("IMP Y PREVISIONALES"), cat("IMP Y PREVISIONALES")),
-  egreso("av.expensas", "Expensas", clasif("EXPENSAS"), cat("EXPENSAS")),
+  egreso("av.expensas", "Expensas", clasifMasManual("2026-10", "EXPENSAS"), cat("EXPENSAS")),
   egreso("av.expensasNoSocios", "Expensas - No socios", REAL_MANUAL, PRESUPUESTO_MANUAL),
   egreso("av.gastosBancarios", "Gastos Bancarios", clasif("COM Y GTOS BRIOS"), cat("Gastos bancarios")),
-  egreso("av.proveedores", "Proveedores", clasif("PROV Y SERV"), cat("PROV Y SERV")),
+  egreso("av.proveedores", "Proveedores", clasifMasManual("2026-10", "PROV Y SERV"), cat("PROV Y SERV")),
   egreso("av.liquidacionFinal", "Liquidacion Final", clasif("LIQ FINAL"), cat("Liquidación final")),
   egreso("av.otroEgreso", "Otro", REAL_MANUAL, PRESUPUESTO_MANUAL),
 ];
