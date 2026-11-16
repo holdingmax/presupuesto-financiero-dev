@@ -121,3 +121,25 @@ test("el Total en centavos enteros da lo mismo que la suma decimal de la base (s
   const exacto = (41478182.01 - 1234.57 + 0.1 + 0.2 - 0.3 + 999999999.99).toFixed(2);
   assert.equal((centavos / 100).toFixed(2), exacto);
 });
+
+test("unidad: compara igual que el aviso (upper + trim), no solo texto exacto", () => {
+  const f = parsearFiltros({ unidad: "SPP" });
+  assert.equal(coincide(fila({ unidadNegocio: "spp " }), f), true);
+  assert.equal(coincide(fila({ unidadNegocio: "SPPX" }), f), false);
+});
+
+test("SIN ASIGNAR: muestra lo que cuenta el aviso — sin ignorados y con desglose por sus porciones", () => {
+  const f = parsearFiltros({ unidad: "SIN ASIGNAR" });
+  assert.equal(coincide(fila({ unidadNegocio: "SIN ASIGNAR" }), f), true);
+  assert.equal(coincide(fila({ unidadNegocio: " sin asignar " }), f), true);
+  assert.equal(coincide(fila({ unidadNegocio: "SIN ASIGNAR", ignorado: true }), f), false);
+  assert.equal(coincide(fila({ unidadNegocio: "SPP" }), f), false);
+  // Prorrateado: vale por sus porciones, no por su unidad propia.
+  assert.equal(coincide(fila({ unidadNegocio: "SIN ASIGNAR", unidadesDesglose: ["HWC", "RADIO"] }), f), false);
+  assert.equal(coincide(fila({ unidadNegocio: "SPP", unidadesDesglose: ["HWC", "SIN ASIGNAR"] }), f), true);
+});
+
+test("un valor viejo fuera de lista (ej. CREAR) también excluye ignorados; una unidad real no", () => {
+  assert.equal(coincide(fila({ unidadNegocio: "CREAR", ignorado: true }), parsearFiltros({ unidad: "CREAR" })), false);
+  assert.equal(coincide(fila({ unidadNegocio: "SPP", ignorado: true }), parsearFiltros({ unidad: "SPP" })), true);
+});
