@@ -98,6 +98,13 @@ export type FuenteReal =
       // automático + lo tipeado. Antes de `desde`, el cálculo no cambia. Si el mes no tiene semanas cerradas pero hay
       // valor manual, se muestra el manual (en vez de null); sin manual sigue null. Abre la celda de Real del tipeo.
       sumarManual?: { desde: string };
+      // Espejo de otra unidad (Conexión ↔ Avianor): desde `desde` ("AAAA-MM") el Real de esta fila NO sale de las
+      // clasificaciones de arriba sino del NETO (créditos + débitos) de los movimientos de `unidades` con alguna de
+      // `clasificaciones` — el MISMO conjunto que usan las filas de esa otra empresa (se arma desde su plantilla, no a mano).
+      // Antes de `desde` se lee como siempre (las clasificaciones de arriba, en las unidades de la empresa). Desde `desde`
+      // esas clasificaciones de arriba YA NO suman: así un mismo pago no se cuenta por las dos vías. Los datos de las
+      // unidades llegan en DatosMes.realEspejo (cargarDatosMeses).
+      espejoUnidad?: { desde: string; unidades: string[]; clasificaciones: string[] };
     }
   // Valor que en la planilla se tipea (Disponibilidades, Resultado FCI…): sale de
   // ValorManualReporte (columna REAL). Sin cargar = null ("—").
@@ -223,6 +230,8 @@ export type DatosMes = {
   // Solo los importes positivos / negativos, para las filas con `sentido`.
   realCreditos?: Map<string, number>;
   realDebitos?: Map<string, number>;
+  // Neto por clasificación cruda de las unidades de FuenteReal.espejoUnidad (solo la plantilla que lo usa).
+  realEspejo?: Map<string, number>;
   // Clasificación guardada en LineaPresupuesto → centavos. null = el mes no
   // tiene PresupuestoMensual ("sin presupuesto"; mirar el reporte no lo crea).
   presupuesto: Map<string, number> | null;
@@ -461,6 +470,16 @@ export function armarReporte(
     const r = fila.real;
     switch (r.tipo) {
       case "clasificaciones": {
+        const espejo = r.espejoUnidad;
+        if (espejo && meses[i].periodo >= espejo.desde) {
+          if (sinEjecucion[i]) return { v: null, inc };
+          const pedidas = new Set(espejo.clasificaciones.map(claveEquivalencia));
+          let neto = 0;
+          for (const [clasificacion, centavos] of meses[i].realEspejo ?? []) {
+            if (pedidas.has(claveEquivalencia(clasificacion))) neto += centavos;
+          }
+          return { v: aplicarSigno(fila.signo, neto), inc };
+        }
         const sumaManual = r.sumarManual && meses[i].periodo >= r.sumarManual.desde;
         const manualPropio = sumaManual ? meses[i].manuales?.real.get(fila.clave) : undefined;
         if (sinEjecucion[i]) return { v: manualPropio ?? null, inc };
@@ -703,6 +722,16 @@ export function validarPlantilla(plantilla: Plantilla): string[] {
           errores.push(`${fila.clave}: restarManuales apunta a "${c}", que no es una fila con Real manual`);
         }
       }
+      const espejo = fila.real.espejoUnidad;
+      if (espejo) {
+        if (!/^[0-9]{4}-[0-9]{2}$/.test(espejo.desde)) errores.push(`${fila.clave}: espejoUnidad.desde "${espejo.desde}" no es AAAA-MM`);
+        if (espejo.unidades.length === 0) errores.push(`${fila.clave}: espejoUnidad sin unidades`);
+        if (espejo.clasificaciones.length === 0) errores.push(`${fila.clave}: espejoUnidad sin clasificaciones`);
+        if (fila.real.sentido) errores.push(`${fila.clave}: espejoUnidad lee el neto, no admite sentido`);
+        if (fila.real.sumarManual || fila.real.restarManuales) {
+          errores.push(`${fila.clave}: espejoUnidad no se combina con sumarManual ni restarManuales`);
+        }
+      }
       const sentido = fila.real.sentido ?? "neto";
       for (const c of fila.real.clasificaciones) {
         const clave = claveEquivalencia(c);
@@ -744,6 +773,17 @@ export function clasificacionesDePlantilla(plantilla: Plantilla): string[] {
   return plantilla.filas.flatMap((f) =>
     f.tipo === "linea" && f.real.tipo === "clasificaciones" ? f.real.clasificaciones : []
   );
+}
+
+// Fuente de espejo de unidad de la plantilla (la de la primera fila que la tiene), o null. cargarDatosMeses la usa para
+// pedir el Real de esas unidades.
+export function espejoUnidadDePlantilla(
+  plantilla: Plantilla
+): { desde: string; unidades: string[]; clasificaciones: string[] } | null {
+  for (const f of plantilla.filas) {
+    if (f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.espejoUnidad) return f.real.espejoUnidad;
+  }
+  return null;
 }
 
 // Los N períodos "AAAA-MM" que terminan en `periodo`, del más viejo al más nuevo.

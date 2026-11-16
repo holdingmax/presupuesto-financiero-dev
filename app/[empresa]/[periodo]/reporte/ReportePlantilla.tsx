@@ -5,6 +5,8 @@ import { formatearImporte } from "@/app/ejecucion/formato";
 import Link from "next/link";
 import BloqueNoAsignado from "./BloqueNoAsignado";
 import BloqueSinClasificar from "./BloqueSinClasificar";
+import BloqueSinFilaEspejo from "./BloqueSinFilaEspejo";
+import type { SinFilaEspejo } from "@/lib/reporte/avisoEspejo";
 import type { BloqueSinClasificar as DatosSinClasificar } from "@/lib/reporte/sinClasificar";
 import { AccionesFlujo, AvisosFlujo, EstadoBadge } from "../FlujoPresupuesto";
 import type { EstadoFlujo } from "@/lib/presupuestoAcceso";
@@ -81,6 +83,8 @@ type Props = {
   noAsignado: { unidad: string; importe: number; movimientos: number }[];
   semanasConNoAsignado: number[];
   sinClasificar: DatosSinClasificar | null;
+  // Aviso del espejo Avianor-Conexión (solo ADMIN y FINANZAS, solo en esas dos empresas). null = sin aviso.
+  sinFilaEspejo?: SinFilaEspejo[] | null;
   // Control de vista (VistaSelector), armado en page.tsx: va en el encabezado, junto a las acciones.
   controlVista?: ReactNode;
 };
@@ -124,6 +128,7 @@ export default function ReportePlantilla({
   noAsignado,
   semanasConNoAsignado,
   sinClasificar,
+  sinFilaEspejo = null,
   controlVista,
 }: Props) {
   const { periodos, sinPresupuesto, sinEjecucion } = reporte;
@@ -332,6 +337,7 @@ export default function ReportePlantilla({
         semanasConNoAsignado={semanasConNoAsignado}
       />
       <BloqueSinClasificar sinClasificar={sinClasificar} />
+      <BloqueSinFilaEspejo sinFila={sinFilaEspejo} />
     </div>
   );
 }

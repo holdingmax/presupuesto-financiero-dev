@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
 import { calcularRealPorClasificacion, contarSemanasCerradasPorPeriodo } from "@/lib/reporte";
-import { clasificacionesDePlantilla, clavesCalculables, type AccesoReservados, type DatosMes, type Plantilla } from "@/lib/reporte/motor";
+import { clasificacionesDePlantilla, clavesCalculables, espejoUnidadDePlantilla, type AccesoReservados, type DatosMes, type Plantilla } from "@/lib/reporte/motor";
 import { leerManuales, mesesCerrados } from "@/lib/reporte/valoresManuales";
 
 // Arma los DatosMes de una empresa para los períodos pedidos: solo lee. El presupuesto de
@@ -39,8 +39,15 @@ export async function cargarDatosMeses(
     delMes.set(s.clasificacion, (delMes.get(s.clasificacion) ?? 0) + centavosDeDecimalTexto(s._sum.importe.toFixed(2)));
   }
 
-  const [realPorPeriodo, semanasCerradas, manuales, cerrados] = await Promise.all([
+  // Espejo de otra unidad (Gastos Avion a recuperar de Conexión): el Real de esa fila, desde su mes de corte, sale de las
+  // unidades del espejo; se pide aparte con la MISMA consulta (cuenta el prorrateo igual) y solo para los meses desde el corte.
+  const espejo = espejoUnidadDePlantilla(plantilla);
+  const periodosEspejo = espejo ? periodos.filter((p) => p >= espejo.desde) : [];
+  const [realPorPeriodo, realEspejoPorPeriodo, semanasCerradas, manuales, cerrados] = await Promise.all([
     calcularRealPorClasificacion(periodos, unidadesEmpresa, clasificaciones),
+    espejo && periodosEspejo.length > 0
+      ? calcularRealPorClasificacion(periodosEspejo, espejo.unidades, espejo.clasificaciones)
+      : Promise.resolve(null),
     contarSemanasCerradasPorPeriodo(periodos),
     leerManuales(empresaId, periodos, verReservado === true ? undefined : clavesCalculables(plantilla, verReservado)),
     mesesCerrados(periodos),
@@ -50,6 +57,7 @@ export async function cargarDatosMeses(
     real: realPorPeriodo.get(p)?.neto ?? new Map(),
     realCreditos: realPorPeriodo.get(p)?.creditos,
     realDebitos: realPorPeriodo.get(p)?.debitos,
+    realEspejo: realEspejoPorPeriodo?.get(p)?.neto,
     presupuesto: presupuestoPorPeriodo.get(p) ?? null,
     semanasCerradas: semanasCerradas.get(p) ?? 0,
     mesCerrado: cerrados.get(p) ?? false,

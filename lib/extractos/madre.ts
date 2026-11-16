@@ -4,7 +4,7 @@ import {
   normalizarCuenta,
   proponerUnidadPorCuenta,
   proponerUnidadPorRazonSocial,
-  unidadDeLaLista,
+  unidadDeCeldaMadre,
 } from "@/lib/unidadesNegocio";
 import { normalizarEncabezado } from "./encabezados";
 
@@ -218,7 +218,7 @@ export function leerFilasMadre(hoja: ExcelJS.Worksheet): LecturaMadre {
       : proponerClasificacionAutomatica(concepto);
 
     // Orden (decisión 2026-10-07):
-    //   1. "UNIDAD DE NEG" con una unidad VÁLIDA de la lista → se respeta siempre
+    //   1. "UNIDAD DE NEG" con una unidad VÁLIDA de la lista (o el alias "AVION" → AVIANOR) → se respeta siempre
     //      (guardada con el nombre canónico: "SPP " → "SPP").
     //   2. mapa por cuenta bancaria (UNIDAD_POR_CUENTA) → sugerida.
     //   3. mapa por razón social (UNIDAD_POR_RAZON_SOCIAL) → sugerida. La razón
@@ -230,7 +230,7 @@ export function leerFilasMadre(hoja: ExcelJS.Worksheet): LecturaMadre {
     // "SIN ASIGNAR" literal en cualquiera de las dos columnas cuenta como vacío.
     const bancoYCuenta = valores.bancoYCuenta ? String(valores.bancoYCuenta) : "(sin banco)";
     const celdaUnidad = leerUnidadDeCelda(valores.unidadNegocio);
-    const unidadExplicita = celdaUnidad ? unidadDeLaLista(celdaUnidad) : null;
+    const unidadExplicita = celdaUnidad ? unidadDeCeldaMadre(celdaUnidad) : null;
     const unidadPorCuenta = unidadExplicita ? null : proponerUnidadPorCuenta(bancoYCuenta);
     const razonSocial =
       celdaUnidad && !unidadExplicita ? celdaUnidad : leerUnidadDeCelda(valores.empresaColumna);

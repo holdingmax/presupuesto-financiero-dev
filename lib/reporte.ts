@@ -4,6 +4,7 @@ import { normalizarCuenta } from "@/lib/unidadesNegocio";
 import { armarIndiceRubros, rubroDe } from "@/lib/rubros";
 import { claveEquivalencia } from "@/lib/reporte/motor";
 import type { FilaSinClasificar } from "@/lib/reporte/sinClasificar";
+import type { FilaPorClasificacion } from "@/lib/reporte/avisoEspejo";
 
 // REAL del Reporte por UNIDAD DE NEGOCIO, no por empresa del extracto (decisión
 // 2026-10-07). Una cuenta bancaria puede mezclar unidades: un gasto de RADIO
@@ -224,6 +225,43 @@ export async function calcularNoAsignadoDelPeriodo(
     })),
     semanas,
   };
+}
+
+// Movimientos no ignorados de las `unidades` en el PERÍODO, agrupados por estado de la semana, moneda y clasificación cruda
+// (con el mismo criterio de prorrateo que el Real: las porciones de un desglose cuentan por la unidad de la porción). Todas las
+// clasificaciones: quien llama decide cuáles no tienen fila (lib/reporte/avisoEspejo.ts). Solo lee.
+export async function calcularPorClasificacionDeUnidades(
+  periodo: string,
+  unidades: string[]
+): Promise<FilaPorClasificacion[]> {
+  if (unidades.length === 0) return [];
+  const filas = await prisma.$queryRaw<
+    { estado: "ABIERTA" | "CERRADA"; moneda: string; clasificacion: string; movimientos: number; total: string | null }[]
+  >`
+    WITH mov AS (
+      SELECT mb.id, mb.importe, mb.moneda, mb.clasificacion, mb."unidadNegocio", es.estado::text AS estado
+      FROM "MovimientoBancario" mb
+      JOIN "EjecucionSemanal" es ON mb."ejecucionId" = es.id
+      WHERE es.periodo = ${periodo} AND NOT mb.ignorado
+    )
+    SELECT x.estado, x.moneda, x.clasificacion, COUNT(DISTINCT x.id)::int AS movimientos, SUM(x.importe)::text AS total FROM (
+      SELECT m.id, m.estado, m.moneda, m.clasificacion, m.importe FROM mov m
+      WHERE upper(btrim(m."unidadNegocio")) = ANY(${unidades}::text[])
+        AND NOT EXISTS (SELECT 1 FROM "MovimientoBancarioDesglose" d WHERE d."movimientoId" = m.id)
+      UNION ALL
+      SELECT m.id, m.estado, m.moneda, m.clasificacion, d.importe FROM mov m
+      JOIN "MovimientoBancarioDesglose" d ON d."movimientoId" = m.id
+      WHERE upper(btrim(d."unidadNegocio")) = ANY(${unidades}::text[])
+    ) x
+    GROUP BY x.estado, x.moneda, x.clasificacion
+  `;
+  return filas.map((f) => ({
+    estado: f.estado,
+    moneda: f.moneda,
+    clasificacion: f.clasificacion,
+    movimientos: f.movimientos,
+    centavos: f.total === null ? 0 : centavosDeDecimalTexto(f.total),
+  }));
 }
 
 export type SinUnidadEnSemana = { unidad: string; movimientos: number };

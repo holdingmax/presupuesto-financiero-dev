@@ -69,6 +69,9 @@ const deAbajo = [
   abajo("av.otroAbajo", "Otro", REAL_MANUAL, PRESUPUESTO_MANUAL),
 ];
 
+// Unidad de negocio de Avianor; la usa también el espejo de Conexión (cx.gastosAvion).
+export const UNIDAD_AVIANOR = "AVIANOR";
+
 export const PLANTILLA_AVIANOR: Plantilla = {
   empresa: "Avianor",
   filas: [

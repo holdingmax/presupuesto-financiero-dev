@@ -34,6 +34,12 @@ export const clasifMasManual = (desde: string, ...clasificaciones: string[]): Fu
   clasificaciones,
   sumarManual: { desde },
 });
+// Como clasif, pero desde `desde` ("AAAA-MM") la fila lee el NETO de los movimientos de `unidades` con `clasificacionesEspejo`
+// (Gastos Avion a recuperar de Conexión = lo que muestra Avianor). Hasta `desde`, lee `clasificaciones` como clasif.
+export const clasifEspejoUnidad = (
+  clasificaciones: string[],
+  espejo: { desde: string; unidades: string[]; clasificaciones: string[] }
+): FuenteReal => ({ tipo: "clasificaciones", clasificaciones, espejoUnidad: espejo });
 export const cat = (...categorias: string[]): FuentePresupuesto => ({ tipo: "categorias", categorias });
 export const SIN_REAL: FuenteReal = { tipo: "ninguna" };
 export const SIN_PRESUPUESTO: FuentePresupuesto = { tipo: "ninguna" };

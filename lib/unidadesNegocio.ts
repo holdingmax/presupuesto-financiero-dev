@@ -162,6 +162,18 @@ export function unidadDeLaLista(valor: string): string | null {
   return (UNIDADES_NEGOCIO as readonly string[]).find((u) => u === clave) ?? null;
 }
 
+// Alias de la columna "UNIDAD DE NEG" del archivo madre (decisión de Kike, espejo Avianor-Conexión): Kike escribe "AVION" en
+// la unidad de los gastos del avión y se lee como AVIANOR. SOLO la columna de unidad: la clasificación "AVION" no se toca, y
+// "AVION" no es una unidad de la lista (no aparece en UNIDADES_NEGOCIO ni en los <select>). Comparación sin mayúsculas/tildes/espacios.
+const ALIAS_UNIDAD_MADRE: Record<string, string> = {
+  AVION: "AVIANOR",
+};
+
+// Nombre canónico de la unidad si el valor de la celda es una unidad de la lista O un alias de la madre; null si no.
+export function unidadDeCeldaMadre(valor: string): string | null {
+  return unidadDeLaLista(valor) ?? ALIAS_UNIDAD_MADRE[normalizarTexto(valor)] ?? null;
+}
+
 // Razón social → unidad madre (decisión 2026-10-07, confirmado por Kike; tabla
 // oficial actualizada 2026-10-13: TUCSON→RADIO, CREAR→MANTENOR, LI→BRILLANTE,
 // HANDYWAY→HWC desde 2026-10-17). La

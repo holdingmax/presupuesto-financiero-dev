@@ -23,8 +23,11 @@ import {
   calcularRealPorRubro,
   calcularNoAsignadoDelPeriodo,
   calcularSinClasificarDelPeriodo,
+  calcularPorClasificacionDeUnidades,
   type NoAsignado,
 } from "@/lib/reporte";
+import { clasificacionesConFila, sinFilaDeAvianor, unidadesDelAvisoEspejo } from "@/lib/reporte/avisoEspejo";
+import { PLANTILLA_AVIANOR } from "@/lib/reporte/plantillas/avianor";
 import { armarBloqueSinClasificar } from "@/lib/reporte/sinClasificar";
 import { armarIndiceRubros, rubroDe } from "@/lib/rubros";
 import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
@@ -311,7 +314,9 @@ async function ReportePorPlantilla({
   // Qué bloques reservados llegan a este usuario: todo (ADMIN/FINANZAS), nada, o lo que prendan los
   // interruptores de su empresa (lib/config.ts).
   const acceso = accesoReservadosDelReporte(verBloquesReservados, empresaSlug);
-  const [meses, noAsignado, sinClasificar] = await Promise.all([
+  // Aviso del espejo Avianor-Conexión: solo ADMIN y FINANZAS (verBloquesReservados) y solo en esas dos empresas.
+  const unidadesAvisoEspejo = verBloquesReservados ? unidadesDelAvisoEspejo(plantilla) : null;
+  const [meses, noAsignado, sinClasificar, sinFilaEspejo] = await Promise.all([
     cargarDatosMeses(empresaId, unidadesEmpresa, plantillaReporte, periodos, acceso),
     // Mismo bloque de control que la Fase 1, para el mes de la URL (de todo el holding:
     // solo ADMIN y FINANZAS).
@@ -320,6 +325,11 @@ async function ReportePorPlantilla({
       : Promise.resolve({ porUnidad: [] as NoAsignado[], semanas: [] as number[] }),
     // Bloque «Sin clasificar»: solo lectura, lo ven todos los que ven este Reporte (no depende de los bloques reservados).
     calcularSinClasificarDelPeriodo(periodo, unidadesEmpresa).then(armarBloqueSinClasificar),
+    unidadesAvisoEspejo
+      ? calcularPorClasificacionDeUnidades(periodo, unidadesAvisoEspejo).then((filas) =>
+          sinFilaDeAvianor(filas, clasificacionesConFila(PLANTILLA_AVIANOR))
+        )
+      : Promise.resolve(null),
   ]);
   const reporte = armarReporte(plantillaReporte, meses, 1, { verBloquesReservados: acceso });
 
@@ -437,6 +447,7 @@ async function ReportePorPlantilla({
       }))}
       semanasConNoAsignado={noAsignado.semanas}
       sinClasificar={sinClasificar}
+      sinFilaEspejo={sinFilaEspejo}
       controlVista={<VistaSelector empresaSlug={empresaSlug} periodo={periodo} vista={vista} marca={marcaModo} />}
     />
     </>

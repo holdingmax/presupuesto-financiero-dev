@@ -1,9 +1,11 @@
-import type { Plantilla } from "@/lib/reporte/motor";
+import { clasificacionesDePlantilla, type Plantilla } from "@/lib/reporte/motor";
+import { PLANTILLA_AVIANOR, UNIDAD_AVIANOR } from "./avianor";
 import {
   abajo,
   capital,
   cat,
   clasif,
+  clasifEspejoUnidad,
   clasifMasManual,
   clasifSentido,
   disp,
@@ -21,6 +23,9 @@ import {
 
 // "PF - CONEXION LOGISTICA - AGOSTO 2026", hoja PRESUPUESTO Y REAL MES A MES
 // (diagnóstico §2.1). Unidades de negocio: SPP + LOGISTICA.
+
+// Primer mes en que Gastos Avion a recuperar sale de la unidad AVIANOR (antes, de la clasificación AVION).
+const ESPEJO_AVIANOR_DESDE = "2026-11";
 
 // Disponibilidades (principios de mes): componentes tipeados por Macchi. "ajuste" =
 // se suma o resta aparte del cierre del mes anterior (plan 2b §1, pregunta K9).
@@ -135,10 +140,23 @@ const deAbajo = [
   abajo("cx.dividendosEfectivo", "Dividendos en efectivo", clasif("DIVIDENDOS"), cat("Dividendos")),
   abajo("cx.dividendosRecuperoExpensas", "Dividendos - Recupero expensas y prestamos grupo", SIN_REAL, PRESUPUESTO_MANUAL),
   abajo("cx.dividendosRecuperoGastos", "Dividendos - Recupero de gastos", SIN_REAL, PRESUPUESTO_MANUAL),
-  abajo("cx.gastosAvion", "Gastos Avion a recuperar", clasif("AVION"), PRESUPUESTO_MANUAL, {
-    parcial: true,
-    nota: "Planilla: AVION + expensas y tarjetas de Avianor pagadas por Conexión.",
-  }),
+  // Espejo de Avianor (decisión de Kike): hasta 2026-10 lee la clasificación AVION como siempre; desde 2026-11 lee el NETO de
+  // los movimientos de la unidad AVIANOR con las clasificaciones de las filas de Avianor (la lista sale de PLANTILLA_AVIANOR,
+  // no se copia). Desde 2026-11 la clasificación AVION ya no suma acá: cuenta por la unidad, no por las dos vías.
+  abajo(
+    "cx.gastosAvion",
+    "Gastos Avion a recuperar",
+    clasifEspejoUnidad(["AVION"], {
+      desde: ESPEJO_AVIANOR_DESDE,
+      unidades: [UNIDAD_AVIANOR],
+      clasificaciones: clasificacionesDePlantilla(PLANTILLA_AVIANOR),
+    }),
+    PRESUPUESTO_MANUAL,
+    {
+      parcial: true,
+      nota: "Hasta 2026-10: AVION + expensas y tarjetas de Avianor pagadas por Conexión. Desde 2026-11: neto de la unidad AVIANOR, igual que el Reporte de Avianor (Tarjetas de Avianor todavía se tipea a mano allá).",
+    }
+  ),
 ];
 
 export const PLANTILLA_CONEXION: Plantilla = {
