@@ -77,7 +77,9 @@ const deAbajo = [
   abajo("hw.pagoLatam", "PAGO LATAM Y LAN ECUADOR", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
   abajo("hw.pagoAvianca", "PAGO AVIANCA", clasif("AVIANCA"), PRESUPUESTO_MANUAL, { pendiente: "K6" }),
   abajo("hw.pagoFlybondi", "PAGO FLYBONDI", REAL_MANUAL, PRESUPUESTO_MANUAL, { pendiente: "K6" }),
-  abajo("hw.pagoGol", "PAGO GOL LINEAS AEREAS", clasif("GOL LINHEAS A"), PRESUPUESTO_MANUAL, { pendiente: "K6" }),
+  // Gol llega con tres grafías en los archivos de Kike: "GOL LINHEAS A" (octubre), "GOL LINHEAS AEREAS" (noviembre) y la
+  // correcta "GOL LINHAS AEREAS". El cruce es por igualdad exacta, así que se listan las tres; ninguna está en otra fila.
+  abajo("hw.pagoGol", "PAGO GOL LINEAS AEREAS", clasif("GOL LINHEAS A", "GOL LINHEAS AEREAS", "GOL LINHAS AEREAS"), PRESUPUESTO_MANUAL, { pendiente: "K6" }),
   abajo("hw.dividendos", "Dividendos Entregados", clasif("DIVIDENDOS"), cat("Dividendos")),
   abajo("hw.gastosAvion", "Gastos Avion", clasif("AVION"), PRESUPUESTO_MANUAL),
   abajo("hw.ms", "MS", clasif("MS"), PRESUPUESTO_MANUAL),

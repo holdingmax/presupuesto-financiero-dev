@@ -114,6 +114,8 @@ const HWC_PAGOS_CLASIF: Record<string, string> = {
   "hw.pagoAvianca": "AVIANCA",
   "hw.pagoGol": "GOL LINHEAS A",
 };
+// Pago Gol acepta las tres grafías (octubre "GOL LINHEAS A", noviembre "GOL LINHEAS AEREAS", la correcta "GOL LINHAS AEREAS").
+const GOL_GRAFIAS = ["GOL LINHEAS A", "GOL LINHEAS AEREAS", "GOL LINHAS AEREAS"];
 const HWC_PAGOS_MANUALES = ["hw.pagoLatam", "hw.pagoFlybondi"];
 
 test("HWC: tres ingresos de aerolíneas y tres pagos leen su clasificación; Pago LATAM y Flybondi siguen siendo Real manual", () => {
@@ -122,7 +124,7 @@ test("HWC: tres ingresos de aerolíneas y tres pagos leen su clasificación; Pag
   for (const [clave, clasificacion] of Object.entries({ ...HWC_INGRESOS_CLASIF, ...HWC_PAGOS_CLASIF })) {
     const f = p.filas.find((x) => x.clave === clave)!;
     assert.ok(f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.presupuesto.tipo === "manual", clave);
-    assert.deepEqual(f.real.clasificaciones, [clasificacion], clave);
+    assert.deepEqual(f.real.clasificaciones, clave === "hw.pagoGol" ? GOL_GRAFIAS : [clasificacion], clave);
     assert.equal(f.pendiente, "K6", clave);
     assert.equal(campos.some((c) => c.clave === clave && c.columna === "REAL"), false, `${clave}: ya no se tipea el Real`);
   }
@@ -164,6 +166,43 @@ test("HWC: el Real de las seis filas sale de la Ejecución, suma una sola vez en
   }
   assert.equal(celda(despues, "hw.totalIngresos").real! - celda(antes, "hw.totalIngresos").real!, IMPORTE * 3, "ingresos");
   assert.equal(celda(despues, "hw.totalPagado").real! - celda(antes, "hw.totalPagado").real!, IMPORTE * 3, "pagos");
+});
+
+test("HWC: las tres grafías de Gol están en CLASIFICACIONES_SUGERIDAS", () => {
+  for (const c of GOL_GRAFIAS) assert.ok(CLASIFICACIONES_SUGERIDAS.includes(c), c);
+});
+
+test("HWC Pago Gol: cada grafía suma en la fila, las tres juntas se acumulan y las demás filas no cambian", () => {
+  const p = PLANTILLAS_POR_SLUG["hwc"];
+  const meses = mesesDePrueba(p);
+  const armar = (real: Map<string, number>) => armarReporte(p, [meses[0], { ...meses[1], semanasCerradas: 1, real }], 1);
+  const vacio = armar(new Map());
+  const valoresDe = (r: Reporte) => r.filas.filter((f) => f.fila.clave !== "hw.pagoGol").map((f) => [f.fila.clave, f.celdas[0]]);
+  assert.equal(celda(vacio, "hw.pagoGol").real, 0);
+  // Cada grafía sola: suma en Pago Gol y en TOTAL EN EFECTIVO PAGADO, y no mueve ninguna otra fila.
+  GOL_GRAFIAS.forEach((g) => {
+    const r = armar(new Map([[g, -2_367_000_00]]));
+    assert.equal(celda(r, "hw.pagoGol").real, 2_367_000_00, g + ": el pago se muestra en positivo, como un egreso");
+    assert.equal(celda(r, "hw.totalPagado").real! - celda(vacio, "hw.totalPagado").real!, 2_367_000_00, `${g}: total pagado`);
+    assert.deepEqual(
+      valoresDe(r).filter(([k]) => k !== "hw.totalPagado" && k !== "hw.saldo" && !String(k).startsWith("hw.capital") && !String(k).startsWith("hw.disponible")),
+      valoresDe(vacio).filter(([k]) => k !== "hw.totalPagado" && k !== "hw.saldo" && !String(k).startsWith("hw.capital") && !String(k).startsWith("hw.disponible")),
+      `${g}: las demás filas no cambian`
+    );
+  });
+  // Las tres a la vez se suman una sola vez cada una.
+  const todas = armar(new Map(GOL_GRAFIAS.map((g, i) => [g, -(i + 1) * 100_00] as [string, number])));
+  assert.equal(celda(todas, "hw.pagoGol").real, 600_00);
+  // El cruce es por igualdad (sin prefijo): una grafía distinta de las tres no suma.
+  const otra = armar(new Map([["GOL LINHEAS AEREA", -5_00]]));
+  assert.equal(celda(otra, "hw.pagoGol").real, 0);
+});
+
+test("HWC octubre: el Real de Pago Gol con la grafía de octubre no cambia", () => {
+  const p = PLANTILLAS_POR_SLUG["hwc"];
+  const meses = mesesDePrueba(p);
+  const r = armarReporte(p, [meses[0], { ...meses[1], periodo: "2026-10", semanasCerradas: 1, real: new Map([["GOL LINHEAS A", -4_500_00]]) }], 1);
+  assert.equal(celda(r, "hw.pagoGol").real, 4_500_00);
 });
 
 test("HWC: Pago LATAM y Pago Flybondi tipeados suman una sola vez en TOTAL EN EFECTIVO PAGADO", () => {

@@ -151,6 +151,9 @@ export const CLASIFICACIONES_SUGERIDAS = [
   "WCS",
   "AVIANCA",
   "GOL LINHEAS A",
+  // Las otras dos grafías de Gol (la de la madre de noviembre y la correcta): las acepta la fila Pago Gol de HWC.
+  "GOL LINHEAS AEREAS",
+  "GOL LINHAS AEREAS",
 ];
 
 // TEMPORAL / hallazgo fuera del alcance original de la paginación: el `distinct` de Prisma

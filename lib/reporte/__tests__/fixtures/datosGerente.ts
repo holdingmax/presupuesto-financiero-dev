@@ -60,7 +60,14 @@ export const clavesDeCierre = (r: Reporte) => r.filas.filter((f) => f.fila.bloqu
 // Orden en que se numera el Real de prueba. Conexión: «Préstamo MS» pasó de EGRESOS OPERATIVOS al bloque de abajo (pedido de Kike,
 // 6/11/2026); para que el resto de los Reales de prueba (Gastos Campo, TOTAL DE EGRESOS...) no se corra, sus clasificaciones se cuentan
 // donde estaban antes: justo antes de TOTAL EGRESOS OPERATIVOS.
+// HWC «Pago Gol» acepta tres grafías: las dos agregadas después de las fotos no se numeran, para que el resto conserve sus valores.
+const GRAFIAS_GOL_SIN_NUMERAR = ["GOL LINHEAS AEREAS", "GOL LINHAS AEREAS"];
+
 function clasificacionesEnOrdenDeNumeracion(plantilla: Plantilla): string[] {
+  return clasificacionesEnOrdenDeNumeracionCompleto(plantilla).filter((c) => !GRAFIAS_GOL_SIN_NUMERAR.includes(c));
+}
+
+function clasificacionesEnOrdenDeNumeracionCompleto(plantilla: Plantilla): string[] {
   const filas = plantilla.filas.filter((f) => f.clave !== "cx.prestamoMs");
   const movida = plantilla.filas.find((f) => f.clave === "cx.prestamoMs");
   const i = filas.findIndex((f) => f.clave === "cx.totalEgresosOperativos");
