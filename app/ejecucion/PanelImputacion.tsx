@@ -1036,7 +1036,20 @@ export default function PanelImputacion({
                 ? "1 movimiento sin unidad asignada"
                 : `${cantidadSinUnidad} movimientos sin unidad asignada`}
             </span>{" "}
-            ({sinUnidadAsignada.map((s) => `${s.unidad} ${s.movimientos}`).join(" · ")}): no entran en el
+            (
+            {sinUnidadAsignada.map((s, i) => (
+              <span key={s.unidad}>
+                {i > 0 && " · "}
+                <Link
+                  href={`${baseSemana}?${aQuery({ soloSinClasificar: false, unidad: s.unidad })}`}
+                  className="underline hover:text-ink"
+                  title="Ver estos movimientos"
+                >
+                  {s.unidad} {s.movimientos}
+                </Link>
+              </span>
+            ))}
+            ): no entran en el
             Reporte de nadie. Asignales una unidad (o prorrateálos) antes del cierre semanal.
           </p>
         )}

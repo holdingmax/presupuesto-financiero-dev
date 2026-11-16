@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { aQuery, hayFiltros, type FiltrosEjecucion } from "@/lib/filtrosEjecucion";
+import { UNIDAD_SIN_ASIGNAR, aQuery, hayFiltros, type FiltrosEjecucion } from "@/lib/filtrosEjecucion";
 
 type Props = {
   // Ruta de la semana, sin querystring (ej. /ejecucion/2026-09/2).
@@ -48,7 +48,10 @@ export default function BarraFiltros({ base, filtros, clasificaciones, unidades,
         </Link>
       </div>
 
-      <form method="get" action={base} className="flex flex-wrap items-end gap-2 text-xs text-ink-secondary">
+      {/* key = filtros de la URL: `defaultValue` solo vale al montar, y dentro del panel (Client Component)
+          la barra sigue montada al navegar por un enlace (ej. el aviso "sin unidad asignada"), así que
+          sin esto los campos quedaban con el valor anterior. Remontar el form los vuelve a leer de la URL. */}
+      <form key={aQuery(filtros)} method="get" action={base} className="flex flex-wrap items-end gap-2 text-xs text-ink-secondary">
         {filtros.soloSinClasificar && <input type="hidden" name="filtro" value="sin_clasificar" />}
         <label className="flex flex-col gap-0.5">
           Desde
@@ -73,7 +76,9 @@ export default function BarraFiltros({ base, filtros, clasificaciones, unidades,
           Unidad de negocio
           <select name="unidad" defaultValue={filtros.unidad ?? ""} className={CLASES_CAMPO}>
             <option value="">Todas</option>
-            {conValorActual(unidades, filtros.unidad).map((u) => (
+            {/* Solo para filtrar: no está en la lista de unidades, no se puede elegir en la tabla. */}
+            <option value={UNIDAD_SIN_ASIGNAR}>{UNIDAD_SIN_ASIGNAR}</option>
+            {conValorActual(unidades, filtros.unidad === UNIDAD_SIN_ASIGNAR ? undefined : filtros.unidad).map((u) => (
               <option key={u} value={u}>
                 {u}
               </option>

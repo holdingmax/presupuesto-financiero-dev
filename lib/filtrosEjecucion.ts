@@ -2,6 +2,11 @@
 // URL es la única fuente (se pueden compartir y la paginación los respeta), y el mismo predicado
 // `coincide` filtra la pantalla, el Total, la cantidad, las páginas y el Excel.
 
+import { esUnidadDeLaLista } from "@/lib/unidadesNegocio";
+
+// Valor del filtro de unidad para los movimientos sin unidad válida (el que guardan las cargas).
+export const UNIDAD_SIN_ASIGNAR = "SIN ASIGNAR";
+
 export type FiltrosEjecucion = {
   // "Solo sin clasificar". En la URL sigue siendo ?filtro=sin_clasificar (los links viejos andan).
   soloSinClasificar: boolean;
@@ -90,16 +95,41 @@ export type FilaFiltrable = {
   clasificacion: string;
   unidadNegocio: string;
   unidadesDesglose: string[];
+  // Opcional: las filas que no lo traen se tratan como no ignoradas.
+  ignorado?: boolean;
 };
+
+// Misma normalización que el aviso "sin unidad asignada" (lib/reporte.ts: upper(btrim(...))).
+function unidadNormalizada(valor: string): string {
+  return valor.trim().toUpperCase();
+}
+
+// Una unidad fuera de la lista cerrada (SIN ASIGNAR, valores viejos como CREAR o JPS) es lo que el aviso
+// cuenta como "sin unidad". Con ese filtro se muestra exactamente lo que cuenta el aviso: sin los
+// ignorados, y una fila prorrateada vale por sus porciones, no por su unidad propia.
+function esFiltroSinUnidad(unidad: string): boolean {
+  return !esUnidadDeLaLista(unidadNormalizada(unidad));
+}
+
+function coincideUnidad(fila: FilaFiltrable, unidad: string): boolean {
+  const buscada = unidadNormalizada(unidad);
+  if (esFiltroSinUnidad(unidad)) {
+    if (fila.ignorado) return false;
+    const unidades = fila.unidadesDesglose.length > 0 ? fila.unidadesDesglose : [fila.unidadNegocio];
+    return unidades.some((u) => unidadNormalizada(u) === buscada);
+  }
+  return (
+    unidadNormalizada(fila.unidadNegocio) === buscada ||
+    fila.unidadesDesglose.some((u) => unidadNormalizada(u) === buscada)
+  );
+}
 
 export function coincide(fila: FilaFiltrable, filtros: FiltrosEjecucion): boolean {
   if (filtros.soloSinClasificar && fila.clasificacion !== "SIN CLASIFICAR") return false;
   if (filtros.desde && fila.fecha < filtros.desde) return false;
   if (filtros.hasta && fila.fecha > filtros.hasta) return false;
   if (filtros.clasificacion && fila.clasificacion !== filtros.clasificacion) return false;
-  if (filtros.unidad && fila.unidadNegocio !== filtros.unidad && !fila.unidadesDesglose.includes(filtros.unidad)) {
-    return false;
-  }
+  if (filtros.unidad && !coincideUnidad(fila, filtros.unidad)) return false;
   if (filtros.cuenta && fila.bancoYCuenta !== filtros.cuenta) return false;
   if (filtros.texto && !normalizar(fila.concepto).includes(normalizar(filtros.texto))) return false;
   return true;
