@@ -153,9 +153,9 @@ const ESPERADO: Record<
 };
 
 // Filas con `sumarManual` (Real = clasificaciones + valor tipeado): exactamente estas, y ninguna más en ninguna plantilla.
-const SUMAR_MANUAL: Record<string, string[]> = { brillante: ["br.sac"], "conexion-logistica": ["cx.sac"], "conexion-logistica-spp": ["cx.sac"], mantenor: ["mn.sac"], avianor: ["av.cobranzaClientes", "av.sueldos", "av.expensas", "av.proveedores"] };
+const SUMAR_MANUAL: Record<string, string[]> = { brillante: ["br.sac"], "conexion-logistica": ["cx.sac"], "conexion-logistica-spp": ["cx.sac"], mantenor: ["mn.sac"], avianor: ["av.cobranzaClientes", "av.sueldos", "av.tarjetas", "av.expensas", "av.proveedores"] };
 
-test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac, cx.sac, mn.sac y cuatro de Avianor (conexion-logistica-spp comparte plantilla)", () => {
+test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac, cx.sac, mn.sac y cinco de Avianor (conexion-logistica-spp comparte plantilla)", () => {
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     const filas = plantilla.filas
       .filter((f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined)
@@ -350,7 +350,7 @@ test("Avianor: 7 de Ingresos + 8 de Egresos + 3 de abajo + 1 de Disponibilidades
   assert.equal(presupuestoManual.length, 14);
   assert.deepEqual(
     presupuestoManual.map((c) => c.clave).sort(),
-    // Las cuatro filas con sumarManual tienen Presupuestado por categorías (no manual): son tipeables solo en Real.
-    campos.filter((c) => c.bloque !== "DISPONIBILIDADES" && !SUMAR_MANUAL["avianor"].includes(c.clave)).map((c) => c.clave).sort()
+    // Las cuatro filas con sumarManual y Presupuestado por categorías (no manual) son tipeables solo en Real; Tarjetas también suma su Real tipeado pero su Presupuestado sigue siendo manual.
+    campos.filter((c) => c.bloque !== "DISPONIBILIDADES" && (c.clave === "av.tarjetas" || !SUMAR_MANUAL["avianor"].includes(c.clave))).map((c) => c.clave).sort()
   );
 });

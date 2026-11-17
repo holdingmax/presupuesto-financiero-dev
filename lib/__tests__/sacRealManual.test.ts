@@ -89,9 +89,9 @@ test("mantenor: Sueldos, Tarjetas, Impuestos y Cobranza siguen sin celda de Real
   for (const c of ["mn.sueldos", "mn.tarjetas", "mn.impuestos", "mn.cobranzaJujuy"]) assert.equal(claves.includes(c), false, c);
 });
 
-const AV4 = ["av.cobranzaClientes", "av.sueldos", "av.expensas", "av.proveedores"];
+const AV4 = ["av.cobranzaClientes", "av.sueldos", "av.tarjetas", "av.expensas", "av.proveedores"];
 
-test("solo br.sac, cx.sac, mn.sac y cuatro filas de Avianor usan sumarManual; el SAC de las demás plantillas no cambia", () => {
+test("solo br.sac, cx.sac, mn.sac y cinco filas de Avianor usan sumarManual; el SAC de las demás plantillas no cambia", () => {
   for (const [slug, plantilla] of Object.entries(PLANTILLAS_POR_SLUG)) {
     const usan = plantilla.filas.filter(
       (f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined

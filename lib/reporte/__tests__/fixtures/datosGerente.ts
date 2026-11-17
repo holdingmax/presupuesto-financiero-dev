@@ -63,8 +63,14 @@ export const clavesDeCierre = (r: Reporte) => r.filas.filter((f) => f.fila.bloqu
 // HWC «Pago Gol» acepta tres grafías: las dos agregadas después de las fotos no se numeran, para que el resto conserve sus valores.
 const GRAFIAS_GOL_SIN_NUMERAR = ["GOL LINHEAS AEREAS", "GOL LINHAS AEREAS"];
 
+// Avianor «Tarjetas» (nov-2026) pasó de Real tipeado a PREST BRIOS Y TC + tipeado: esa clasificación no se numera en Avianor, así
+// Tarjetas sigue valiendo solo su tipeado y las demás conservan los valores de las fotos JSON. En las otras empresas se numera igual.
+const SIN_NUMERAR_AVIANOR = ["PREST BRIOS Y TC"];
+
 function clasificacionesEnOrdenDeNumeracion(plantilla: Plantilla): string[] {
-  return clasificacionesEnOrdenDeNumeracionCompleto(plantilla).filter((c) => !GRAFIAS_GOL_SIN_NUMERAR.includes(c));
+  return clasificacionesEnOrdenDeNumeracionCompleto(plantilla).filter(
+    (c) => !GRAFIAS_GOL_SIN_NUMERAR.includes(c) && !(plantilla.empresa === "Avianor" && SIN_NUMERAR_AVIANOR.includes(c))
+  );
 }
 
 function clasificacionesEnOrdenDeNumeracionCompleto(plantilla: Plantilla): string[] {

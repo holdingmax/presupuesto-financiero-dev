@@ -17,7 +17,7 @@ import {
 // Unidad de negocio: AVIANOR.
 //
 // Solo tienen fuente de Real las filas cuyo texto coincide con una clasificación de
-// Ejecución sin ambigüedad. El resto (Tarjetas, Comisiones, Adicionales, Préstamo y
+// Ejecución sin ambigüedad. El resto (Comisiones, Adicionales, Préstamo y
 // Reembolsos, Expensas - No socios, los tres "Otro", Cuenta Particular…) se tipea a
 // mano en /reporte/carga hasta que Finanzas confirme de dónde salen (decisión
 // 2026-10-28): no se asigna COMISIONES ESPECIALES, Prestamos y tarjetas, OTROS ni
@@ -36,6 +36,12 @@ import {
 // rol "saldo" (desde que el gerente ve el Cierre, config EMPRESAS_QUE_VEN_CIERRE_EN_REPORTE): es lo único de Cierre
 // que tiene Avianor.
 
+// Tarjetas: desde la decisión de Kike (2026-11) lee la clasificación PREST BRIOS Y TC de la unidad AVIANOR y además suma el valor
+// tipeado de la misma fila. El corte "2000-01" hace que el tipeado se siga mostrando en TODOS los meses (antes la fila era 100%
+// manual: octubre 2026 = 4.333.103,08 tipeado). En testing no hay movimientos AVIANOR con esa clasificación antes de noviembre,
+// así que los meses anteriores no cambian. Desde noviembre NO hay que tipear: se contaría dos veces.
+const TARJETAS_MANUAL_DESDE = "2000-01";
+
 const ingresos = [
   ingreso("av.cobranzaClientes", "Cobranza clientes", clasifMasManual("2026-10", "COBRANZAS"), cat("COBRANZAS")),
   ingreso("av.otrasOperaciones", "Otras operaciones", REAL_MANUAL, PRESUPUESTO_MANUAL),
@@ -51,7 +57,7 @@ const egresos = [
   egreso("av.sueldos", "Sueldos", clasifMasManual("2026-10", "SUELDOS"), cat("SUELDOS")),
   egreso("av.sac", "SAC", clasif("SAC"), cat("SAC")),
   egreso("av.comisiones", "Comisiones", REAL_MANUAL, PRESUPUESTO_MANUAL),
-  egreso("av.tarjetas", "Tarjetas", REAL_MANUAL, PRESUPUESTO_MANUAL),
+  egreso("av.tarjetas", "Tarjetas", clasifMasManual(TARJETAS_MANUAL_DESDE, "PREST BRIOS Y TC"), PRESUPUESTO_MANUAL),
   egreso("av.adicionales", "Adicionales", REAL_MANUAL, PRESUPUESTO_MANUAL),
   egreso("av.impuestos", "Impuestos", clasif("IMP Y PREVISIONALES"), cat("IMP Y PREVISIONALES")),
   egreso("av.expensas", "Expensas", clasifMasManual("2026-10", "EXPENSAS"), cat("EXPENSAS")),

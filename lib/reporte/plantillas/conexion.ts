@@ -154,7 +154,7 @@ const deAbajo = [
     PRESUPUESTO_MANUAL,
     {
       parcial: true,
-      nota: "Hasta 2026-10: AVION + expensas y tarjetas de Avianor pagadas por Conexión. Desde 2026-11: neto de la unidad AVIANOR, igual que el Reporte de Avianor (Tarjetas de Avianor todavía se tipea a mano allá).",
+      nota: "Hasta 2026-10: AVION + expensas y tarjetas de Avianor pagadas por Conexión. Desde 2026-11: neto de la unidad AVIANOR, igual que el Reporte de Avianor.",
     }
   ),
 ];
