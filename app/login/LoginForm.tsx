@@ -1,12 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { login, type ResultadoLogin } from "./actions";
 import CampoPassword from "@/components/CampoPassword";
 
 const ESTADO_INICIAL: ResultadoLogin | null = null;
 
-export default function LoginForm() {
+export default function LoginForm({ mostrarOlvide = false }: { mostrarOlvide?: boolean }) {
   const [estado, formAction, pendiente] = useActionState(login, ESTADO_INICIAL);
 
   return (
@@ -36,6 +37,14 @@ export default function LoginForm() {
         placeholder="••••••••"
         size="lg"
       />
+
+      {mostrarOlvide && (
+        <p className="-mt-2 text-sm">
+          <Link href="/olvide" className="text-marino underline underline-offset-2">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </p>
+      )}
 
       {estado && !estado.ok && (
         <p className="text-sm text-terracota bg-terracota-tint rounded-md px-3 py-2">

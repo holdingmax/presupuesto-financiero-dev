@@ -2,12 +2,11 @@
 
 import { requireUsuario, verifyPassword, hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { validarPasswordNueva } from "@/lib/reglasPassword";
 
 export type ResultadoCambiarPassword =
   | { ok: true }
   | { ok: false; errores: Record<string, string> };
-
-const LARGO_MINIMO = 8;
 
 export async function cambiarPassword(
   _estadoPrevio: ResultadoCambiarPassword | null,
@@ -27,12 +26,7 @@ export async function cambiarPassword(
   if (!usuario.passwordHash || !(await verifyPassword(actual, usuario.passwordHash))) {
     errores.actual = "La contraseña actual no es correcta.";
   }
-  if (nueva.length < LARGO_MINIMO) {
-    errores.nueva = `La contraseña nueva tiene que tener al menos ${LARGO_MINIMO} caracteres.`;
-  }
-  if (nueva !== confirmar) {
-    errores.confirmar = "No coincide con la contraseña nueva.";
-  }
+  Object.assign(errores, validarPasswordNueva(nueva, confirmar));
 
   if (Object.keys(errores).length > 0) {
     return { ok: false, errores };

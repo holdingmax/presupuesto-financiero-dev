@@ -1,4 +1,5 @@
 import LoginForm from "./LoginForm";
+import { recuperacionActiva } from "@/lib/recuperacion";
 
 export default function LoginPage() {
   return (
@@ -56,7 +57,7 @@ export default function LoginPage() {
                   Entrá con el email que te dio tu administrador.
                 </p>
 
-                <LoginForm />
+                <LoginForm mostrarOlvide={recuperacionActiva()} />
               </div>
             </div>
 

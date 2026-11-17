@@ -68,6 +68,7 @@ model Usuario {
 
   empresas UsuarioEmpresa[]
   sesiones Sesion[]
+  tokensRecuperacion TokenRecuperacion[]
   valoresManualesReporte ValorManualReporte[]
   filasExtraReporte      FilaExtraReporte[]
   tiposCambio            TipoCambio[]
@@ -495,4 +496,29 @@ model HistorialClasificacionEmpresa {
   empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
   @@unique([empresaId, concepto, signo, clasificacion], map: "HistClasifEmpresa_unico")
+}
+
+// Recuperación de contraseña por mail ("¿Olvidaste tu contraseña?"). Se guarda SOLO el SHA-256 del
+// token (el token crudo viaja únicamente en el enlace del mail). Un solo uso (usadoAt) y vence rápido
+// (expiresAt). Se borra en cascada con el usuario.
+model TokenRecuperacion {
+  id        String    @id @default(uuid())
+  usuarioId String
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usadoAt   DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([usuarioId])
+}
+
+// Contador del límite de pedidos de recuperación. "clave" es "email:<sha256>" o "ip:<sha256>": nunca
+// se guarda el email ni la IP en claro. Se cuentan las filas de la última hora; las viejas se borran.
+model IntentoRecuperacion {
+  id        String   @id @default(uuid())
+  clave     String
+  createdAt DateTime @default(now())
+
+  @@index([clave, createdAt])
 }
