@@ -34,6 +34,14 @@ const SOMBRA = "bg-[linear-gradient(rgba(0,0,0,0.06),rgba(0,0,0,0.06))]";
 // egresos) a la derecha y un poco más chico, y los totales (incluye Capital y Disponible) en negrita.
 type EstiloCeldas = "total" | "totalDisponibilidades" | "disponibilidades" | "flujo";
 
+// Botones de la fila de controles («Cargar valores del mes», «Subir extracto», «Descargar Excel»): UNA sola base de tamaño
+// (alto, relleno, letra) para que no puedan desalinearse; cada uno suma solo sus colores.
+const CLASE_BOTON_BASE =
+  "inline-flex h-9 items-center rounded-md border px-4 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2";
+const CLASE_BOTON_NEUTRO = `${CLASE_BOTON_BASE} border-line-strong bg-paper-raised text-ink hover:border-marino hover:text-marino-dark focus-visible:outline-marino`;
+// «Descargar Excel»: mismo tamaño, en verde (fondo claro, borde y texto oscuros).
+const CLASE_BOTON_EXCEL = `${CLASE_BOTON_BASE} border-[#2E6B3F] bg-[#DDEFE2] whitespace-nowrap text-[#1B4A2B] hover:bg-[#CBE6D2] focus-visible:outline-[#2E6B3F]`;
+
 // Textos neutros: los ve cualquier rol, sin nombrar a nadie.
 const AYUDA_PARCIAL_FILA = "Dato parcial: falta información para completar este valor";
 const AYUDA_PARCIAL_TOTAL = "Dato parcial: falta información para completar este total";
@@ -168,7 +176,7 @@ export default function ReportePlantilla({
                 <a
                   href={hrefExcel}
                   title="Descarga el Reporte que ves en pantalla, con la fecha y el día de la descarga"
-                  className="inline-flex min-h-10 items-center rounded-md border border-[#2E6B3F] bg-[#DDEFE2] px-5 text-sm font-semibold whitespace-nowrap text-[#1B4A2B] transition hover:bg-[#CBE6D2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2E6B3F]"
+                  className={CLASE_BOTON_EXCEL}
                 >
                   Descargar Excel
                 </a>
@@ -189,7 +197,7 @@ export default function ReportePlantilla({
             {mostrarLinkCarga && (
               <Link
                 href={`/${empresaSlug}/${periodo}/reporte/carga`}
-                className="inline-flex h-9 items-center rounded-md border border-line-strong bg-paper-raised px-4 text-xs font-medium text-ink transition hover:border-marino hover:text-marino-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marino"
+                className={CLASE_BOTON_NEUTRO}
               >
                 Cargar valores del mes
               </Link>
@@ -197,7 +205,7 @@ export default function ReportePlantilla({
             {mostrarLinkExtracto && (
               <Link
                 href={`/${empresaSlug}/${periodo}/reporte/extracto`}
-                className="inline-flex h-9 items-center rounded-md border border-line-strong bg-paper-raised px-4 text-xs font-medium text-ink transition hover:border-marino hover:text-marino-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marino"
+                className={CLASE_BOTON_NEUTRO}
               >
                 Subir extracto
               </Link>
