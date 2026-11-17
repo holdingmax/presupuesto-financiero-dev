@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import TablaMovimientos, { type MovimientoTabla } from "@/app/ejecucion/TablaMovimientos";
 import { clasificarMovimientoEmpresa, confirmarSugerenciasEmpresa } from "../actionsClasificar";
+import { MOSTRAR_DETALLE_EMPRESA } from "@/lib/columnaDetalle";
 
 // Tabla de movimientos EDITABLE de la pestaña de una empresa, solo para un gerente con la casilla «Puede cargar Real de esta
 // empresa» y con la semana ABIERTA (la página decide cuándo mostrarla; el servidor vuelve a decidir en cada acción). Permite
@@ -119,6 +120,7 @@ export default function MovimientosEditablesEmpresa({ empresaId, periodo, numero
         clasificacionesDisponibles={edicion.clasificaciones}
         unidadesPermitidas={edicion.unidades}
         sinProrrateo
+        mostrarDetalle={MOSTRAR_DETALLE_EMPRESA}
         onCambiarClasificacion={(id, valor) =>
           guardar(id, { clasificacion: valor }, (m) => ({ ...m, clasificacion: valor }))
         }

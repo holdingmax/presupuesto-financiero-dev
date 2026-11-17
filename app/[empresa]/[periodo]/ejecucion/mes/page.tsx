@@ -9,6 +9,7 @@ import { opcionesDeMes } from "@/lib/mesesEjecucion";
 import { AccesoDenegadoError } from "@/lib/auth";
 import { hrefConFiltro, leerClasificacion, queryClasificacion } from "@/lib/filtroClasificacionEmpresa";
 import { nombreParaMostrar } from "@/lib/clasificaciones";
+import { MOSTRAR_DETALLE_EMPRESA } from "@/lib/columnaDetalle";
 
 type Props = {
   params: Promise<{ empresa: string; periodo: string }>;
@@ -167,6 +168,7 @@ export default async function EjecucionMesPage({ params, searchParams }: Props) 
                 movimientos={datos.movimientos}
                 numeroSemana={datos.semanas[datos.semanas.length - 1].numeroSemana}
                 soloLectura
+                mostrarDetalle={MOSTRAR_DETALLE_EMPRESA}
                 mostrarSemana
               />
             </div>

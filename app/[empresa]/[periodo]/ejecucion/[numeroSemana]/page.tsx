@@ -10,6 +10,7 @@ import { AccesoDenegadoError } from "@/lib/auth";
 import { textoTrazabilidad } from "@/lib/fecha";
 import { hrefConFiltro, leerClasificacion, queryClasificacion } from "@/lib/filtroClasificacionEmpresa";
 import { nombreParaMostrar } from "@/lib/clasificaciones";
+import { MOSTRAR_DETALLE_EMPRESA } from "@/lib/columnaDetalle";
 
 type Props = {
   params: Promise<{ empresa: string; periodo: string; numeroSemana: string }>;
@@ -242,6 +243,7 @@ export default async function EjecucionSemanaPage({ params, searchParams }: Prop
                   movimientos={datos.movimientos}
                   numeroSemana={datos.numeroSemana}
                   soloLectura
+                  mostrarDetalle={MOSTRAR_DETALLE_EMPRESA}
                 />
               )}
             </div>

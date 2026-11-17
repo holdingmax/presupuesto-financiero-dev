@@ -544,7 +544,7 @@ test("Ejecución global no se tocó: sus acciones siguen exigiendo operar y no c
 test("la pantalla de la empresa: editable SOLO si el servidor trae `edicion` (gerente con casilla + semana ABIERTA); si no, solo lectura como siempre", () => {
   const pagina = leer("app", "[empresa]", "[periodo]", "ejecucion", "[numeroSemana]", "page.tsx");
   assert.match(pagina, /datos\.edicion \? \(\s*<MovimientosEditablesEmpresa/);
-  assert.match(pagina, /<TablaMovimientos\s+movimientos=\{datos\.movimientos\}\s+numeroSemana=\{datos\.numeroSemana\}\s+soloLectura\s*\/>/);
+  assert.match(pagina, /<TablaMovimientos\s+movimientos=\{datos\.movimientos\}\s+numeroSemana=\{datos\.numeroSemana\}\s+soloLectura\s+mostrarDetalle=\{MOSTRAR_DETALLE_EMPRESA\}\s*\/>/);
   const datos = leer("app", "[empresa]", "[periodo]", "ejecucion", "datos.ts");
   assert.match(datos, /ejecucion\.estado === "ABIERTA" && unidades\.length > 0/);
   assert.match(datos, /if \(puedeClasificarEnEmpresa\(usuario, acceso\)\)/);

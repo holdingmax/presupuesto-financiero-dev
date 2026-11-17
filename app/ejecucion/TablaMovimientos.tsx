@@ -8,6 +8,7 @@ import { eliminarDesgloseMovimiento } from "./actions";
 import { opcionesUnidad } from "@/lib/unidadesNegocio";
 import { aCentavos, formatearCentavos, formatearPorcentaje, porcentajeDeCentavos } from "@/lib/prorrateo";
 import PanelDesgloseMovimiento from "./PanelDesgloseMovimiento";
+import { textoDetalle, totalColumnasTabla } from "@/lib/columnaDetalle";
 
 // Sin librería de íconos en el proyecto — SVG a mano, mismo criterio que
 // IconoOjo (components/CampoPassword.tsx).
@@ -218,6 +219,9 @@ type Props = {
   mostrarSaldo?: boolean;
   // Columna Semana (vista "Todo el mes" de la empresa).
   mostrarSemana?: boolean;
+  // Columna Detalle (al lado de Concepto): solo la pestaña de la empresa. Sin esta opción la tabla no cambia.
+  // Ver quién la pasa en true: es el único lugar para restringirla por rol.
+  mostrarDetalle?: boolean;
   deshabilitado?: boolean;
   clasificacionesDisponibles?: string[];
   onCambiarClasificacion?: (id: string, valor: string) => void;
@@ -239,6 +243,7 @@ export default function TablaMovimientos({
   soloLectura = false,
   mostrarSaldo = false,
   mostrarSemana = false,
+  mostrarDetalle = false,
   deshabilitado = false,
   clasificacionesDisponibles = [],
   onCambiarClasificacion,
@@ -251,7 +256,7 @@ export default function TablaMovimientos({
   const router = useRouter();
   const { periodo } = useParams<{ periodo: string }>();
   const [desgloseAbiertoId, setDesgloseAbiertoId] = useState<string | null>(null);
-  const totalColumnas = (soloLectura ? 7 : 8) + (mostrarSaldo ? 1 : 0) + (mostrarSemana ? 1 : 0);
+  const totalColumnas = totalColumnasTabla({ soloLectura, mostrarSaldo, mostrarSemana, mostrarDetalle });
 
   // Tilde de la columna Prorrateo (pedido de Kike, 2026-10-06): tildarlo abre el panel;
   // destildarlo cierra el panel si todavía no se guardó nada, o — si ya hay un
@@ -282,13 +287,14 @@ export default function TablaMovimientos({
     // líneas (ancho mínimo 18rem), Clasificación toma el ancho de su opción más larga y el resto
     // queda en una sola línea. El min-w evita que se aplaste en pantallas angostas (scroll horizontal
     // dentro de la caja).
-    <table className={`w-full text-[13px] ${mostrarSaldo ? "min-w-[1180px]" : "min-w-[1020px]"}`}>
+    <table className={`w-full text-[13px] ${mostrarDetalle ? (mostrarSaldo ? "min-w-[1400px]" : "min-w-[1300px]") : mostrarSaldo ? "min-w-[1180px]" : "min-w-[1020px]"}`}>
       <thead>
         <tr className="text-xs text-ink-faint uppercase tracking-wide">
           <th className={`${th} text-left pr-3`}>Fecha</th>
           {mostrarSemana && <th className={`${th} text-left pr-3`}>Semana</th>}
           <th className={`${th} text-left pr-3`}>Banco y cuenta</th>
           <th className={`${th} text-left pr-3`}>Concepto</th>
+          {mostrarDetalle && <th className={`${th} text-left pr-3`}>Detalle</th>}
           <th className={`${th} text-right pr-3`}>Importe</th>
           {mostrarSaldo && (
             <th
@@ -322,6 +328,14 @@ export default function TablaMovimientos({
               {m.bancoYCuenta}
             </td>
             <td className="min-w-[18rem] whitespace-normal break-words py-1 pr-3">{m.concepto}</td>
+            {mostrarDetalle && (
+              <td className="py-1 pr-3 align-top">
+                {/* Texto largo: máx. 2 líneas con el completo en el tooltip; vacío = celda vacía. */}
+                <div title={textoDetalle(m.detalle) || undefined} className="min-w-[10rem] max-w-[16rem] break-words text-ink-secondary line-clamp-2">
+                  {textoDetalle(m.detalle)}
+                </div>
+              </td>
+            )}
             <td
               className={`py-1 pr-3 text-right tabular whitespace-nowrap ${
                 m.importe < 0 ? "text-negative" : "text-positive"
