@@ -689,7 +689,8 @@ export default function PanelImputacion({
           {vistaMadre && (() => {
             const v = vistaMadre.vista;
             const r = v.resumen;
-            const nuevasSinConfirmar = r.clasificacionesNuevas.length > 0 && !confirmoClasifNuevas;
+            const f = r.fueraDelReporte;
+            const nuevasSinConfirmar = r.requiereConfirmar && !confirmoClasifNuevas;
             return (
               <div className="mt-3 text-sm bg-marino-tint text-marino rounded-md px-3 py-3">
                 <p className="font-medium">Todavía no se cargó nada: revisá el resumen del archivo madre.</p>
@@ -736,17 +737,83 @@ export default function PanelImputacion({
                         </li>
                       ))}
                     </ul>
-                    <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs font-medium">
-                      <input
-                        type="checkbox"
-                        checked={confirmoClasifNuevas}
-                        disabled={subiendo}
-                        onChange={(e) => setConfirmoClasifNuevas(e.target.checked)}
-                        className="mt-0.5 accent-terracota"
-                      />
-                      Confirmo estas clasificaciones nuevas
-                    </label>
                   </div>
+                )}
+                {(f.unidadesNoReconocidas.length > 0 || f.clasificacionesSinFila.length > 0 || f.descartadas.total > 0) && (
+                  <div className="mt-3 rounded-md border border-terracota bg-terracota-tint px-3 py-2 text-terracota">
+                    <p className="text-xs font-medium">
+                      No encajan: esto del archivo puede quedar afuera de los Reportes. No cambia lo que se carga, pero hay que confirmarlo.
+                    </p>
+                    {f.unidadesNoReconocidas.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium">Unidades escritas en el archivo que no se reconocieron (la fila cayó en otra unidad):</p>
+                        <ul className="mt-1 list-disc pl-5 text-xs">
+                          {f.unidadesNoReconocidas.map((u) => (
+                            <li key={`${u.columna}|${u.texto}|${u.cayoEn}`}>
+                              «{u.texto}» (columna {u.columna}) → quedó en {u.cayoEn}: {u.filas === 1 ? "1 fila" : `${u.filas} filas`}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {f.clasificacionesSinFila.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium">
+                          Clasificaciones sin fila en el Reporte de su empresa (no suman):
+                        </p>
+                        <ul className="mt-1 list-disc pl-5 text-xs tabular">
+                          {f.clasificacionesSinFila.map((c) => (
+                            <li key={`${c.empresa}|${c.clasificacion}`}>
+                              {c.empresa}: {c.clasificacion}: {c.filas === 1 ? "1 fila" : `${c.filas} filas`}, ${formatearImporteConCentavos(c.centavos / 100)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {f.descartadas.total > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium">
+                          {f.descartadas.total === 1 ? "1 fila se descarta" : `${f.descartadas.total} filas se descartan`} por tener el importe ilegible (no se cargan):
+                        </p>
+                        <ul className="mt-1 list-disc pl-5 text-xs">
+                          {f.descartadas.primeras.map((d) => (
+                            <li key={d.numeroFila}>
+                              Fila {d.numeroFila}: {d.concepto} (importe «{d.importeTexto}»)
+                            </li>
+                          ))}
+                          {f.descartadas.total > f.descartadas.primeras.length && (
+                            <li>… y {f.descartadas.total - f.descartadas.primeras.length} más</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {f.seCarganAMano.length > 0 && (
+                  <div className="mt-3 rounded-md border border-marino px-3 py-2">
+                    <p className="text-xs font-medium">
+                      Se cargan a mano: recordá cargarlos en el Reporte (su fila es manual, no suman solos). No hace falta confirmar nada.
+                    </p>
+                    <ul className="mt-1 list-disc pl-5 text-xs tabular">
+                      {f.seCarganAMano.map((c) => (
+                        <li key={`${c.empresa}|${c.clasificacion}`}>
+                          {c.empresa}: {c.clasificacion}: {c.filas === 1 ? "1 fila" : `${c.filas} filas`}, ${formatearImporteConCentavos(c.centavos / 100)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {r.requiereConfirmar && (
+                  <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs font-medium">
+                    <input
+                      type="checkbox"
+                      checked={confirmoClasifNuevas}
+                      disabled={subiendo}
+                      onChange={(e) => setConfirmoClasifNuevas(e.target.checked)}
+                      className="mt-0.5 accent-marino"
+                    />
+                    Revisé estos avisos y confirmo la carga
+                  </label>
                 )}
                 <div className="mt-3 flex gap-2">
                   <button

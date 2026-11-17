@@ -103,6 +103,17 @@ function leerUnidadDeCelda(valorCrudo: unknown): string | null {
   return texto;
 }
 
+// Texto de una celda para mostrar en un aviso (valor simple, fórmula con resultado, fecha…), recortado.
+function textoDeCelda(valorCrudo: unknown): string {
+  if (valorCrudo == null) return "";
+  const crudo =
+    typeof valorCrudo === "object" && valorCrudo !== null && "result" in valorCrudo
+      ? (valorCrudo as { result: unknown }).result
+      : valorCrudo;
+  const texto = crudo instanceof Date ? crudo.toISOString().slice(0, 10) : String(crudo);
+  return texto.length > 40 ? `${texto.slice(0, 40)}…` : texto;
+}
+
 export type FilaMadre = {
   numeroFila: number;
   fecha: Date;
@@ -120,9 +131,18 @@ export type FilaMadre = {
   sugeridaPorSistema: boolean;
   chequeIvaAmbiguo: boolean;
   unidadSugeridaPorSistema: boolean;
+  // Solo para AVISAR en la vista previa del madre (lib/extractos/avisosMadre.ts): el texto de unidad que trae el
+  // archivo y que no se reconoció ni como unidad de la lista ni como razón social conocida. NO se guarda ni
+  // cambia la unidad asignada (que sigue saliendo del orden de siempre). null = no hay nada que avisar.
+  unidadNoReconocida?: { texto: string; columna: "UNIDAD DE NEG" | "EMPRESA" } | null;
 };
 
-export type LecturaMadre = { ok: true; filas: FilaMadre[] } | { ok: false; error: string };
+// Fila que se descartó porque el importe no se pudo leer (ej. texto "1.234,56"). Las filas vacías no cuentan.
+export type FilaDescartadaMadre = { numeroFila: number; concepto: string; importeTexto: string };
+
+export type LecturaMadre =
+  | { ok: true; filas: FilaMadre[]; descartadas: FilaDescartadaMadre[] }
+  | { ok: false; error: string };
 
 export function leerFilasMadre(hoja: ExcelJS.Worksheet): LecturaMadre {
   const encabezados: Record<number, string> = {};
@@ -177,6 +197,7 @@ export function leerFilasMadre(hoja: ExcelJS.Worksheet): LecturaMadre {
   }
 
   const filas: FilaMadre[] = [];
+  const descartadas: FilaDescartadaMadre[] = [];
 
   hoja.eachRow((fila, numeroFila) => {
     if (numeroFila === FILA_HEADERS) return;
@@ -190,7 +211,14 @@ export function leerFilasMadre(hoja: ExcelJS.Worksheet): LecturaMadre {
     if (!valores.concepto && !valores.importe) return;
 
     const { valor: importeExtraido } = extraerImporte(valores.importe);
-    if (importeExtraido === null) return;
+    if (importeExtraido === null) {
+      descartadas.push({
+        numeroFila,
+        concepto: String(valores.concepto ?? "(sin concepto)"),
+        importeTexto: textoDeCelda(valores.importe),
+      });
+      return;
+    }
 
     const { valor: saldoExtraido } = extraerSaldo(valores.saldo);
 
@@ -237,6 +265,16 @@ export function leerFilasMadre(hoja: ExcelJS.Worksheet): LecturaMadre {
     const unidadPorRazonSocial =
       unidadExplicita || unidadPorCuenta || !razonSocial ? null : proponerUnidadPorRazonSocial(razonSocial);
 
+    // Solo aviso: texto de unidad que ninguna regla reconoció (ver unidadNoReconocida en FilaMadre). Un texto que
+    // sí es una razón social conocida (QUINTEROS, WHEELER…) es el error de etiqueta ya confirmado: no se avisa.
+    const textoRazonSocial = razonSocial;
+    const unidadNoReconocida: FilaMadre["unidadNoReconocida"] =
+      celdaUnidad && !unidadExplicita && proponerUnidadPorRazonSocial(celdaUnidad) === null
+        ? { texto: celdaUnidad, columna: "UNIDAD DE NEG" }
+        : !celdaUnidad && textoRazonSocial && proponerUnidadPorRazonSocial(textoRazonSocial) === null
+          ? { texto: textoRazonSocial, columna: "EMPRESA" }
+          : null;
+
     filas.push({
       numeroFila,
       fecha,
@@ -254,8 +292,9 @@ export function leerFilasMadre(hoja: ExcelJS.Worksheet): LecturaMadre {
       sugeridaPorSistema: clasificacionAutomatica !== null,
       chequeIvaAmbiguo: false,
       unidadSugeridaPorSistema: unidadPorCuenta !== null || unidadPorRazonSocial !== null,
+      unidadNoReconocida,
     });
   });
 
-  return { ok: true, filas };
+  return { ok: true, filas, descartadas };
 }

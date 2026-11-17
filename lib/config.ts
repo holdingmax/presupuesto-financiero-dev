@@ -319,3 +319,35 @@ export const CLASIFICACIONES_POR_EMPRESA: Readonly<Record<string, readonly strin
     "OTROS",
   ],
 };
+
+// Clasificaciones "intencionalmente fuera del Reporte": movimientos que NO tienen fila en la plantilla de
+// ninguna empresa a propósito (movimientos entre cuentas, inversiones, cheques de terceros, asientos de
+// importe cero). El aviso de la vista previa del archivo madre (lib/extractos/avisosMadre.ts) no las marca
+// como "sin fila". Solo apaga ese aviso: no cambia ninguna suma ni ningún Reporte.
+//
+// PENDIENTE DE CONFIRMACIÓN DE KIKE: la lista es una propuesta nuestra (auditoría de octubre y noviembre 2026), no una
+// decisión suya. Si él dice que alguna sí tiene que verse en un Reporte, se saca de acá y se le agrega su fila.
+//
+// NO van acá, a propósito: IVA, EXPENSAS, INVERSIONES y PRESTAMOS. Hoy las cubren filas de Real manual de las
+// plantillas (costo de IVA, reparto de Expensas, la fila extra de Inversiones de Conexión): no se pueden dar
+// por intencionales, porque si falta el valor tipeado el movimiento queda afuera sin que nadie lo vea.
+// La comparación es sin mayúsculas ni tildes y con los alias de lib/rubros.ts. Un test controla que ninguna
+// esté a la vez en una plantilla (sería contradictorio) y que las cuatro de arriba no se cuelen.
+export const CLASIFICACIONES_FUERA_DEL_REPORTE_INTENCIONAL: readonly string[] = [
+  "FCI",
+  "INT FCI",
+  "TRANSF ENTRE BCOS",
+  "DEP CH 3°",
+  "CH DIFERIDOS IVA",
+  "COMPRA ME",
+  "COMPRA INTERNA",
+  "MAL REGISTRADO",
+];
+
+// Clasificaciones "que se cargan a mano": no están en la lista de arriba porque NO están fuera del Reporte, pero tampoco suman
+// solas: la fila de su plantilla es de Real manual (costo de IVA, reparto de Expensas, préstamos tipeados, la fila extra de
+// Inversiones de Conexión). Si falta el valor tipeado, el movimiento queda afuera sin que nadie lo vea. La vista previa del
+// archivo madre las muestra aparte, como recordatorio ("recordá cargarlos en el Reporte"): NO exigen confirmar la carga.
+// Cuando una plantilla sí tiene fila de clasificación para una de estas (ej. EXPENSAS en Avianor), no se recuerda nada.
+// Misma comparación que la lista de arriba. Un test controla que ninguna esté en las dos listas a la vez.
+export const CLASIFICACIONES_SE_CARGAN_A_MANO: readonly string[] = ["IVA", "INVERSIONES", "PRESTAMOS", "EXPENSAS"];

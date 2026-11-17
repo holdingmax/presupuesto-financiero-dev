@@ -3,7 +3,9 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { quitarDiacriticos } from "@/lib/slug";
+import { quitarDiacriticos, slugDeEmpresa } from "@/lib/slug";
+import { clasificacionesDePlantilla } from "@/lib/reporte/motor";
+import { plantillaDeEmpresa } from "@/lib/reporte/plantillas";
 import {
   obtenerOCrearEjecucionAbierta,
   obtenerOCrearAbiertaEnTx,
@@ -1303,11 +1305,25 @@ async function procesarMadre(
   const frenoFilas = verificarCantidadFilasMadre(leido.filas.length);
   if (!frenoFilas.ok) return { ok: false, error: frenoFilas.error };
 
-  const [cuentasDelCatalogo, clasificaciones] = await Promise.all([
+  const [cuentasDelCatalogo, clasificaciones, empresasActivas] = await Promise.all([
     prisma.cuentaBancaria.findMany({ select: { nombre: true } }),
     calcularClasificacionesDisponibles(),
+    // Solo lectura: para avisar qué clasificaciones del archivo no tienen fila en el Reporte de su empresa.
+    prisma.empresa.findMany({ where: { activo: true }, select: { nombre: true, unidadesNegocio: true } }),
   ]);
-  const conocidas = { cuentasDelCatalogo: cuentasDelCatalogo.map((c) => c.nombre), clasificaciones };
+  const conocidas = {
+    cuentasDelCatalogo: cuentasDelCatalogo.map((c) => c.nombre),
+    clasificaciones,
+    empresas: empresasActivas.map((e) => {
+      const plantilla = plantillaDeEmpresa(slugDeEmpresa(e.nombre));
+      return {
+        nombre: e.nombre,
+        unidades: e.unidadesNegocio,
+        clasificacionesDePlantilla: plantilla ? clasificacionesDePlantilla(plantilla) : null,
+      };
+    }),
+    descartadas: leido.descartadas,
+  };
   const filasConClave = armarFilasConClaveMadre(leido.filas);
   const periodosDelArchivo = ordenarPeriodos(leido.filas.map((f) => periodoDeFecha(f.fecha)));
   const hoja = hojaElegida;
@@ -1321,7 +1337,13 @@ async function procesarMadre(
     cantidadPosiblesDuplicados: 0,
     continuidadSaldo: [],
     liquidacionesAmbiguas: [],
-    avisos: avisosMadre(resumirMadre([], conocidas), c.cuentasOmitidas),
+    avisos: [
+      ...avisosMadre(resumirMadre([], conocidas), c.cuentasOmitidas),
+      // Sin filas nuevas no hay vista previa: las filas descartadas por importe ilegible igual se informan.
+      ...(leido.descartadas.length > 0
+        ? [`${leido.descartadas.length} filas del archivo se descartaron por tener el importe ilegible (no se cargan).`]
+        : []),
+    ],
     hoja,
     repartoPorPeriodo: [],
     cuentasOmitidas: c.cuentasOmitidas,
@@ -1380,10 +1402,10 @@ async function procesarMadre(
       if (c.nuevas.length === 0) return sinNovedades(c);
 
       const resumen = resumirMadre(c.nuevas.map((n) => n.fila), conocidas);
-      if (resumen.clasificacionesNuevas.length > 0 && !confirmoClasificacionesNuevas) {
+      if (resumen.requiereConfirmar && !confirmoClasificacionesNuevas) {
         return {
           ok: false as const,
-          error: "El archivo trae clasificaciones que no están en la lista: confirmalas en la vista previa antes de cargar. No se cargó nada.",
+          error: "El archivo trae avisos sin confirmar (clasificaciones nuevas, unidades o clasificaciones que no encajan, o filas descartadas): revisalos y confirmalos en la vista previa antes de cargar. No se cargó nada.",
         };
       }
 

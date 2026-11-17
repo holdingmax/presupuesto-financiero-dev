@@ -1,6 +1,14 @@
 import { normalizarTexto } from "@/lib/texto";
 import { contarPorClave, separarNuevas } from "@/lib/conteoMovimientos";
-import type { FilaMadre } from "./madre";
+import type { FilaDescartadaMadre, FilaMadre } from "./madre";
+import {
+  clasificacionesSinFila,
+  descartadasPorImporte,
+  hayAvisosQueNoEncajan,
+  unidadesNoReconocidas,
+  type AvisosFueraDelReporte,
+  type EmpresaParaAvisos,
+} from "./avisosMadre";
 
 // Piezas puras de la carga del archivo madre por la web (subirMadre, app/ejecucion/actions.ts).
 // Sin base de datos ni ExcelJS. No cambian lib/extractos/madre.ts (que fija madre.test.ts).
@@ -65,6 +73,11 @@ export type ResumenMadre = {
   clasificacionesNuevas: { nombre: string; cantidad: number }[];
   sinClasificar: number;
   sinUnidad: number;
+  // Tres avisos de "que nada quede afuera de los Reportes sin avisar" (lib/extractos/avisosMadre.ts). Solo avisan.
+  fueraDelReporte: AvisosFueraDelReporte;
+  // true si hay avisos del grupo "No encajan" (o clasificacionesNuevas): es lo que el servidor exige confirmar. El
+  // recordatorio "Se cargan a mano" no cuenta.
+  requiereConfirmar: boolean;
 };
 
 function ordenarPorCantidad<T extends { cantidad: number; nombre: string }>(a: T, b: T) {
@@ -73,7 +86,13 @@ function ordenarPorCantidad<T extends { cantidad: number; nombre: string }>(a: T
 
 export function resumirMadre(
   filas: FilaMadre[],
-  conocidas: { cuentasDelCatalogo: string[]; clasificaciones: string[] }
+  conocidas: {
+    cuentasDelCatalogo: string[];
+    clasificaciones: string[];
+    // Para los avisos nuevos; sin ellos (tests viejos) esas listas salen vacías.
+    empresas?: readonly EmpresaParaAvisos[];
+    descartadas?: readonly FilaDescartadaMadre[];
+  }
 ): ResumenMadre {
   const catalogo = new Set(conocidas.cuentasDelCatalogo.map(normalizarTexto));
   const clasificacionesConocidas = new Set(conocidas.clasificaciones.map(normalizarTexto));
@@ -107,6 +126,16 @@ export function resumirMadre(
   const cuentas = [...porCuenta.values()].sort(
     (a, b) => b.filas - a.filas || a.cuenta.localeCompare(b.cuenta, "es")
   );
+  const sinFila = conocidas.empresas
+    ? clasificacionesSinFila(filas, conocidas.empresas)
+    : { noEncajan: [], seCarganAMano: [] };
+  const fueraDelReporte: AvisosFueraDelReporte = {
+    unidadesNoReconocidas: unidadesNoReconocidas(filas),
+    clasificacionesSinFila: sinFila.noEncajan,
+    descartadas: descartadasPorImporte(conocidas.descartadas ?? []),
+    seCarganAMano: sinFila.seCarganAMano,
+  };
+  const clasificacionesNuevas = [...nuevas.values()].sort(ordenarPorCantidad);
   return {
     filas: filas.length,
     cuentas,
@@ -114,8 +143,10 @@ export function resumirMadre(
       .map((c) => c.cuenta)
       .filter((c) => normalizarTexto(c) !== normalizarTexto(SIN_BANCO) && !catalogo.has(normalizarTexto(c))),
     filasSinBanco,
-    clasificacionesNuevas: [...nuevas.values()].sort(ordenarPorCantidad),
+    clasificacionesNuevas,
     sinClasificar,
     sinUnidad,
+    fueraDelReporte,
+    requiereConfirmar: clasificacionesNuevas.length > 0 || hayAvisosQueNoEncajan(fueraDelReporte),
   };
 }

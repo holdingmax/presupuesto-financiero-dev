@@ -6,7 +6,7 @@ import {
   tipoContenedor,
 } from "./contenedor";
 import { detectarFormato, leerCrudo } from "./detectar";
-import { leerFilasMadre, type FilaMadre } from "./madre";
+import { leerFilasMadre, type FilaDescartadaMadre, type FilaMadre } from "./madre";
 import { ErrorExtracto, type HojaGrilla, type LecturaExtracto, type OpcionesLectura } from "./tipos";
 
 // Del archivo subido a filas, decidiendo el camino POR CONTENIDO (no por la extensión):
@@ -16,7 +16,7 @@ import { ErrorExtracto, type HojaGrilla, type LecturaExtracto, type OpcionesLect
 // Sin base de datos: la validación de la cuenta elegida y la carga viven en subirExtracto.
 
 export type ArchivoLeido =
-  | { tipo: "madre"; filas: FilaMadre[]; hoja: string }
+  | { tipo: "madre"; filas: FilaMadre[]; descartadas: FilaDescartadaMadre[]; hoja: string }
   | { tipo: "crudo"; lectura: LecturaExtracto }
   | { tipo: "error"; error: string }
   // Más de una hoja y ninguna se llama "Hoja1": se le pide elegir al usuario.
@@ -84,7 +84,7 @@ async function leerXlsx(bytes: Uint8Array, hojaElegida: string | undefined, opci
   // las columnas esperadas, responde con su mensaje de siempre).
   const r = leerFilasMadre(hoja);
   if (!r.ok) return { tipo: "error", error: r.error };
-  return { tipo: "madre", filas: r.filas, hoja: hoja.name };
+  return { tipo: "madre", filas: r.filas, descartadas: r.descartadas, hoja: hoja.name };
 }
 
 function leerNoXlsx(bytes: Uint8Array, opciones: OpcionesLectura): ArchivoLeido {
