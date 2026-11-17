@@ -215,8 +215,11 @@ test("la lectura de manuales filtra por la empresa de la página y la página re
   const lectura = readFileSync(new URL("../reporte/valoresManuales.ts", import.meta.url), "utf-8").split("\r\n").join("\n");
   assert.match(lectura, /where: \{\s*empresaId,/);
   const pagina = readFileSync(new URL("../../app/[empresa]/[periodo]/reporte/page.tsx", import.meta.url), "utf-8");
-  assert.ok(pagina.indexOf("requireAccesoEmpresa(empresa.id)") < pagina.indexOf("cargarDatosMeses("));
-  assert.ok(pagina.includes("accesoReservadosDelReporte(verBloquesReservados, empresaSlug)"));
+  // La lectura de los meses vive en la función compartida con la descarga en Excel (lib/reporte/armarReporteDePlantilla.ts).
+  const compartida = readFileSync(new URL("../reporte/armarReporteDePlantilla.ts", import.meta.url), "utf-8");
+  assert.ok(pagina.indexOf("requireAccesoEmpresa(empresa.id)") < pagina.indexOf("armarReporteDePlantilla({"));
+  assert.ok(compartida.includes("accesoReservadosDelReporte(e.verBloquesReservados, e.empresaSlug)"));
+  assert.ok(compartida.indexOf("accesoReservadosDelReporte(") < compartida.indexOf("cargarDatosMeses("));
 });
 
 test("Avianor: un Efectivo negativo llega al gerente tal cual, en su única fila", () => {

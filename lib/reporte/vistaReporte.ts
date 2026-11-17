@@ -170,6 +170,19 @@ export function enlaceDeVista(
   return `/${empresaSlug}/${periodo}/reporte?vista=${vista}${extra}`;
 }
 
+// Link del botón «Descargar Excel»: lleva la misma vista que se está mirando (?vista=) y, si es el mes en curso visto como
+// histórico, su marca (?modo=). La ruta resuelve todo lo demás en el servidor.
+export function enlaceDeExcel(
+  empresaSlug: string,
+  periodo: string,
+  vista: VistaReporte,
+  marca: MarcaModo,
+  enCarga: string = PERIODO_EN_CARGA_GERENTE
+): string {
+  const extra = esHistorialDelMesEnCurso(periodo, marca, enCarga) ? `&${consultaDeBotonDeMes(periodo, enCarga)}` : "";
+  return `/${empresaSlug}/${periodo}/reporte/excel?vista=${vista}${extra}`;
+}
+
 export type EnlaceModo = { modo: ModoPeriodo; texto: string; href: string; activo: boolean };
 
 // Los dos links del interruptor. «Mes en curso» va al período en curso sin parámetros; «Todos los meses», al mes

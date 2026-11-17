@@ -252,8 +252,11 @@ test("page.tsx: la carga del gerente sigue con la plantilla estática y el Repor
   const fuente = readFileSync(new URL("../../app/[empresa]/[periodo]/reporte/page.tsx", import.meta.url), "utf-8");
   assert.match(fuente, /planDeCarga\(plantilla,/);
   assert.doesNotMatch(fuente, /planDeCarga\(plantillaReporte/);
-  assert.match(fuente, /armarReporte\(plantillaReporte,/);
-  assert.match(fuente, /cargarDatosMeses\(empresaId, unidadesEmpresa, plantillaReporte,/);
+  // El Reporte se arma en la función compartida con la descarga en Excel (lib/reporte/armarReporteDePlantilla.ts).
+  const compartida = readFileSync(new URL("../reporte/armarReporteDePlantilla.ts", import.meta.url), "utf-8");
+  assert.match(compartida, /armarReporte\(plantillaReporte,/);
+  assert.match(compartida, /cargarDatosMeses\(e\.empresaId, e\.unidadesEmpresa, plantillaReporte,/);
+  assert.match(fuente, /armarReporteDePlantilla\(\{/);
   // Desde la Tanda 2 el tipeo directo SÍ conoce las filas extra (Presupuestado y Real): usa la plantilla del Reporte.
   assert.match(fuente, /armarVistaTipeo\(\{\s*empresaSlug,\s*plantilla: plantillaReporte,/);
   assert.match(fuente, /plantillaEstatica: plantilla,\s*plantillaReporte,/);

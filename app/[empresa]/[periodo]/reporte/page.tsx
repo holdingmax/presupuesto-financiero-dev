@@ -31,18 +31,17 @@ import { PLANTILLA_AVIANOR } from "@/lib/reporte/plantillas/avianor";
 import { armarBloqueSinClasificar } from "@/lib/reporte/sinClasificar";
 import { armarIndiceRubros, rubroDe } from "@/lib/rubros";
 import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
-import { armarReporte, clasificacionesDePlantilla, periodosHasta, type Plantilla } from "@/lib/reporte/motor";
+import { clasificacionesDePlantilla, type Plantilla } from "@/lib/reporte/motor";
 import { plantillaDeEmpresa } from "@/lib/reporte/plantillas";
-import { plantillaDeEmpresaConExtras } from "@/lib/reporte/plantillaConExtras";
 import ReportePresupuestoMesAMes from "./ReportePresupuestoMesAMes";
-import { cargarDatosMeses } from "@/lib/reporte/cargarMeses";
+import { armarReporteDePlantilla } from "@/lib/reporte/armarReporteDePlantilla";
 import ReportePlantilla from "./ReportePlantilla";
 import PeriodoSelector from "../presupuesto/PeriodoSelector";
 import {
   avisoMesEnCursoEnHistorial,
-  cantidadDeMeses,
   consultaDeBotonDeMes,
   edicionDelReporte,
+  enlaceDeExcel,
   linkCargaVisible,
   mesesAnteriores,
   modoDePeriodo,
@@ -51,7 +50,6 @@ import {
   type MarcaModo,
   type VistaReporte,
 } from "@/lib/reporte/vistaReporte";
-import { accesoReservadosDelReporte } from "@/lib/reporte/visibilidad";
 import { armarVistaTipeo, tipeoDirectoActivo, type VistaTipeo } from "@/lib/reporte/tipeoDirecto";
 import { armarVistaFilasExtra, type VistaFilasExtra } from "@/lib/reporte/accionesFilasExtra";
 import { periodoActual } from "@/lib/reporte/bloqueo";
@@ -301,23 +299,24 @@ async function ReportePorPlantilla({
       ? avisoPeriodoSoloLectura(periodo, esAdminOFinanzas(usuario))
       : null;
 
-  // Un mes más de contexto (no se muestra): el control de arrastre y los espejos del mes
-  // anterior lo necesitan para el primer mes visible.
-  const periodos = periodosHasta(periodo, cantidadDeMeses(vista, periodo, esAdminOFinanzas(usuario)) + 1);
   const clasificaciones = clasificacionesDePlantilla(plantilla);
-  // Plantilla del REPORTE: la de siempre más las filas extra del mes (sin el interruptor de la empresa, o sin
-  // filas, es la MISMA plantilla). La carga del Presupuestado del gerente (planDeCarga) sigue con la
-  // estática: con la otra, la fila extra le abriría una celda editable.
-  const plantillaReporte = (await plantillaDeEmpresaConExtras(empresaId, empresaSlug, periodo)) ?? plantilla;
 
   const unidadesConEmpresa = await obtenerUnidadesConEmpresa();
-  // Qué bloques reservados llegan a este usuario: todo (ADMIN/FINANZAS), nada, o lo que prendan los
-  // interruptores de su empresa (lib/config.ts).
-  const acceso = accesoReservadosDelReporte(verBloquesReservados, empresaSlug);
   // Aviso del espejo Avianor-Conexión: solo ADMIN y FINANZAS (verBloquesReservados) y solo en esas dos empresas.
   const unidadesAvisoEspejo = verBloquesReservados ? unidadesDelAvisoEspejo(plantilla) : null;
-  const [meses, noAsignado, sinClasificar, sinFilaEspejo] = await Promise.all([
-    cargarDatosMeses(empresaId, unidadesEmpresa, plantillaReporte, periodos, acceso),
+  const [{ plantillaReporte, meses, reporte }, noAsignado, sinClasificar, sinFilaEspejo] = await Promise.all([
+    // El Reporte lo arma la función compartida con la descarga en Excel (lib/reporte/armarReporteDePlantilla.ts):
+    // plantilla con filas extra, meses (más uno de contexto), bloques reservados según el usuario.
+    armarReporteDePlantilla({
+      plantilla,
+      empresaId,
+      empresaSlug,
+      unidadesEmpresa,
+      periodo,
+      vista,
+      esAdminOFinanzas: esAdminOFinanzas(usuario),
+      verBloquesReservados,
+    }),
     // Mismo bloque de control que la Fase 1, para el mes de la URL (de todo el holding:
     // solo ADMIN y FINANZAS).
     verBloquesReservados
@@ -331,7 +330,6 @@ async function ReportePorPlantilla({
         )
       : Promise.resolve(null),
   ]);
-  const reporte = armarReporte(plantillaReporte, meses, 1, { verBloquesReservados: acceso });
 
   // Carga del Presupuestado en el Reporte (Etapas 2 y 3): solo con el interruptor de la empresa
   // prendido, el flujo visible (eso ya cubre el período habilitado) y un estado en el que este
@@ -455,6 +453,7 @@ async function ReportePorPlantilla({
       semanasConNoAsignado={noAsignado.semanas}
       sinClasificar={sinClasificar}
       sinFilaEspejo={sinFilaEspejo}
+      hrefExcel={enlaceDeExcel(empresaSlug, periodo, vista, marcaModo)}
       controlVista={<VistaSelector empresaSlug={empresaSlug} periodo={periodo} vista={vista} marca={marcaModo} />}
     />
     </>

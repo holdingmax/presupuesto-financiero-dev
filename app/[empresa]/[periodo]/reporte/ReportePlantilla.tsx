@@ -87,6 +87,9 @@ type Props = {
   sinFilaEspejo?: SinFilaEspejo[] | null;
   // Control de vista (VistaSelector), armado en page.tsx: va en el encabezado, junto a las acciones.
   controlVista?: ReactNode;
+  // Link del botón «Descargar Excel» (reporte/excel/route.ts), con la vista que se está mirando. Lo ven todos los que ven
+  // este Reporte; el archivo trae lo mismo que la pantalla.
+  hrefExcel?: string;
 };
 
 // Un mes: div liso. Varios meses: contenedor con scroll que abre corrido hasta el final (ScrollAlFinal, componente
@@ -130,6 +133,7 @@ export default function ReportePlantilla({
   sinClasificar,
   sinFilaEspejo = null,
   controlVista,
+  hrefExcel,
 }: Props) {
   const { periodos, sinPresupuesto, sinEjecucion } = reporte;
   const idsEditables = new Set(carga?.celdas.map((c) => c.id));
@@ -152,9 +156,25 @@ export default function ReportePlantilla({
           <span aria-hidden="true" className="h-1.5 w-1.5 bg-plata" />
           Presupuesto financiero · {rangoDeMeses(periodos)}
         </p>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <h1 className="font-serif text-3xl font-semibold tracking-tight text-marino-dark">{empresaNombre}</h1>
-          {flujo && <EstadoBadge estado={flujo.estado} variante="reporte" />}
+          {/* Columna de la derecha: el badge de estado y, justo debajo, «Descargar Excel» (alineados al borde derecho).
+              Sin badge (flujo null) el botón queda en el mismo lugar. ml-auto lo mantiene a la derecha aunque el título
+              ocupe todo el ancho y esto pase a la línea de abajo (pantallas angostas). */}
+          {(flujo || hrefExcel) && (
+            <div className="ml-auto flex flex-col items-end gap-2">
+              {flujo && <EstadoBadge estado={flujo.estado} variante="reporte" />}
+              {hrefExcel && (
+                <a
+                  href={hrefExcel}
+                  title="Descarga el Reporte que ves en pantalla, con la fecha y el día de la descarga"
+                  className="inline-flex min-h-10 items-center rounded-md border border-[#2E6B3F] bg-[#DDEFE2] px-5 text-sm font-semibold whitespace-nowrap text-[#1B4A2B] transition hover:bg-[#CBE6D2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2E6B3F]"
+                >
+                  Descargar Excel
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
