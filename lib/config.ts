@@ -79,11 +79,25 @@ export const EMPRESAS_CON_EXTRACTO_POR_EMPRESA: readonly string[] = ["havanna-pe
 export const EMPRESAS_EN_DOLARES: readonly string[] = ["bradenton", "plate-silver"];
 
 // Empresas en cuyo Reporte NO se muestra el botón «Cargar valores del mes» (para ningún rol): el Presupuestado y el Real se
-// tipean directo en las celdas del Reporte (EMPRESAS_CON_TIPEO_DIRECTO y «Guardar presupuesto»). Solo oculta el botón: la
-// ruta /reporte/carga sigue abierta por URL (con sus permisos de siempre); ya no hace falta para el Capital de trabajo, que
-// ADMIN y FINANZAS tipean directo en el Reporte (Presupuestado y Real en Bradenton y Havanna Perú). No toca «Guardar
-// presupuesto», «Guardar valores» ni «Subir extracto».
-export const EMPRESAS_SIN_LINK_CARGA_EN_REPORTE: readonly string[] = ["bradenton", "plate-silver", "havanna-peru"];
+// tipean directo en las celdas del Reporte (EMPRESAS_CON_TIPEO_DIRECTO y «Guardar presupuesto»). Desde 2026-11 (decisión de
+// Leti) están TODAS las empresas con plantilla de Reporte, con todos sus slugs (Conexión también como «-spp»). Solo oculta el
+// botón: la ruta /reporte/carga y sus acciones siguen abiertas por URL (con sus permisos de siempre) y guardarValoresManuales
+// sigue siendo el guardado del tipeo directo. No toca «Guardar presupuesto», «Guardar valores» ni «Subir extracto». Para
+// volver a mostrarlo en una empresa, sacar su slug de acá.
+export const EMPRESAS_SIN_LINK_CARGA_EN_REPORTE: readonly string[] = [
+  "bradenton",
+  "plate-silver",
+  "havanna-peru",
+  "avianor",
+  "brillante",
+  "conexion-logistica",
+  "conexion-logistica-spp",
+  "fredy-publicidad",
+  "havanna",
+  "hwc",
+  "mantenor",
+  "radio",
+];
 
 // Pestaña Presupuesto también oculta para ADMIN y FINANZAS (Kike: la reemplazó la carga del gerente sobre el Reporte),
 // pero solo en las empresas de EMPRESAS_CON_CARGA_EN_REPORTE que tienen plantilla de Reporte; las demás conservan la
