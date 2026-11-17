@@ -386,6 +386,13 @@ async function ReportePorPlantilla({
       actual: periodoActual(),
       semanas: semanasDelMes,
       valoresReales: ultimoMes.manuales?.real ?? new Map(),
+      // Filas con parte calculada + tipeo: su casilla de Real muestra el total (calculado + tipeado), igual que «Todos los meses».
+      calculados: new Map(
+        reporte.filas.flatMap((f) => {
+          const c = f.celdas[f.celdas.length - 1];
+          return c?.realCalculado === undefined ? [] : [[f.fila.clave, c.realCalculado] as const];
+        })
+      ),
       valoresPresupuesto: ultimoMes.manuales?.presupuesto ?? new Map(),
       presupuestoValidado: presupuestoDelMes?.estado === "VALIDADO",
     });

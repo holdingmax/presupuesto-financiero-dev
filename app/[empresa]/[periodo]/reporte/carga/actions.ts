@@ -8,13 +8,21 @@ import { requireCargaRealEmpresa } from "@/lib/cargaRealEmpresa";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { decimalTextoDeCentavos, centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
 import { camposManuales } from "@/lib/reporte/motor";
+import { resolverEntradaReal } from "@/lib/reporte/ajusteManual";
 import { camposRealDelGerente } from "@/lib/reporte/camposRealGerente";
 import { plantillaDeEmpresaConExtras } from "@/lib/reporte/plantillaConExtras";
 import { motivoBloqueo, motivoRechazoCambio, periodoActual } from "@/lib/reporte/bloqueo";
 import { leerCuenta } from "@/lib/importes";
 import { semanasDelPeriodo } from "@/lib/reporte/valoresManuales";
 
-export type EntradaCarga = { filaClave: string; columna: "PRESUPUESTADO" | "REAL"; texto: string };
+export type EntradaCarga = {
+  filaClave: string;
+  columna: "PRESUPUESTADO" | "REAL";
+  texto: string;
+  // Solo en las filas con parte calculada + tipeo (motor.filaConAjusteManual): el calculado (centavos) que la pantalla mostró al
+  // cargar. El texto es el TOTAL de la casilla y se guarda solo la diferencia (lib/reporte/ajusteManual.ts). Obligatorio en esas filas.
+  calculadoMostrado?: number;
+};
 export type ResultadoCarga = { ok: true; guardados: number; borrados: number } | { ok: false; error: string };
 
 const FORMATO_PERIODO = /^\d{4}-\d{2}$/;
@@ -54,6 +62,20 @@ export async function guardarValoresManuales(
     if (!campo) return { ok: false, error: `"${e.filaClave}" no es un campo manual de esta plantilla.` };
     if (vistos.has(k)) return { ok: false, error: `Campo repetido: ${campo.texto.trim()}.` };
     vistos.add(k);
+    // Fila con parte calculada: la casilla trae el TOTAL; se guarda solo lo manual (total - calculado mostrado). Sin el calculado
+    // no se guarda: tomar el total como manual lo duplicaria (pantalla vieja o pedido incompleto).
+    const ajuste = resolverEntradaReal(
+      plantilla.filas.find((f) => f.clave === e.filaClave),
+      periodo,
+      e.columna,
+      e.texto,
+      e.calculadoMostrado
+    );
+    if (ajuste.tipo === "error") return { ok: false, error: `${campo.texto.trim()}: ${ajuste.error}` };
+    if (ajuste.tipo === "cambio") {
+      cambios.push({ filaClave: e.filaClave, columna: e.columna, centavos: ajuste.centavos, nota: ajuste.nota });
+      continue;
+    }
     if (e.texto.trim() === "") {
       cambios.push({ filaClave: e.filaClave, columna: e.columna, centavos: null, nota: null });
       continue;

@@ -4,6 +4,7 @@ import { createContext, useContext, useRef, useState, type ReactNode } from "rea
 import { useRouter } from "next/navigation";
 import { guardarTipeoDelReporte } from "./actionsTipeo";
 import { celdaModificada, placeholderDeCelda, type CeldaTipeo } from "@/lib/reporte/tipeoDirecto";
+import { formatearPesos } from "@/lib/reporte/bloqueo";
 
 // Tipeo directo en el Reporte (solo ADMIN y FINANZAS: el servidor no manda estas celdas a nadie más): el Real
 // manual de las filas de la plantilla y el Presupuestado y el Real de las filas extra. Estado propio, separado
@@ -70,7 +71,12 @@ export function ProveedorTipeo({
       const r = await guardarTipeoDelReporte(
         empresaSlug,
         periodo,
-        modificadas.map((c) => ({ filaClave: c.clave, columna: c.columna, texto: valores[c.id] ?? "" }))
+        modificadas.map((c) => ({
+          filaClave: c.clave,
+          columna: c.columna,
+          texto: valores[c.id] ?? "",
+          ...(c.calculado === undefined ? {} : { calculadoMostrado: c.calculado }),
+        }))
       );
       if (!r.ok) {
         setMensaje({ tipo: "error", texto: r.error });
@@ -149,7 +155,9 @@ export function CeldaTipeoEditable({
     [
       celda.aviso,
       celda.valorExacto !== null ? `Valor exacto: ${celda.valorExacto}` : null,
-      celda.aviso === null && placeholder !== "0" ? "Calculado por la regla; tipeá para reemplazarlo" : null,
+      celda.aviso === null && celda.calculado === undefined && placeholder !== "0" ? "Calculado por la regla; tipeá para reemplazarlo" : null,
+      // Fila con parte calculada: la casilla trae el total; lo guardado es solo lo que se agrega a lo calculado.
+      celda.calculado !== undefined ? `Total (incluye ${formatearPesos(celda.calculado)} calculado). Al guardar se persiste solo la diferencia` : null,
     ]
       .filter((x) => x !== null)
       .join(" · ") || undefined;

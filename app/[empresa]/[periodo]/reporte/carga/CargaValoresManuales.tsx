@@ -11,6 +11,10 @@ export type CampoVista = {
   texto: string;
   bloque: string;
   valor: string;
+  // Hay un valor guardado a mano (ValorManualReporte). En las filas con calculado `valor` es el total, así que no alcanza para saberlo.
+  cargado: boolean;
+  // Solo en las filas con parte calculada + tipeo: el calculado (centavos) que se muestra; `valor` es el TOTAL y se guarda solo la diferencia.
+  calculado?: number;
   nota: string | null;
   cargadoPor: string | null;
   bloqueo: string | null;
@@ -33,7 +37,7 @@ const ORDEN = ["DISPONIBILIDADES", "INGRESOS", "EGRESOS", "ABAJO", "CIERRE"];
 const clave = (c: CampoVista) => `${c.clave}|${c.columna}`;
 
 // Período bloqueado: un campo vacío admite la primera carga; uno con valor es solo lectura.
-const soloLectura = (c: CampoVista) => !!c.bloqueo && c.valor !== "";
+const soloLectura = (c: CampoVista) => !!c.bloqueo && c.cargado;
 
 export default function CargaValoresManuales({
   empresaSlug,
@@ -82,7 +86,12 @@ export default function CargaValoresManuales({
     const r = await guardarValoresManuales(
       empresaSlug,
       periodo,
-      cambiados.map((c) => ({ filaClave: c.clave, columna: c.columna, texto: textos[clave(c)] ?? "" }))
+      cambiados.map((c) => ({
+        filaClave: c.clave,
+        columna: c.columna,
+        texto: textos[clave(c)] ?? "",
+        ...(c.calculado === undefined ? {} : { calculadoMostrado: c.calculado }),
+      }))
     );
     setGuardando(false);
     if (r.ok) {
@@ -136,6 +145,11 @@ export default function CargaValoresManuales({
                         <span className="ml-2 text-[11px] text-ink-muted">(presupuestado)</span>
                       )}
                       {c.componente && <span className="ml-2 text-[11px] text-ink-muted">{c.componente.arrastre}</span>}
+                      {c.calculado !== undefined && (
+                        <p className="text-[11px] text-ink-muted">
+                          Total del Real (incluye {formatearCentavos(c.calculado)} calculado). Se guarda solo la diferencia.
+                        </p>
+                      )}
                       {c.cargadoPor && (
                         <p className="text-[11px] text-ink-muted">
                           {c.cargadoPor}

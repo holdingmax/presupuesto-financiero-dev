@@ -118,6 +118,10 @@ export type CeldaTipeo = {
   // Bloqueada pero vacía: se puede cargar una sola vez.
   avisoUnaVez: boolean;
   aviso: string | null;
+  // Solo en las filas con parte calculada + tipeo (motor.filaConAjusteManual, desde noviembre): el calculado (centavos; 0 si el
+  // mes no tiene ejecución) que se tomó de base. La casilla muestra el TOTAL (calculado + manual guardado); `centavos` e
+  // `importeInicial` son ese total, y al guardar se manda este calculado para persistir solo la diferencia.
+  calculado?: number;
 };
 
 export type VistaTipeo = {
@@ -144,6 +148,9 @@ export type EntradaVistaTipeo = {
   semanas: EstadoSemanas;
   // Real manual guardado del mes: filaClave → centavos.
   valoresReales: ReadonlyMap<string, number>;
+  // Filas con parte calculada + tipeo del mes (clave -> calculado en centavos, null = mes sin ejecucion). Estan en el mapa solo las
+  // que cumplen motor.filaConAjusteManual; su casilla de Real muestra el total. Sin definir = ninguna (como antes).
+  calculados?: ReadonlyMap<string, number | null>;
   // Presupuestado manual guardado del mes (solo se tipea el de las filas extra).
   valoresPresupuesto?: ReadonlyMap<string, number>;
   // El PresupuestoMensual del mes está VALIDADO: bloquea la columna Presupuestado.
@@ -183,20 +190,33 @@ export function armarVistaTipeo(e: EntradaVistaTipeo): VistaTipeo | null {
     });
     // Carga única en cerrado: crear sí, modificar o borrar un valor ya cargado no. Sin override.
     if (motivoRechazoCambio(bloqueo, existente !== undefined) !== null) continue;
+    // Fila con parte calculada: la casilla muestra el TOTAL (calculado + lo guardado a mano).
+    const conCalculado = c.columna === "REAL" && e.calculados?.has(c.clave) === true;
+    const calculado = conCalculado ? (e.calculados!.get(c.clave) ?? null) : null;
+    const mostrado = conCalculado
+      ? existente === undefined && calculado === null
+        ? undefined
+        : (calculado ?? 0) + (existente ?? 0)
+      : existente;
     celdas.push({
       id: `${c.clave}|${c.columna}`,
       clave: c.clave,
       columna: c.columna,
       texto: c.texto.trim(),
-      importeInicial: existente === undefined ? "" : formatearPesos(existente),
-      centavos: existente ?? null,
-      valorExacto: valorExactoConCentavos(existente ?? null),
+      importeInicial: mostrado === undefined ? "" : formatearPesos(mostrado),
+      centavos: mostrado ?? null,
+      valorExacto: valorExactoConCentavos(mostrado ?? null),
       avisoUnaVez: bloqueo !== null,
       aviso: bloqueo === null ? null : c.columna === "REAL" ? AVISO_UNA_VEZ : AVISO_PRESUPUESTO_VALIDADO,
+      ...(conCalculado ? { calculado: calculado ?? 0 } : {}),
     });
   }
   if (celdas.length === 0) return null;
-  return { celdas, huella: celdas.map((c) => `${c.id}=${c.centavos ?? ""}`).join("|"), disponibilidades };
+  return {
+    celdas,
+    huella: celdas.map((c) => `${c.id}=${c.centavos ?? ""}${c.calculado === undefined ? "" : `/${c.calculado}`}`).join("|"),
+    disponibilidades,
+  };
 }
 
 // ¿Lo tipeado cambia el valor guardado? El texto mostrado va en pesos enteros, así que no alcanza comparar textos: un valor
@@ -211,7 +231,13 @@ export function celdaModificada(celda: Pick<CeldaTipeo, "importeInicial" | "cent
   return !(r.ok && r.nota === null && r.centavos === celda.centavos);
 }
 
-export type EntradaTipeo = { filaClave: string; columna: "PRESUPUESTADO" | "REAL"; texto: string };
+export type EntradaTipeo = {
+  filaClave: string;
+  columna: "PRESUPUESTADO" | "REAL";
+  texto: string;
+  // Ver EntradaCarga.calculadoMostrado: solo en las filas con parte calculada + tipeo.
+  calculadoMostrado?: number;
+};
 
 // Lo que el servidor rechaza ANTES de delegar en guardarValoresManuales. null = se puede seguir.
 export function motivoRechazoTipeo(args: {

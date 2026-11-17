@@ -324,7 +324,7 @@ test("config: el interruptor de filas extra es la lista fijada y es subconjunto 
 // Hash (con saltos de línea normalizados) de carga/actions.ts ANTES del cambio de las filas extra. Si este test
 // falla, alguien modificó algo más que esas dos líneas en un archivo que no se toca: revisar el diff y, si el
 // cambio es legítimo, actualizar el hash.
-const HASH_ORIGINAL_CARGA_ACTIONS = "0bd94576c233ba678d5612daf5e50d8b79b6048df6dd69a4d915890b26979b92";
+const HASH_ORIGINAL_CARGA_ACTIONS = "01dc47b385197525dd4bccaf97efe9530b5b72e5176381086ada820ff02ebad3";
 
 test("guardarValoresManuales: valida las claves con el resolver y el resto del archivo es el de antes", () => {
   const fuente = readFileSync(new URL("../../app/[empresa]/[periodo]/reporte/carga/actions.ts", import.meta.url), "utf-8").replace(/\r\n/g, "\n");

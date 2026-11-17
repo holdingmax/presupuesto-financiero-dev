@@ -247,6 +247,19 @@ export type DatosMes = {
   manuales?: { presupuesto: Map<string, number>; real: Map<string, number> };
 };
 
+// Primer mes en que el Reporte separa la parte calculada de las filas con sumarManual (Celda.realCalculado).
+export const CALCULADO_VISIBLE_DESDE = "2026-11";
+
+// ¿Esta fila, en este mes, muestra en su casilla de Real el TOTAL (calculado + tipeado) y guarda solo la diferencia?
+// Filas con `sumarManual` desde su mes y desde CALCULADO_VISIBLE_DESDE (octubre y anteriores no cambian). Una fila con espejoUnidad
+// activo no la tiene (no se combina con sumarManual). Lo usan el motor, la pantalla y los guardados (misma regla en todos).
+export function filaConAjusteManual(fila: Fila, periodo: string): boolean {
+  if (fila.tipo !== "linea" || fila.real.tipo !== "clasificaciones" || !fila.real.sumarManual) return false;
+  if (periodo < fila.real.sumarManual.desde || periodo < CALCULADO_VISIBLE_DESDE) return false;
+  const espejo = fila.real.espejoUnidad;
+  return !(espejo && periodo >= espejo.desde);
+}
+
 export type Celda = {
   presupuestado: number | null;
   real: number | null;
@@ -257,6 +270,10 @@ export type Celda = {
   // total: alguna de las filas que suma).
   presupuestoIncompleto: boolean;
   realIncompleto: boolean;
+  // SOLO en filas con `sumarManual` (desde su mes): la parte CALCULADA del Real (clasificaciones, sin lo tipeado), en
+  // centavos; null = el mes no tiene ejecución. `real` sigue siendo el total (calculado + tipeado). Es el valor
+  // que se tomó de base al mostrar la casilla del Real (el total): al guardar se persiste solo lo tipeado MENOS este valor. En el resto de las filas la clave no existe.
+  realCalculado?: number | null;
 };
 
 export type FilaReporte = { fila: Fila; celdas: Celda[] };
@@ -509,6 +526,20 @@ export function armarReporte(
     }
   }
 
+  // Parte calculada del Real de una fila con sumarManual (sin lo tipeado). undefined = la fila no tiene esa parte en este mes.
+  function calculadoDeLinea(fila: FilaLinea, i: number): number | null | undefined {
+    if (!filaConAjusteManual(fila, meses[i].periodo)) return undefined;
+    const r = fila.real;
+    if (r.tipo !== "clasificaciones") return undefined;
+    if (sinEjecucion[i]) return null;
+    const bruto = aplicarSigno(fila.signo, realPorMes[i][r.sentido ?? "neto"].get(fila.clave) ?? 0);
+    const resta = r.restarManuales;
+    const manuales = meses[i].manuales?.real;
+    const aRestar =
+      resta && meses[i].periodo >= resta.desde ? resta.filas.reduce((a, c) => a + (manuales?.get(c) ?? 0), 0) : 0;
+    return aRestar === 0 ? bruto : sinMenosCero(bruto - aRestar);
+  }
+
   function calcular(fila: Fila, i: number, col: Columna): Valor {
     switch (fila.tipo) {
       case "titulo":
@@ -570,7 +601,12 @@ export function armarReporte(
     const celdas = meses.map((_, i) => {
       const p = valor(fila.clave, i, "P");
       const r = valor(fila.clave, i, "R");
-      return completarCelda(p.v, r.v, p.inc, r.inc, conPorcentajes);
+      const celda = completarCelda(p.v, r.v, p.inc, r.inc, conPorcentajes);
+      if (fila.tipo === "linea") {
+        const calculado = calculadoDeLinea(fila, i);
+        if (calculado !== undefined) celda.realCalculado = calculado;
+      }
+      return celda;
     });
     return { fila, celdas };
   });

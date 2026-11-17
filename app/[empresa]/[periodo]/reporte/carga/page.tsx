@@ -8,7 +8,7 @@ import { nombreDePeriodo } from "@/lib/ejecucionSemanas";
 import { esPeriodoHabilitado } from "@/lib/periodosHabilitados";
 import { camposRealDelGerente } from "@/lib/reporte/camposRealGerente";
 import { EMPRESAS_QUE_VEN_DISPONIBILIDADES_EN_REPORTE } from "@/lib/config";
-import { armarReporte, camposManuales, periodosHasta, type DatosMes } from "@/lib/reporte/motor";
+import { armarReporte, camposManuales, filaConAjusteManual, periodosHasta, type DatosMes } from "@/lib/reporte/motor";
 import { plantillaDeEmpresa } from "@/lib/reporte/plantillas";
 import { cargarDatosMeses } from "@/lib/reporte/cargarMeses";
 import { semanasDelPeriodo } from "@/lib/reporte/valoresManuales";
@@ -85,12 +85,22 @@ export default async function CargaPage({ params }: Props) {
     const v = porClave.get(`${c.clave}|${c.columna}`);
     const fila = filaPorClave.get(c.clave)!;
     const regla = reglaCapital.filas.find((f) => f.fila.clave === c.clave)?.celdas[0].presupuestado ?? null;
+    // Fila con parte calculada + tipeo (desde noviembre): el campo muestra el TOTAL (calculado + guardado a mano) y se guarda solo
+    // la diferencia, igual que la casilla del Reporte. Es el calculado que se muestra ahora; viaja al guardar.
+    const calculado =
+      c.columna === "REAL" && filaConAjusteManual(fila, periodo)
+        ? (reporte.filas.find((f) => f.fila.clave === c.clave)?.celdas[0].realCalculado ?? 0)
+        : undefined;
+    const manual = v ? centavosDeDecimalTexto(v.importe.toFixed(2)) : null;
+    const total = calculado === undefined ? manual : manual === null && calculado === 0 ? null : calculado + (manual ?? 0);
     return {
       clave: c.clave,
       columna: c.columna,
       texto: c.texto.trim(),
       bloque: c.bloque,
-      valor: v ? formatearCentavos(centavosDeDecimalTexto(v.importe.toFixed(2))) : "",
+      valor: total === null ? "" : formatearCentavos(total),
+      cargado: v !== undefined,
+      ...(calculado === undefined ? {} : { calculado }),
       nota: v?.nota ?? null,
       cargadoPor: v
         ? `${v.cargadoPor.nombre} · ${v.updatedAt.toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`
