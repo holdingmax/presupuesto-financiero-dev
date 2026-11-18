@@ -3,6 +3,7 @@ import type { EstadoPresupuesto, PresupuestoMensual, Rol, Usuario } from "@prism
 import { puedeConfirmarComoGerente, puedeConfirmarEnNombreDelGerente } from "@/lib/confirmacionFinal";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { obtenerOCrearPresupuesto } from "@/lib/presupuesto";
+import { requireEscritura } from "@/lib/permisosViewer";
 import { requireAccesoEmpresa, puedeRevisarPresupuesto, esAdminOFinanzas } from "@/lib/auth";
 import {
   PeriodoNoHabilitadoError,
@@ -27,7 +28,9 @@ export async function resolverEmpresaYPresupuesto(empresaSlug: string, periodo: 
   if (!empresa) {
     throw new Error(`No existe una empresa para "${empresaSlug}".`);
   }
-  const usuario = await requireAccesoEmpresa(empresa.id);
+  // Punto ÚNICO que cierra Presupuesto al VIEWER (lib/permisosViewer.ts): todas las acciones de
+  // presupuesto/actions.ts pasan por acá, y va antes de obtenerOCrearPresupuesto (que crea la fila del mes).
+  const usuario = requireEscritura(await requireAccesoEmpresa(empresa.id));
   // Fuera de la lista de períodos habilitados no entra nadie (tampoco ADMIN ni FINANZAS). Va ANTES de
   // obtenerOCrearPresupuesto: un período no habilitado no tiene que crear ninguna fila.
   if (!puedeVerPeriodo(periodo)) {

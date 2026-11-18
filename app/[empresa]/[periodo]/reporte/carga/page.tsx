@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
-import { AccesoDenegadoError, PermisoDenegadoError, esAdminOFinanzas } from "@/lib/auth";
+import { AccesoDenegadoError, PermisoDenegadoError, esAdminOFinanzas, requireUsuarioAlDia } from "@/lib/auth";
 import { requireCargaRealEmpresa } from "@/lib/cargaRealEmpresa";
+import { esViewer, MENSAJE_SIN_ACCESO_A_PANTALLA, SoloLecturaError } from "@/lib/permisosViewer";
 import { centavosDeDecimalTexto } from "@/lib/conteoMovimientos";
 import { nombreDePeriodo } from "@/lib/ejecucionSemanas";
 import { esPeriodoHabilitado } from "@/lib/periodosHabilitados";
@@ -32,11 +33,14 @@ export default async function CargaPage({ params }: Props) {
   if (!FORMATO_PERIODO.test(periodo)) return null;
   const empresa = await resolverEmpresaPorSlug(slug);
   if (!empresa) return null;
+  // VIEWER: pantalla que no es para él; mensaje propio, antes de mirar nada más.
+  if (esViewer(await requireUsuarioAlDia())) return <Aviso texto={MENSAJE_SIN_ACCESO_A_PANTALLA} />;
   let adminOFinanzas = false;
   try {
     // ADMIN y FINANZAS, o un GERENTE con permiso de cargar el Real de ESTA empresa.
     adminOFinanzas = esAdminOFinanzas(await requireCargaRealEmpresa(empresa.id));
   } catch (error) {
+    if (error instanceof SoloLecturaError) return <Aviso texto={MENSAJE_SIN_ACCESO_A_PANTALLA} />;
     if (error instanceof AccesoDenegadoError || error instanceof PermisoDenegadoError) {
       return <Aviso texto="No tenés permisos para cargar valores del reporte." />;
     }

@@ -1,6 +1,7 @@
 import type { EstadoPresupuesto, Usuario } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { esAdminOFinanzas, puedeRevisarPresupuesto } from "@/lib/auth";
+import { esViewer } from "@/lib/permisosViewer";
 import { puedeCargarRealEmpresa } from "@/lib/cargaRealEmpresa";
 import { cargaEnReporteActiva, mostrarFlujoEnReporte } from "@/lib/estadoPresupuesto";
 import { esPeriodoHabilitado } from "@/lib/periodosHabilitados";
@@ -39,8 +40,11 @@ export async function leerContextoExcelReporte(e: {
   const adminOFinanzas = esAdminOFinanzas(usuario);
   const puedeCargarReal = await puedeCargarRealEmpresa(usuario, empresaId);
   const edicion = edicionDelReporte({ periodo, marca: marcaModo, esAdminOFinanzas: adminOFinanzas, puedeCargarReal });
-  const esRevisor = await puedeRevisarPresupuesto(usuario, empresaId);
+  // VIEWER: igual que la pantalla (reporte/page.tsx), sin flujo de Presupuesto ni estado.
+  const soloLectura = esViewer(usuario);
+  const esRevisor = soloLectura ? false : await puedeRevisarPresupuesto(usuario, empresaId);
   const flujo =
+    !soloLectura &&
     edicion.flujo &&
     mostrarFlujoEnReporte({
       esAdminOFinanzas: adminOFinanzas,

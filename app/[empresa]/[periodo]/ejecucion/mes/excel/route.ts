@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { AccesoDenegadoError, requireAccesoEmpresa } from "@/lib/auth";
+import { esViewer } from "@/lib/permisosViewer";
 import { mapearMovimiento } from "@/lib/ejecucionVista";
 import { leerClasificacion } from "@/lib/filtroClasificacionEmpresa";
 import { whereMovimientosDelMes } from "@/lib/ejecucionMes";
@@ -27,6 +28,8 @@ export async function GET(
     if (error instanceof AccesoDenegadoError) return new Response("Sin acceso.", { status: 403 });
     throw error;
   }
+  // VIEWER: el Excel de Ejecución no es para él.
+  if (esViewer(usuario)) return new Response("Sin acceso.", { status: 403 });
 
   const semanas = await prisma.ejecucionSemanal.findMany({
     where: { periodo },

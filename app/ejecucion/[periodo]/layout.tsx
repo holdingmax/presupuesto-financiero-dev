@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { requireUsuarioAlDia, veTodoEjecucion } from "@/lib/auth";
+import { esViewer } from "@/lib/permisosViewer";
+import AvisoSinAccesoPantalla from "@/components/AvisoSinAccesoPantalla";
 import { logout } from "@/app/login/actions";
 import { periodosHasta } from "@/lib/reporte/motor";
 import { nombreDePeriodo } from "@/lib/ejecucionSemanas";
@@ -31,6 +33,7 @@ export default async function EjecucionGlobalLayout({ children, params }: Props)
   // requireUsuarioAlDia() ya redirige a /login (sin sesión) o a /cuenta (si todavía tiene
   // pendiente definir su contraseña).
   const usuario = await requireUsuarioAlDia();
+  if (esViewer(usuario)) return <AvisoSinAccesoPantalla />;
   if (!veTodoEjecucion(usuario)) {
     return (
       <div className="mx-auto w-full max-w-5xl px-6 py-10">

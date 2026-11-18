@@ -11,6 +11,7 @@ import { totalEnPesos } from "@/lib/moneda";
 import { clasificacionesOcultasParaUsuario, valoresGuardadosOcultos } from "@/lib/clasificacionesOcultas";
 import { elegirMesDeEntrada, resumirMeses } from "@/lib/mesesEjecucion";
 import { puedeClasificarEnEmpresa } from "@/lib/clasificarPorEmpresa";
+import { esViewer } from "@/lib/permisosViewer";
 import { clasificacionesParaEditar, contarSugerenciasDeEmpresa } from "@/lib/clasificarPorEmpresaDb";
 
 // Pestaña "Ejecución financiera" de cada empresa (docs/ejecucion_global_plan.md §3.4 y §6): SOLO
@@ -167,6 +168,8 @@ export async function obtenerDatosSemanaDeEmpresa(
   return {
     empresaId: empresa.id,
     edicion,
+    // VIEWER: sin Excel de Ejecución (la pantalla oculta el botón; la ruta responde 403).
+    esViewer: esViewer(usuario),
     empresaNombre: empresa.nombre,
     numeroSemana: ejecucion.numeroSemana,
     estado: ejecucion.estado,
@@ -262,6 +265,7 @@ export async function obtenerDatosMesDeEmpresa(
 
   return {
     empresaNombre: empresa.nombre,
+    esViewer: esViewer(usuario),
     puedeIrAlModuloGlobal: puedeOperarEjecucionGlobal(usuario) || veTodoEjecucion(usuario),
     semanas: semanas.map((s) => ({ numeroSemana: s.numeroSemana, estado: s.estado })),
     meses,

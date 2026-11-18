@@ -118,6 +118,7 @@ export default function EditarUsuarioForm({
             <option value="GERENTE">GERENTE</option>
             <option value="FINANZAS">FINANZAS</option>
             <option value="ADMIN">ADMIN</option>
+            <option value="VIEWER">VIEWER (solo lectura)</option>
           </select>
           <input type="hidden" name="rol" value={rol} />
           {esPropioUsuario && (
@@ -131,10 +132,11 @@ export default function EditarUsuarioForm({
             empresas={empresas}
             empresaIdsIniciales={usuario.empresaIds}
             permisosIniciales={usuario.permisos}
+            soloLectura={rol === "VIEWER"}
           />
         )}
 
-        {rol !== "ADMIN" && (
+        {rol !== "ADMIN" && rol !== "VIEWER" && (
           <div>
             <input type="hidden" name="operaEjecucionIncluida" value="1" />
             <label className="flex items-center gap-2 text-sm">

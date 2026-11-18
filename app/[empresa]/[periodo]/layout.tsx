@@ -6,6 +6,7 @@ import { requireUsuarioAlDia, puedeAccederEmpresa, esAdminOFinanzas } from "@/li
 import { logout } from "@/app/login/actions";
 import { ocultaPestanaPresupuesto } from "@/lib/navegacionEmpresa";
 import NavTabs from "./NavTabs";
+import { esViewer } from "@/lib/permisosViewer";
 
 const FORMATO_PERIODO = /^\d{4}-\d{2}$/;
 
@@ -71,7 +72,7 @@ export default async function EmpresaPeriodoLayout({ children, params }: Props) 
         <NavTabs
           empresaSlug={slugEmpresa}
           periodo={periodo}
-          ocultarPresupuesto={ocultaPestanaPresupuesto(esAdminOFinanzas(usuario), slugEmpresa)}
+          ocultarPresupuesto={esViewer(usuario) || ocultaPestanaPresupuesto(esAdminOFinanzas(usuario), slugEmpresa)}
         />
       </div>
       {children}

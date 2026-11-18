@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "@/lib/prisma";
 import type { Usuario } from "@prisma/client";
+import { esViewer } from "@/lib/permisosViewer";
 import { puedeOperarEjecucionGlobal, puedeCerrarEjecucion, puedeCargarMadreEjecucion, veTodoEjecucion } from "@/lib/permisosEjecucion";
 
 export { hashPassword, verifyPassword } from "@/lib/password";
@@ -181,6 +182,7 @@ export const requireCargaMadreEjecucion = cache(async (): Promise<Usuario> => {
 // quien tiene esto puede editar un presupuesto mientras está en revisión.
 // Mismo bypass de ADMIN, mismo permiso por fila de UsuarioEmpresa.
 export async function puedeRevisarPresupuesto(usuario: Usuario, empresaId: string) {
+  if (esViewer(usuario)) return false;
   if (usuario.rol === "ADMIN") return true;
   const acceso = await prisma.usuarioEmpresa.findUnique({
     where: { usuarioId_empresaId: { usuarioId: usuario.id, empresaId } },

@@ -1,5 +1,6 @@
 import { CLASIFICACIONES_OCULTAS_PARA_GERENTE } from "@/lib/config";
 import { quitarDiacriticos } from "@/lib/texto";
+import { esViewer } from "@/lib/permisosViewer";
 
 // Clasificaciones que el GERENTE no ve en el detalle de la pestaña "Ejecución financiera" de su empresa
 // (pedido de Kike, Conexión Logística: AVION y MS). Parte pura, sin base: la config vive en
@@ -24,7 +25,7 @@ export function clasificacionesOcultasParaUsuario(
   usuario: UsuarioParaOcultar,
   mapa: Readonly<Record<string, readonly string[]>> = CLASIFICACIONES_OCULTAS_PARA_GERENTE
 ): string[] {
-  if (usuario.rol === "ADMIN" || usuario.rol === "FINANZAS" || usuario.operaEjecucion) return [];
+  if (!esViewer(usuario) && (usuario.rol === "ADMIN" || usuario.rol === "FINANZAS" || usuario.operaEjecucion)) return []; // VIEWER: nunca ve lo oculto, aunque tenga operaEjecucion en la base
   const configuradas = Object.prototype.hasOwnProperty.call(mapa, slugEmpresa) ? mapa[slugEmpresa] : [];
   return Array.from(new Set(configuradas.map(normalizarClasificacion).filter((c) => c !== "")));
 }

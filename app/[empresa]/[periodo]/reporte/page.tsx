@@ -13,6 +13,7 @@ import {
   veBloquesReservadosDelReporte,
 } from "@/lib/auth";
 import { obtenerOCrearPresupuesto } from "@/lib/presupuesto";
+import { AVISO_REPORTE_SOLO_LECTURA, esViewer } from "@/lib/permisosViewer";
 import { avisoPeriodoSoloLectura, esPeriodoHabilitado, nombreLegibleDePeriodo } from "@/lib/periodosHabilitados";
 import { cargaEnReporteActiva, mostrarFlujoEnReporte, puedeEditarPresupuestoAhora } from "@/lib/estadoPresupuesto";
 import { planDeCarga, vistaDeCarga, type VistaCarga } from "@/lib/reporte/cargaGerente";
@@ -157,7 +158,11 @@ export default async function ReportePage({ params, searchParams }: Props) {
     );
   }
 
-  const presupuestoId = (await obtenerOCrearPresupuesto(empresaId, periodo)).id;
+  // VIEWER: solo lee. obtenerOCrearPresupuesto CREA la fila del mes si no existe, así que para él se busca sin crearla
+  // (sin fila, el Presupuestado queda en cero, que es lo que sería al crearse).
+  const presupuestoId = esViewer(usuario)
+    ? ((await prisma.presupuestoMensual.findUnique({ where: { empresaId_periodo: { empresaId, periodo } }, select: { id: true } }))?.id ?? null)
+    : (await obtenerOCrearPresupuesto(empresaId, periodo)).id;
 
   // PRESUPUESTADO: suma de LineaPresupuesto por RUBRO, sin importar el signo con
   // el que se haya cargado (ver diagnóstico: hoy el 100% de las líneas reales se
@@ -167,11 +172,14 @@ export default async function ReportePage({ params, searchParams }: Props) {
   // Presupuesto y Ejecución guarden strings distintos para el mismo concepto.
   // Sumado en centavos (texto exacto de la base, sin float).
   const indiceRubros = armarIndiceRubros(RUBROS_EGRESOS);
-  const sumasPresupuestadas = await prisma.lineaPresupuesto.groupBy({
-    by: ["clasificacion"],
-    where: { presupuestoId },
-    _sum: { importe: true },
-  });
+  const sumasPresupuestadas =
+    presupuestoId === null
+      ? []
+      : await prisma.lineaPresupuesto.groupBy({
+          by: ["clasificacion"],
+          where: { presupuestoId },
+          _sum: { importe: true },
+        });
   const presupuestadoCentavos = new Map<string, number>();
   for (const s of sumasPresupuestadas) {
     const rubro = rubroDe(indiceRubros, s.clasificacion);
@@ -281,8 +289,10 @@ async function ReportePorPlantilla({
   // para mostrar; el servidor lo vuelve a validar en cada guardado (lib/cargaRealEmpresa.ts).
   const puedeCargarReal = await puedeCargarRealEmpresa(usuario, empresaId);
   const edicion = edicionDelReporte({ periodo, marca: marcaModo, esAdminOFinanzas: esAdminOFinanzas(usuario), puedeCargarReal });
-  const esRevisor = await puedeRevisarPresupuesto(usuario, empresaId);
-  const flujo: EstadoFlujo | null = edicion.flujo && mostrarFlujoEnReporte({
+  // VIEWER: nunca revisa ni ve el flujo de Presupuesto (estado y botones); sin flujo tampoco hay carga del Presupuestado.
+  const soloLectura = esViewer(usuario);
+  const esRevisor = soloLectura ? false : await puedeRevisarPresupuesto(usuario, empresaId);
+  const flujo: EstadoFlujo | null = !soloLectura && edicion.flujo && mostrarFlujoEnReporte({
     esAdminOFinanzas: esAdminOFinanzas(usuario),
     esRevisor,
     cargaActiva: cargaEnReporteActiva(empresaSlug),
@@ -316,6 +326,8 @@ async function ReportePorPlantilla({
       vista,
       esAdminOFinanzas: esAdminOFinanzas(usuario),
       verBloquesReservados,
+      // VIEWER: sin Disponibilidades ni Cierre, aunque los interruptores de la empresa se los mostrarían a un gerente.
+      sinBloquesReservados: soloLectura,
     }),
     // Mismo bloque de control que la Fase 1, para el mes de la URL (de todo el holding:
     // solo ADMIN y FINANZAS).
@@ -411,8 +423,9 @@ async function ReportePorPlantilla({
   // Cartel final: si el mes es de solo lectura para el Presupuestado pero el usuario tiene celdas de Real para
   // cargar (tipeo con celdas), el texto lo dice. Solo cambia el texto: que haya cartel (y por lo tanto la carga del
   // Presupuestado de más arriba) sale de avisoSoloLectura, sin tocar.
-  const avisoParaPantalla =
-    avisoSoloLectura !== null && !edicion.historial && tipeo !== null
+  const avisoParaPantalla = soloLectura
+    ? AVISO_REPORTE_SOLO_LECTURA
+    : avisoSoloLectura !== null && !edicion.historial && tipeo !== null
       ? avisoPeriodoSoloLectura(periodo, esAdminOFinanzas(usuario), undefined, true)
       : avisoSoloLectura;
 

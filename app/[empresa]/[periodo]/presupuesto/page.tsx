@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { esViewer } from "@/lib/permisosViewer";
+import AvisoSinAccesoPantalla from "@/components/AvisoSinAccesoPantalla";
 import { obtenerDatos } from "./actions";
 import { AccesoDenegadoError, esAdminOFinanzas, requireUsuarioAlDia } from "@/lib/auth";
 import { ocultaPestanaPresupuesto } from "@/lib/navegacionEmpresa";
@@ -19,7 +21,10 @@ export default async function PresupuestoPage({ params }: Props) {
   // El gerente de una empresa que carga en el Reporte no usa esta pantalla (ni ve su pestaña): si
   // entra por URL directa va al Reporte del mismo mes. Solo la pantalla: las acciones no cambian.
   // Va antes del try: redirect() lanza una excepción que no hay que atrapar.
-  if (ocultaPestanaPresupuesto(esAdminOFinanzas(await requireUsuarioAlDia()), empresa)) {
+  const usuarioActual = await requireUsuarioAlDia();
+  // VIEWER: Presupuesto no es para él. Va antes de todo (no se calcula ni se crea nada).
+  if (esViewer(usuarioActual)) return <AvisoSinAccesoPantalla />;
+  if (ocultaPestanaPresupuesto(esAdminOFinanzas(usuarioActual), empresa)) {
     redirect(`/${empresa}/${periodo}/reporte`);
   }
 

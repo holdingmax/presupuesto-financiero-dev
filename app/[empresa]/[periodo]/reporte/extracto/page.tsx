@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
-import { AccesoDenegadoError, PermisoDenegadoError } from "@/lib/auth";
+import { AccesoDenegadoError, PermisoDenegadoError, requireUsuarioAlDia } from "@/lib/auth";
 import { requireCargaRealEmpresa } from "@/lib/cargaRealEmpresa";
+import { esViewer, MENSAJE_SIN_ACCESO_A_PANTALLA, SoloLecturaError } from "@/lib/permisosViewer";
 import { nombreDePeriodo } from "@/lib/ejecucionSemanas";
 import { errorPeriodoNoHabilitado } from "@/lib/periodosHabilitados";
 import { puedeVerSubidaExtractoEmpresa, semanasParaCargar } from "@/lib/extractos/pantallaExtractoEmpresa";
@@ -27,12 +28,14 @@ export default async function ExtractoEmpresaPage({ params }: Props) {
   const empresa = await resolverEmpresaPorSlug(slug);
   if (!empresa) return null;
 
+  // VIEWER: pantalla que no es para él; mensaje propio, antes de mirar nada más.
+  if (esViewer(await requireUsuarioAlDia())) return <Aviso texto={MENSAJE_SIN_ACCESO_A_PANTALLA} />;
   let permitido = false;
   try {
     await requireCargaRealEmpresa(empresa.id);
     permitido = true;
   } catch (error) {
-    if (!(error instanceof AccesoDenegadoError || error instanceof PermisoDenegadoError)) throw error;
+    if (!(error instanceof AccesoDenegadoError || error instanceof PermisoDenegadoError || error instanceof SoloLecturaError)) throw error;
   }
   if (!permitido) return <Aviso texto="No tenés permisos para cargar el extracto de esta empresa." />;
   if (!puedeVerSubidaExtractoEmpresa(slug, permitido)) return <Aviso texto="Esta empresa no carga su Real por extracto." />;

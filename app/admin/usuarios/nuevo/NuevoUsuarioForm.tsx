@@ -91,11 +91,12 @@ export default function NuevoUsuarioForm({ empresas }: { empresas: Empresa[] }) 
             <option value="GERENTE">GERENTE</option>
             <option value="FINANZAS">FINANZAS</option>
             <option value="ADMIN">ADMIN</option>
+            <option value="VIEWER">VIEWER (solo lectura)</option>
           </select>
           {erroresCampo.rol && <p className="mt-1 text-xs text-terracota">{erroresCampo.rol}</p>}
         </div>
 
-        {rol !== "ADMIN" && <EmpresasYPermisos empresas={empresas} />}
+        {rol !== "ADMIN" && <EmpresasYPermisos empresas={empresas} soloLectura={rol === "VIEWER"} />}
 
         <div className="flex items-center gap-4 pt-2">
           <button

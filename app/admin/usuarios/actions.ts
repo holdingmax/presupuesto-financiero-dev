@@ -6,8 +6,9 @@ import { requireAdmin, hashPassword } from "@/lib/auth";
 import { generarPasswordTemporal } from "@/lib/password";
 import { leerDatosUsuario, type DatosUsuario } from "@/lib/usuarioDatos";
 import type { Rol } from "@prisma/client";
+import { esViewer, PERMISOS_FORZADOS_VIEWER } from "@/lib/permisosViewer";
 
-const ROLES_VALIDOS: Rol[] = ["ADMIN", "GERENTE", "FINANZAS"];
+const ROLES_VALIDOS: Rol[] = ["ADMIN", "GERENTE", "FINANZAS", "VIEWER"];
 const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Comunes a alta y edición. No valida unicidad de email acá (depende de si
@@ -37,7 +38,15 @@ function advertenciaSinEmpresas(datos: DatosUsuario) {
 // empresa tildada, "Puede cargar Real de esta empresa" (campo puedeOperarEjecucion) / "Revisa presupuesto". Solo se aplican si
 // el formulario los incluye (campo permisosIncluidos) — así un envío sin esos
 // campos nunca los pone en false de rebote.
-function leerPermisos(formData: FormData) {
+// VIEWER: las casillas de escritura se fuerzan en false ACÁ, en el servidor, sin mirar lo que mande el formulario
+// (y aunque el formulario no las incluya: un GERENTE que pasa a VIEWER no puede conservar las que tenía).
+function leerPermisos(formData: FormData, rol: string) {
+  if (esViewer({ rol })) {
+    return () => ({
+      puedeOperarEjecucion: PERMISOS_FORZADOS_VIEWER.puedeOperarEjecucion,
+      puedeRevisarPresupuesto: PERMISOS_FORZADOS_VIEWER.puedeRevisarPresupuesto,
+    });
+  }
   const incluidos = formData.get("permisosIncluidos") === "1";
   return (empresaId: string) =>
     incluidos
@@ -73,13 +82,15 @@ export async function crearUsuario(
 
   const passwordTemporal = generarPasswordTemporal();
   const passwordHash = await hashPassword(passwordTemporal);
-  const permisosDe = leerPermisos(formData);
+  const permisosDe = leerPermisos(formData, datos.rol);
 
   await prisma.usuario.create({
     data: {
       nombre: datos.nombre,
       email: datos.email,
       rol: datos.rol as Rol,
+      // VIEWER: nace sin operaEjecucion (también por si algún día el default de la columna cambia).
+      ...(esViewer({ rol: datos.rol }) ? { operaEjecucion: PERMISOS_FORZADOS_VIEWER.operaEjecucion } : {}),
       passwordHash,
       debeActualizarPassword: true,
       empresas:
@@ -130,11 +141,16 @@ export async function actualizarUsuario(
   // - los permisos por empresa se guardan según leerPermisos (sin la marca
   //   permisosIncluidos no se tocan — una empresa nueva sin ellos queda sin permisos).
   // Un ADMIN no necesita filas (ve todo): al pasar a ADMIN se borran todas.
-  const permisosDe = leerPermisos(formData);
+  const permisosDe = leerPermisos(formData, datos.rol);
   // Permiso GLOBAL de operar Ejecución (Usuario.operaEjecucion, D-3): solo se toca si el
   // formulario lo incluye (operaEjecucionIncluida), igual que los permisos por empresa.
-  const operaEjecucion =
-    formData.get("operaEjecucionIncluida") === "1" ? { operaEjecucion: formData.get("operaEjecucion") === "on" } : {};
+  // VIEWER: siempre en false, incluso si el formulario no lo manda (si no, un usuario que pasa de GERENTE con la casilla a
+  // VIEWER la conservaría en la base).
+  const operaEjecucion = esViewer({ rol: datos.rol })
+    ? { operaEjecucion: PERMISOS_FORZADOS_VIEWER.operaEjecucion }
+    : formData.get("operaEjecucionIncluida") === "1"
+      ? { operaEjecucion: formData.get("operaEjecucion") === "on" }
+      : {};
   await prisma.$transaction([
     prisma.usuario.update({
       where: { id },

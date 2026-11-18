@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUsuarioAlDia } from "@/lib/auth";
+import { requireEscritura } from "@/lib/permisosViewer";
 import {
   confirmarSugerenciasDeEmpresa,
   editarMovimientoDeEmpresa,
@@ -28,7 +29,7 @@ export async function clasificarMovimientoEmpresa(
   movimientoId: string,
   datos: { clasificacion?: string; unidadNegocio?: string; ignorado?: boolean }
 ): Promise<ResultadoEdicionEmpresa> {
-  const usuario = await requireUsuarioAlDia();
+  const usuario = requireEscritura(await requireUsuarioAlDia());
   const r = await editarMovimientoDeEmpresa(usuario, empresaId, periodo, numeroSemana, movimientoId, datos);
   if (r.ok) refrescar(periodo, numeroSemana);
   return r;
@@ -40,7 +41,7 @@ export async function confirmarSugerenciasEmpresa(
   numeroSemana: number,
   tipo: "clasificacion" | "unidad"
 ): Promise<ResultadoConfirmarEmpresa> {
-  const usuario = await requireUsuarioAlDia();
+  const usuario = requireEscritura(await requireUsuarioAlDia());
   if (!esTipoSugerencia(tipo)) return { ok: false, error: "Tipo de sugerencia no válido." };
   const r = await confirmarSugerenciasDeEmpresa(usuario, empresaId, periodo, numeroSemana, tipo);
   if (r.ok) refrescar(periodo, numeroSemana);

@@ -14,6 +14,8 @@ enum Rol {
   ADMIN
   GERENTE
   FINANZAS
+  // Solo lectura: ve el Reporte y el historial de Ejecución de sus empresas. Nunca escribe (lib/permisosViewer.ts).
+  VIEWER
 }
 
 enum EstadoPresupuesto {

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { AccesoDenegadoError, requireAccesoEmpresa } from "@/lib/auth";
+import { esViewer } from "@/lib/permisosViewer";
 import { obtenerEjecucionPorSemana } from "@/lib/ejecucion";
 import { mapearMovimiento } from "@/lib/ejecucionVista";
 import { leerClasificacion, whereMovimientosDeEmpresa } from "@/lib/filtroClasificacionEmpresa";
@@ -29,6 +30,8 @@ export async function GET(
     if (error instanceof AccesoDenegadoError) return new Response("Sin acceso.", { status: 403 });
     throw error;
   }
+  // VIEWER: el Excel de Ejecución no es para él.
+  if (esViewer(usuario)) return new Response("Sin acceso.", { status: 403 });
 
   const ejecucion = await obtenerEjecucionPorSemana(periodo, numeroSemana);
   if (!ejecucion) return new Response("No existe esa semana.", { status: 404 });

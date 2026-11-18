@@ -7,10 +7,12 @@ import {
   requireUsuarioAlDia,
 } from "@/lib/auth";
 import { ERROR_SIN_PERMISO_DE_CARGAR_REAL, puedeCargarRealConAcceso } from "@/lib/permisosReal";
+import { esViewer, requireEscritura } from "@/lib/permisosViewer";
 
 // Punto central para decidir si un usuario carga el Real de UNA empresa (ver lib/permisosReal.ts).
 // ADMIN y FINANZAS: sí, sin consultar nada. GERENTE: según su fila de UsuarioEmpresa de ESA empresa.
 export async function puedeCargarRealEmpresa(usuario: Pick<Usuario, "id" | "rol">, empresaId: string): Promise<boolean> {
+  if (esViewer(usuario)) return false;
   if (esAdminOFinanzas(usuario)) return true;
   if (usuario.rol !== "GERENTE") return false;
   const acceso = await prisma.usuarioEmpresa.findUnique({
@@ -24,7 +26,8 @@ export async function puedeCargarRealEmpresa(usuario: Pick<Usuario, "id" | "rol"
 // cargar su Real. Reemplaza a requireAdminOFinanzas + requireAccesoEmpresa en esas acciones.
 export async function requireCargaRealEmpresa(empresaId: string): Promise<Usuario> {
   await requireUsuarioAlDia();
-  const usuario = await requireAccesoEmpresa(empresaId);
+  // El VIEWER no pasa nunca (requireEscritura), antes de mirar ninguna fila.
+  const usuario = requireEscritura(await requireAccesoEmpresa(empresaId));
   if (!(await puedeCargarRealEmpresa(usuario, empresaId))) {
     throw new PermisoDenegadoError(ERROR_SIN_PERMISO_DE_CARGAR_REAL);
   }

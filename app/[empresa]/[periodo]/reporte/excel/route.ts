@@ -1,5 +1,6 @@
 import { AccesoDenegadoError, esAdminOFinanzas, requireAccesoEmpresa, veBloquesReservadosDelReporte } from "@/lib/auth";
 import { EMPRESAS_EN_DOLARES } from "@/lib/config";
+import { esViewer, verBloquesReservadosSiNoEsViewer } from "@/lib/permisosViewer";
 import { respuestaExcel } from "@/lib/ejecucionExcel";
 import { armarReporteDePlantilla } from "@/lib/reporte/armarReporteDePlantilla";
 import { leerContextoExcelReporte } from "@/lib/reporte/contextoExcelReporte";
@@ -52,7 +53,9 @@ export async function GET(
     periodo,
     vista,
     esAdminOFinanzas: adminOFinanzas,
-    verBloquesReservados: veBloquesReservadosDelReporte(usuario),
+    verBloquesReservados: verBloquesReservadosSiNoEsViewer(usuario, veBloquesReservadosDelReporte(usuario)),
+    // VIEWER: el Excel va SIN Disponibilidades ni Cierre, aunque los interruptores de la empresa se los darían a un gerente.
+    sinBloquesReservados: esViewer(usuario),
   });
   const contexto = await leerContextoExcelReporte({
     usuario,

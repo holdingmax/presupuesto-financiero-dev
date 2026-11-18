@@ -1,4 +1,5 @@
 import type { Rol } from "@prisma/client";
+import { esViewer } from "@/lib/permisosViewer";
 
 // Permisos de Ejecución global (docs/ejecucion_global_plan.md §3.3, D-3 y D-4).
 // Puros (sin Prisma ni next/headers) para poder probarlos; lib/auth.ts los usa en
@@ -9,7 +10,9 @@ type ConPermisoDeOperar = ConRol & { operaEjecucion: boolean };
 
 // Operar (subir extractos, clasificar, asignar unidades, ignorar): ADMIN siempre, o
 // quien tiene Usuario.operaEjecucion. Ninguna migración le da el permiso a nadie.
+// VIEWER nunca (rol de solo lectura, lib/permisosViewer.ts), aunque la base le tenga operaEjecucion en true.
 export function puedeOperarEjecucionGlobal(usuario: ConPermisoDeOperar): boolean {
+  if (esViewer(usuario)) return false;
   return usuario.rol === "ADMIN" || usuario.operaEjecucion;
 }
 

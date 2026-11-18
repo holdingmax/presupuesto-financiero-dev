@@ -13,10 +13,13 @@ export default function EmpresasYPermisos({
   empresas,
   empresaIdsIniciales = [],
   permisosIniciales = {},
+  soloLectura = false,
 }: {
   empresas: Empresa[];
   empresaIdsIniciales?: string[];
   permisosIniciales?: PermisosPorEmpresa;
+  // Rol VIEWER: no hay casillas de escritura que mostrar (el servidor las fuerza en false igual).
+  soloLectura?: boolean;
 }) {
   // Controlados, para mostrar los dos casilleros de permisos solo debajo de las
   // empresas tildadas.
@@ -59,7 +62,7 @@ export default function EmpresasYPermisos({
                 />
                 {empresa.nombre}
               </label>
-              {tildada && (
+              {tildada && !soloLectura && (
                 <div className="ml-6 mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-secondary">
                   <label className="flex items-center gap-1.5">
                     <input

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { requireUsuarioAlDia, esAdminOFinanzas } from "@/lib/auth";
+import { esViewer } from "@/lib/permisosViewer";
+import AvisoSinAccesoPantalla from "@/components/AvisoSinAccesoPantalla";
 
 type Props = { children: ReactNode };
 
@@ -13,6 +15,7 @@ type Props = { children: ReactNode };
 export default async function AdminLayout({ children }: Props) {
   const usuario = await requireUsuarioAlDia();
 
+  if (esViewer(usuario)) return <AvisoSinAccesoPantalla />;
   if (!esAdminOFinanzas(usuario)) {
     return (
       <div className="mx-auto w-full max-w-5xl px-6 py-10">

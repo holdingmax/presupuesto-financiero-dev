@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { requireUsuario } from "@/lib/auth";
+import { esViewer } from "@/lib/permisosViewer";
 
 // Route Handler (no Server Action): hace falta poder devolver un Response
 // con Content-Type/Content-Disposition de archivo adjunto para que el
@@ -8,7 +9,8 @@ import { requireUsuario } from "@/lib/auth";
 // El contenido no depende de ninguna empresa puntual, por eso no vive bajo
 // [empresa]/[periodo] ni pide requireAccesoEmpresa — solo requireUsuario().
 export async function GET() {
-  await requireUsuario();
+  // VIEWER: la plantilla es de Presupuesto, que no es para él.
+  if (esViewer(await requireUsuario())) return new Response("Sin acceso.", { status: 403 });
 
   const workbook = new ExcelJS.Workbook();
   const hoja = workbook.addWorksheet("Presupuesto");

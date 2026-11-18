@@ -20,6 +20,9 @@ export type EntradaReporteDePlantilla = {
   esAdminOFinanzas: boolean;
   // ADMIN y FINANZAS (veBloquesReservadosDelReporte): ven Disponibilidades y Cierre. El resto, según los interruptores.
   verBloquesReservados: boolean;
+  // VIEWER (lib/permisosViewer.ts): el Reporte se arma SIN Disponibilidades ni Cierre, aunque los interruptores de la
+  // empresa (lib/config.ts) se los mostrarían a un gerente. Gana sobre verBloquesReservados.
+  sinBloquesReservados?: boolean;
 };
 
 export type ReporteDePlantilla = {
@@ -42,7 +45,7 @@ export async function armarReporteDePlantilla(e: EntradaReporteDePlantilla): Pro
   const plantillaReporte = (await plantillaDeEmpresaConExtras(e.empresaId, e.empresaSlug, e.periodo)) ?? e.plantilla;
   // Qué bloques reservados llegan a este usuario: todo (ADMIN/FINANZAS), nada, o lo que prendan los
   // interruptores de su empresa (lib/config.ts).
-  const acceso = accesoReservadosDelReporte(e.verBloquesReservados, e.empresaSlug);
+  const acceso: AccesoReservados = e.sinBloquesReservados ? false : accesoReservadosDelReporte(e.verBloquesReservados, e.empresaSlug);
   const meses = await cargarDatosMeses(e.empresaId, e.unidadesEmpresa, plantillaReporte, periodos, acceso);
   const reporte = armarReporte(plantillaReporte, meses, 1, { verBloquesReservados: acceso });
   return { periodos, plantillaReporte, acceso, meses, reporte };

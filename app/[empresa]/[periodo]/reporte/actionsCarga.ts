@@ -1,5 +1,6 @@
 "use server";
 
+import { requireEscritura } from "@/lib/permisosViewer";
 import { revalidatePath } from "next/cache";
 import { resolverEmpresaPorSlug } from "@/lib/slug";
 import { requireAccesoEmpresa, puedeRevisarPresupuesto, esAdminOFinanzas } from "@/lib/auth";
@@ -28,8 +29,9 @@ export async function guardarPresupuestoDelReporte(
   if (!FORMATO_PERIODO.test(periodo)) return { ok: false, error: "Período inválido." };
   const empresa = await resolverEmpresaPorSlug(empresaSlug);
   if (!empresa) return { ok: false, error: "No encontré esa empresa." };
-  // El usuario tiene acceso a ESTA empresa (ADMIN a todas; el resto, por su fila de UsuarioEmpresa).
-  const usuario = await requireAccesoEmpresa(empresa.id);
+  // El usuario tiene acceso a ESTA empresa (ADMIN a todas; el resto, por su fila de UsuarioEmpresa). Un VIEWER nunca
+  // escribe: antes esta acción quedaba abierta a cualquiera con acceso a la empresa (requireEscritura lo cierra).
+  const usuario = requireEscritura(await requireAccesoEmpresa(empresa.id));
   const adminOFinanzas = esAdminOFinanzas(usuario);
   // Fuera de los períodos habilitados no entra nadie (tampoco ADMIN ni FINANZAS).
   if (!puedeVerPeriodo(periodo)) {

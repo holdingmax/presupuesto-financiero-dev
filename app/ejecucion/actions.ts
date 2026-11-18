@@ -33,6 +33,7 @@ import {
   veSubidaDeEjecucion,
   veTodoEjecucion,
 } from "@/lib/auth";
+import { esViewer } from "@/lib/permisosViewer";
 import { FILAS_POR_PAGINA, mapearMovimiento, vistaDeLaSemana } from "@/lib/ejecucionVista";
 import { SIN_FILTROS, type FiltrosEjecucion } from "@/lib/filtrosEjecucion";
 import { calcularClasificacionesDisponibles } from "@/lib/clasificaciones";
@@ -141,7 +142,8 @@ export async function obtenerNumeroSemanaAbierta(periodo: string) {
   }
   const usuario = await requireVerEjecucionGlobal();
 
-  if (puedeOperarEjecucionGlobal(usuario)) {
+  // Un VIEWER nunca dispara la creación de una semana (aunque la base le tenga operaEjecucion): como mucho ve la última.
+  if (!esViewer(usuario) && puedeOperarEjecucionGlobal(usuario)) {
     const ejecucion = await obtenerOCrearEjecucionAbierta(periodo);
     return ejecucion.numeroSemana;
   }
