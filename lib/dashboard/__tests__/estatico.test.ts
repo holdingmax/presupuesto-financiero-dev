@@ -130,7 +130,7 @@ export async function leer(unidades: readonly string[]) { return prisma.$queryRa
 
 test("el analizador encuentra las funciones exportadas reales (si no encontrara ninguna, los chequeos de abajo no probarían nada)", () => {
   const consultas = funcionesExportadas(leer(join(DIR, "consultas.ts"))).map((f) => f.nombre);
-  assert.deepEqual(consultas, ["leerMovimientosPorSemana"]);
+  assert.deepEqual(consultas, ["leerMovimientosPorSemana", "leerControlDepositosDeCheques"]);
   const alcance = funcionesExportadas(leer(join(DIR, "alcance.ts"))).map((f) => f.nombre).sort();
   assert.deepEqual(alcance, ["exigirAlcance", "resolverAlcance", "resolverAlcanceDeSesion"]);
 });
@@ -232,17 +232,23 @@ test("el dashboard nunca expone la cantidad de empresas ni de unidades del alcan
   }
 });
 
-test("la consulta base aplica el filtro de unidad y de prorrateo en las dos ramas, y excluye ignorados", () => {
-  const sql = leer(join(DIR, "consultas.ts"));
-  assert.equal((sql.match(/upper\(btrim\(m\."unidadNegocio"\)\) = ANY\(\$\{unidades\}::text\[\]\)/g) ?? []).length, 1);
-  assert.equal((sql.match(/upper\(btrim\(d\."unidadNegocio"\)\) = ANY\(\$\{unidades\}::text\[\]\)/g) ?? []).length, 1);
-  assert.match(sql, /NOT EXISTS \(SELECT 1 FROM "MovimientoBancarioDesglose" d WHERE d\."movimientoId" = m\.id\)/);
-  assert.match(sql, /JOIN "MovimientoBancarioDesglose" d ON d\."movimientoId" = m\.id/);
-  assert.match(sql, /WHERE NOT mb\.ignorado/);
-  // ninguna rama de la consulta final lee los movimientos sin filtrar por unidad
-  assert.doesNotMatch(sql, /FROM mov m\s*\n\s*(UNION|\)\s*x)/);
-  // las unidades salen del Alcance validado, no de otro lado
-  assert.match(sql, /const unidades = \[\.\.\.alcance\.unidades\];/);
+test("cada consulta de datos aplica el filtro de unidad y de prorrateo en las dos ramas, y excluye ignorados", () => {
+  const fuente = leer(join(DIR, "consultas.ts"));
+  // Una consulta por función exportada: cada una con su propio SQL de movimientos.
+  const funciones = fuente.split(/^export async function /m).slice(1);
+  assert.equal(funciones.length, 2, "se esperan las dos consultas de movimientos (por semana y control de depósitos)");
+  for (const sql of funciones) {
+    const nombre = sql.slice(0, sql.indexOf("("));
+    assert.equal((sql.match(/upper\(btrim\(m\."unidadNegocio"\)\) = ANY\(\$\{unidades\}::text\[\]\)/g) ?? []).length, 1, nombre);
+    assert.equal((sql.match(/upper\(btrim\(d\."unidadNegocio"\)\) = ANY\(\$\{unidades\}::text\[\]\)/g) ?? []).length, 1, nombre);
+    assert.match(sql, /NOT EXISTS \(SELECT 1 FROM "MovimientoBancarioDesglose" d WHERE d\."movimientoId" = m\.id\)/, nombre);
+    assert.match(sql, /JOIN "MovimientoBancarioDesglose" d ON d\."movimientoId" = m\.id/, nombre);
+    assert.match(sql, /WHERE NOT mb\.ignorado/, nombre);
+    // ninguna rama de la consulta final lee los movimientos sin filtrar por unidad
+    assert.doesNotMatch(sql, /FROM mov m\s*\n\s*(UNION|\)\s*x)/, nombre);
+    // las unidades salen del Alcance validado, no de otro lado
+    assert.match(sql, /const unidades = \[\.\.\.alcance\.unidades\];/, nombre);
+  }
 });
 
 test("lib/auth.ts no se toca desde lib/dashboard: solo alcance.ts lo importa (para la sesión) y solo requireUsuarioAlDia", () => {
