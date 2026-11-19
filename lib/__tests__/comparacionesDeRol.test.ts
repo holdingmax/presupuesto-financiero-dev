@@ -32,6 +32,7 @@ const INVENTARIO: Record<string, { cantidad: number; clase: Clase; nota: string 
   "lib/cargaRealEmpresa.ts": { cantidad: 1, clase: "cierra", nota: "rol !== GERENTE => false; y requireCargaRealEmpresa llama a requireEscritura" },
   "lib/clasificacionesOcultas.ts": { cantidad: 1, clase: "cierra", nota: "CORREGIDA: antes un VIEWER con operaEjecucion=true en la base veía todo; ahora esViewer va primero y ve lo mismo que un gerente" },
   "lib/clasificarPorEmpresa.ts": { cantidad: 1, clase: "cierra", nota: "solo GERENTE con la casilla" },
+  "lib/dashboard/alcance.ts": { cantidad: 1, clase: "cierra", nota: "resolverAlcance: solo ADMIN recibe todas las empresas activas (y es el holding); el resto, VIEWER incluido, recibe únicamente las que tiene asignadas, sin ninguna casilla que amplíe eso" },
   "lib/confirmacionFinal.ts": { cantidad: 5, clase: "cierra", nota: "confirmar como gerente = GERENTE; en nombre = ADMIN o FINANZAS revisor (los 'GERENTE' restantes son el modo, no el rol)" },
   "lib/permisosEjecucion.ts": { cantidad: 3, clase: "cierra", nota: "ADMIN/FINANZAS por rol; operar y ver todo: esViewer primero" },
   "lib/permisosReal.ts": { cantidad: 2, clase: "cierra", nota: "ADMIN/FINANZAS o GERENTE con la casilla" },
