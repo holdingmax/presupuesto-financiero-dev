@@ -43,8 +43,40 @@ export const PERMISOS_FORZADOS_VIEWER = {
   puedeRevisarPresupuesto: false,
 } as const;
 
-// Excel del Reporte: el VIEWER nunca recibe los bloques reservados (Disponibilidades y Cierre), aunque otra regla
-// los dejara pasar. Se aplica sobre el flag que ya calcula veBloquesReservadosDelReporte.
-export function verBloquesReservadosSiNoEsViewer(usuario: ConRol, veBloques: boolean): boolean {
-  return veBloques && !esViewer(usuario);
+// ---- Bloques reservados del Reporte (Disponibilidades y Cierre) -------------------------------------------------
+//
+// ÚNICO punto donde se decide qué bloques reservados le llegan a quien mira el Reporte. La pantalla (reporte/page.tsx)
+// y el Excel (reporte/excel/route.ts) arman su `armarReporteDePlantilla` con el MISMO objeto que devuelve esta función,
+// así no pueden divergir.
+//
+//  - `verBloquesReservados`: ve todo lo reservado (como ADMIN y FINANZAS) y lo que cuelga de eso en el Reporte.
+//  - `sinBloquesReservados`: se arma SIN Disponibilidades ni Cierre y gana sobre los interruptores de lib/config.ts
+//    (que son para el gerente). Solo el VIEWER sin casilla.
+//
+// `veTodoPorRol` = lo que ya decide el rol (veBloquesReservadosDelReporte, lib/permisosEjecucion.ts: ADMIN y FINANZAS).
+// Se recibe como parámetro, y no se repite acá, para no duplicar esa regla ni crear un ciclo de imports con
+// lib/permisosEjecucion.ts (que ya importa esViewer de este archivo).
+//
+// La casilla `veBloquesReservados` de la base SOLO cuenta si el rol es VIEWER: con cualquier otro rol se ignora, tenga
+// el valor que tenga. Para un VIEWER la regla por rol no cuenta (nunca fue ADMIN ni FINANZAS): decide solo la casilla.
+export type UsuarioConCasillaReservados = ConRol & { veBloquesReservados?: boolean };
+
+export type BloquesReservadosDelUsuario = {
+  verBloquesReservados: boolean;
+  sinBloquesReservados: boolean;
+};
+
+export function bloquesReservadosDelUsuario(
+  usuario: UsuarioConCasillaReservados,
+  veTodoPorRol: boolean
+): BloquesReservadosDelUsuario {
+  if (!esViewer(usuario)) return { verBloquesReservados: veTodoPorRol, sinBloquesReservados: false };
+  const conCasilla = usuario.veBloquesReservados === true;
+  return { verBloquesReservados: conCasilla, sinBloquesReservados: !conCasilla };
+}
+
+// Valor que se guarda de la casilla al crear o editar un usuario (lo usa lib/usuarioDatos.ts). Fuera del VIEWER siempre
+// false; para un VIEWER, lo que mandó el formulario.
+export function casillaReservadosSegunRol(rol: string, marcada: boolean): boolean {
+  return esViewer({ rol }) && marcada;
 }

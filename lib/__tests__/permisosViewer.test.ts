@@ -8,9 +8,10 @@ import {
   MENSAJE_SIN_ACCESO_A_PANTALLA,
   PERMISOS_FORZADOS_VIEWER,
   SoloLecturaError,
+  bloquesReservadosDelUsuario,
+  casillaReservadosSegunRol,
   esViewer,
   requireEscritura,
-  verBloquesReservadosSiNoEsViewer,
 } from "@/lib/permisosViewer";
 import {
   puedeCargarMadreEjecucion,
@@ -57,15 +58,29 @@ test("puedeOperarEjecucionGlobal: VIEWER nunca, aunque tenga operaEjecucion; el 
   }
 });
 
-test("ver y operar Ejecución global / subida: VIEWER nunca, con cualquier casilla", () => {
+test("ver y operar Ejecución global / subida: VIEWER nunca, con cualquier casilla (también con «ve bloques reservados»)", () => {
   for (const operaEjecucion of BOOLS) {
-    const v = { rol: "VIEWER" as Rol, operaEjecucion };
-    assert.equal(veTodoEjecucion(v), false);
-    assert.equal(veSubidaDeEjecucion(v), false);
-    assert.equal(puedeCerrarEjecucion(v), false);
-    assert.equal(puedeCargarMadreEjecucion(v), false);
-    assert.equal(veBloquesReservadosDelReporte(v), false);
+    for (const veBloquesReservados of [undefined, false, true]) {
+      const v = { rol: "VIEWER" as Rol, operaEjecucion, veBloquesReservados };
+      assert.equal(veTodoEjecucion(v), false);
+      assert.equal(veSubidaDeEjecucion(v), false);
+      assert.equal(puedeCerrarEjecucion(v), false);
+      assert.equal(puedeCargarMadreEjecucion(v), false);
+      assert.equal(puedeOperarEjecucionGlobal(v), false);
+      // La regla POR ROL no cambia con la casilla: la excepción del VIEWER vive solo en bloquesReservadosDelUsuario.
+      assert.equal(veBloquesReservadosDelReporte(v), false);
+    }
   }
+});
+
+test("la casilla «ve bloques reservados» no concede ningún otro permiso a un VIEWER (escribir, operar, cargar Real, clasificar, confirmar)", () => {
+  const v = { rol: "VIEWER" as Rol, operaEjecucion: true, veBloquesReservados: true };
+  assert.throws(() => requireEscritura(v), SoloLecturaError);
+  assert.equal(puedeOperarEjecucionGlobal(v), false);
+  assert.equal(puedeCargarRealConAcceso(v, { puedeOperarEjecucion: true }), false);
+  assert.equal(puedeClasificarEnEmpresa(v, { puedeOperarEjecucion: true }), false);
+  assert.equal(puedeConfirmarComoGerente(v.rol), false);
+  assert.equal(puedeConfirmarEnNombreDelGerente(v.rol, true), false);
 });
 
 test("los demás roles NO cambian (ADMIN, FINANZAS y GERENTE como antes)", () => {
@@ -104,19 +119,73 @@ test("confirmar el presupuesto (gerente / en nombre del gerente): VIEWER nunca, 
   }
 });
 
-test("Excel del Reporte: el VIEWER nunca recibe los bloques reservados; el resto como siempre", () => {
+// TABLA DE VERDAD de bloquesReservadosDelUsuario: rol × casilla «ve bloques reservados» (Usuario.veBloquesReservados).
+//   rol       casilla                 verBloquesReservados   sinBloquesReservados
+//   ADMIN     cualquiera              true                   false
+//   FINANZAS  cualquiera              true                   false
+//   GERENTE   cualquiera (se ignora)  false                  false   (siguen los interruptores de lib/config.ts)
+//   VIEWER    true                    true                   false
+//   VIEWER    false / sin valor       false                  true    (gana sobre los interruptores)
+test("bloquesReservadosDelUsuario: tabla de verdad completa (rol × casilla × opera), con la regla por rol real", () => {
+  type Salida = { verBloquesReservados: boolean; sinBloquesReservados: boolean };
+  const ESPERADO: Record<string, (casilla: boolean | undefined) => Salida> = {
+    ADMIN: () => ({ verBloquesReservados: true, sinBloquesReservados: false }),
+    FINANZAS: () => ({ verBloquesReservados: true, sinBloquesReservados: false }),
+    GERENTE: () => ({ verBloquesReservados: false, sinBloquesReservados: false }),
+    VIEWER: (casilla) => ({ verBloquesReservados: casilla === true, sinBloquesReservados: casilla !== true }),
+  };
   for (const rol of ROLES) {
-    for (const veBloques of BOOLS) {
-      const esperado = rol === "VIEWER" ? false : veBloques;
-      assert.equal(verBloquesReservadosSiNoEsViewer({ rol }, veBloques), esperado, `${rol} ${veBloques}`);
+    for (const casilla of [undefined, false, true]) {
+      for (const operaEjecucion of BOOLS) {
+        const usuario = { rol, operaEjecucion, veBloquesReservados: casilla };
+        assert.deepEqual(
+          bloquesReservadosDelUsuario(usuario, veBloquesReservadosDelReporte(usuario)),
+          ESPERADO[rol](casilla),
+          `${rol} casilla=${casilla} opera=${operaEjecucion}`
+        );
+      }
     }
   }
 });
 
-test("la descarga del Reporte y la pantalla arman el Reporte del VIEWER con sinBloquesReservados (gana sobre los interruptores)", () => {
-  assert.match(leer("app/[empresa]/[periodo]/reporte/excel/route.ts"), /sinBloquesReservados: esViewer\(usuario\)/);
-  assert.match(leer("app/[empresa]/[periodo]/reporte/page.tsx"), /sinBloquesReservados: soloLectura/);
-  // y en armarReporteDePlantilla gana sobre verBloquesReservados y los interruptores
+test("bloquesReservadosDelUsuario: fuera del VIEWER devuelve lo que ya decidía el rol (nada cambia para los demás roles)", () => {
+  for (const rol of ["ADMIN", "GERENTE", "FINANZAS"] as Rol[]) {
+    for (const veTodoPorRol of BOOLS) {
+      assert.deepEqual(bloquesReservadosDelUsuario({ rol, veBloquesReservados: true }, veTodoPorRol), {
+        verBloquesReservados: veTodoPorRol,
+        sinBloquesReservados: false,
+      });
+    }
+  }
+});
+
+test("bloquesReservadosDelUsuario: para un VIEWER la regla por rol no cuenta; decide solo la casilla", () => {
+  for (const veTodoPorRol of BOOLS) {
+    assert.equal(bloquesReservadosDelUsuario({ rol: "VIEWER", veBloquesReservados: false }, veTodoPorRol).verBloquesReservados, false);
+    assert.equal(bloquesReservadosDelUsuario({ rol: "VIEWER", veBloquesReservados: true }, veTodoPorRol).verBloquesReservados, true);
+  }
+});
+
+test("casillaReservadosSegunRol: solo un VIEWER puede tenerla", () => {
+  for (const rol of ROLES) {
+    for (const marcada of BOOLS) {
+      assert.equal(casillaReservadosSegunRol(rol, marcada), rol === "VIEWER" && marcada, `${rol} ${marcada}`);
+    }
+  }
+});
+
+test("la descarga del Reporte y la pantalla arman el Reporte con EL MISMO objeto de bloquesReservadosDelUsuario (el VIEWER sin casilla gana sobre los interruptores)", () => {
+  const llamada = /bloquesReservadosDelUsuario\(usuario, veBloquesReservadosDelReporte\(usuario\)\)/;
+  const ruta = leer("app/[empresa]/[periodo]/reporte/excel/route.ts");
+  const pagina = leer("app/[empresa]/[periodo]/reporte/page.tsx");
+  assert.match(ruta, llamada);
+  assert.match(ruta, /\.\.\.bloquesReservadosDelUsuario\(/);
+  assert.match(pagina, llamada);
+  assert.match(pagina, /\.\.\.reservados,/);
+  // Ninguno de los dos vuelve a decidir con esViewer ni con el viejo parche del Excel.
+  assert.doesNotMatch(ruta, /verBloquesReservadosSiNoEsViewer|sinBloquesReservados: esViewer/);
+  assert.doesNotMatch(pagina, /verBloquesReservadosSiNoEsViewer|sinBloquesReservados: soloLectura/);
+  // y en armarReporteDePlantilla sinBloquesReservados gana sobre verBloquesReservados y los interruptores
   assert.match(leer("lib/reporte/armarReporteDePlantilla.ts"), /e\.sinBloquesReservados \? false : accesoReservadosDelReporte/);
 });
 

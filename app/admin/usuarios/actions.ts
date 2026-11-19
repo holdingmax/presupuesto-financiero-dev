@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, hashPassword } from "@/lib/auth";
 import { generarPasswordTemporal } from "@/lib/password";
-import { leerDatosUsuario, type DatosUsuario } from "@/lib/usuarioDatos";
+import { leerCasillaReservados, leerDatosUsuario, type DatosUsuario } from "@/lib/usuarioDatos";
 import type { Rol } from "@prisma/client";
 import { esViewer, PERMISOS_FORZADOS_VIEWER } from "@/lib/permisosViewer";
 
@@ -83,6 +83,8 @@ export async function crearUsuario(
   const passwordTemporal = generarPasswordTemporal();
   const passwordHash = await hashPassword(passwordTemporal);
   const permisosDe = leerPermisos(formData, datos.rol);
+  // Casilla "ve bloques reservados": solo un VIEWER puede nacer con ella; con otro rol, false (lib/usuarioDatos.ts).
+  const veBloquesReservados = leerCasillaReservados(formData, datos.rol);
 
   await prisma.usuario.create({
     data: {
@@ -91,6 +93,7 @@ export async function crearUsuario(
       rol: datos.rol as Rol,
       // VIEWER: nace sin operaEjecucion (también por si algún día el default de la columna cambia).
       ...(esViewer({ rol: datos.rol }) ? { operaEjecucion: PERMISOS_FORZADOS_VIEWER.operaEjecucion } : {}),
+      ...(veBloquesReservados === undefined ? {} : { veBloquesReservados }),
       passwordHash,
       debeActualizarPassword: true,
       empresas:
@@ -151,10 +154,21 @@ export async function actualizarUsuario(
     : formData.get("operaEjecucionIncluida") === "1"
       ? { operaEjecucion: formData.get("operaEjecucion") === "on" }
       : {};
+  // Casilla "ve bloques reservados" (solo VIEWER): fuera del VIEWER siempre false, aunque el formulario no la mande (si no,
+  // un VIEWER con la casilla que pasa a GERENTE la conservaría escondida y la recuperaría al volver a VIEWER). Para un
+  // VIEWER solo se toca si el formulario trae la marca "incluida" (lib/usuarioDatos.ts: leerCasillaReservados).
+  const veBloquesReservados = leerCasillaReservados(formData, datos.rol);
   await prisma.$transaction([
     prisma.usuario.update({
       where: { id },
-      data: { nombre: datos.nombre, email: datos.email, rol: datos.rol as Rol, activo, ...operaEjecucion },
+      data: {
+        nombre: datos.nombre,
+        email: datos.email,
+        rol: datos.rol as Rol,
+        activo,
+        ...operaEjecucion,
+        ...(veBloquesReservados === undefined ? {} : { veBloquesReservados }),
+      },
     }),
     ...(datos.rol === "ADMIN"
       ? [prisma.usuarioEmpresa.deleteMany({ where: { usuarioId: id } })]

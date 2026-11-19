@@ -22,11 +22,11 @@ import { puedeCerrarEjecucion, puedeCargarMadreEjecucion, puedeOperarEjecucionGl
 type Clase = "cierra" | "neutra";
 const INVENTARIO: Record<string, { cantidad: number; clase: Clase; nota: string }> = {
   "app/[empresa]/[periodo]/presupuesto/actions.ts": { cantidad: 1, clase: "neutra", nota: 'modo: "GERENTE" es el MODO de confirmación, no el rol del usuario' },
-  "app/admin/usuarios/[id]/EditarUsuarioForm.tsx": { cantidad: 3, clase: "neutra", nota: "UI del formulario de admin (oculta casillas); el servidor decide, y /admin/usuarios es solo ADMIN" },
+  "app/admin/usuarios/[id]/EditarUsuarioForm.tsx": { cantidad: 4, clase: "neutra", nota: "UI del formulario de admin (oculta casillas, y muestra la de «ve bloques reservados» solo si el rol elegido es VIEWER); el servidor decide (lib/usuarioDatos.ts: leerCasillaReservados fuerza false fuera del VIEWER), y /admin/usuarios es solo ADMIN" },
   "app/admin/usuarios/actions.ts": { cantidad: 5, clase: "cierra", nota: "ROLES_VALIDOS (incluye VIEWER) y ramas por rol del alta/edición; requireAdmin; el VIEWER recibe permisos forzados en false" },
   "app/admin/usuarios/layout.tsx": { cantidad: 1, clase: "cierra", nota: "rol !== ADMIN => panel de sin permiso" },
-  "app/admin/usuarios/nuevo/NuevoUsuarioForm.tsx": { cantidad: 2, clase: "neutra", nota: "UI del formulario de admin" },
-  "app/admin/usuarios/page.tsx": { cantidad: 1, clase: "neutra", nota: "muestra el rol en la lista (solo ADMIN llega)" },
+  "app/admin/usuarios/nuevo/NuevoUsuarioForm.tsx": { cantidad: 3, clase: "neutra", nota: "UI del formulario de admin (la casilla de «ve bloques reservados» se muestra solo con el rol VIEWER; el servidor la fuerza a false si no lo es)" },
+  "app/admin/usuarios/page.tsx": { cantidad: 2, clase: "neutra", nota: "muestra el rol en la lista (solo ADMIN llega) y la marca «ve reservados» solo en un VIEWER; no decide ningún permiso" },
   "app/page.tsx": { cantidad: 4, clase: "cierra", nota: "home: lo de ADMIN/FINANZAS (admin, ejecución global) no le aparece al VIEWER; ve solo sus empresas con el Reporte" },
   "lib/auth.ts": { cantidad: 4, clase: "cierra", nota: "puedeAccederEmpresa y puedeRevisarPresupuesto (ADMIN), requireAdmin, esAdminOFinanzas: el VIEWER no es ADMIN ni FINANZAS. puedeRevisarPresupuesto mira la casilla de la fila para no-ADMIN: se cubre porque quien lo llama pasa antes por requireEscritura o por soloLectura" },
   "lib/cargaRealEmpresa.ts": { cantidad: 1, clase: "cierra", nota: "rol !== GERENTE => false; y requireCargaRealEmpresa llama a requireEscritura" },

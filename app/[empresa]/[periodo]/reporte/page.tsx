@@ -13,7 +13,7 @@ import {
   veBloquesReservadosDelReporte,
 } from "@/lib/auth";
 import { obtenerOCrearPresupuesto } from "@/lib/presupuesto";
-import { AVISO_REPORTE_SOLO_LECTURA, esViewer } from "@/lib/permisosViewer";
+import { AVISO_REPORTE_SOLO_LECTURA, bloquesReservadosDelUsuario, esViewer } from "@/lib/permisosViewer";
 import { avisoPeriodoSoloLectura, esPeriodoHabilitado, nombreLegibleDePeriodo } from "@/lib/periodosHabilitados";
 import { cargaEnReporteActiva, mostrarFlujoEnReporte, puedeEditarPresupuestoAhora } from "@/lib/estadoPresupuesto";
 import { planDeCarga, vistaDeCarga, type VistaCarga } from "@/lib/reporte/cargaGerente";
@@ -152,7 +152,6 @@ export default async function ReportePage({ params, searchParams }: Props) {
         unidadesEmpresa={unidadesEmpresa}
         verPendientes={esAdminOFinanzas(usuario) && MOSTRAR_PENDIENTES_EN_REPORTE}
         verControl={esAdminOFinanzas(usuario)}
-        verBloquesReservados={veBloquesReservadosDelReporte(usuario)}
         usuario={usuario}
       />
     );
@@ -260,7 +259,6 @@ async function ReportePorPlantilla({
   unidadesEmpresa,
   verPendientes,
   verControl,
-  verBloquesReservados,
   usuario,
 }: {
   plantilla: Plantilla;
@@ -275,10 +273,12 @@ async function ReportePorPlantilla({
   unidadesEmpresa: string[];
   verPendientes: boolean;
   verControl: boolean;
-  // false = no recibe Disponibilidades ni Cierre (se filtra acá, en el servidor).
-  verBloquesReservados: boolean;
   usuario: Usuario;
 }) {
+  // Qué bloques reservados (Disponibilidades y Cierre) llegan a este usuario: UNA sola decisión, la misma que usa la
+  // descarga en Excel (lib/permisosViewer.ts). Se filtra acá, en el servidor. El VIEWER solo los ve con su casilla.
+  const reservados = bloquesReservadosDelUsuario(usuario, veBloquesReservadosDelReporte(usuario));
+  const { verBloquesReservados } = reservados;
   // Estado y botones del flujo de Presupuesto (Enviar a revisión, Terminé de revisar, Pedir
   // cambios, Confirmar versión final) para el mes de la URL. ADMIN, FINANZAS y revisores lo
   // ven siempre; el gerente solo si su empresa está en EMPRESAS_CON_CARGA_EN_REPORTE. Solo
@@ -312,7 +312,8 @@ async function ReportePorPlantilla({
   const clasificaciones = clasificacionesDePlantilla(plantilla);
 
   const unidadesConEmpresa = await obtenerUnidadesConEmpresa();
-  // Aviso del espejo Avianor-Conexión: solo ADMIN y FINANZAS (verBloquesReservados) y solo en esas dos empresas.
+  // Aviso del espejo Avianor-Conexión: solo quien ve los bloques reservados (ADMIN, FINANZAS y el VIEWER con la casilla)
+  // y solo en esas dos empresas.
   const unidadesAvisoEspejo = verBloquesReservados ? unidadesDelAvisoEspejo(plantilla) : null;
   const [{ plantillaReporte, meses, reporte }, noAsignado, sinClasificar, sinFilaEspejo] = await Promise.all([
     // El Reporte lo arma la función compartida con la descarga en Excel (lib/reporte/armarReporteDePlantilla.ts):
@@ -325,12 +326,12 @@ async function ReportePorPlantilla({
       periodo,
       vista,
       esAdminOFinanzas: esAdminOFinanzas(usuario),
-      verBloquesReservados,
-      // VIEWER: sin Disponibilidades ni Cierre, aunque los interruptores de la empresa se los mostrarían a un gerente.
-      sinBloquesReservados: soloLectura,
+      // Mismo objeto que la descarga en Excel: { verBloquesReservados, sinBloquesReservados }. El VIEWER sin casilla va
+      // SIN Disponibilidades ni Cierre, aunque los interruptores de la empresa se los mostrarían a un gerente.
+      ...reservados,
     }),
     // Mismo bloque de control que la Fase 1, para el mes de la URL (de todo el holding:
-    // solo ADMIN y FINANZAS).
+    // ADMIN, FINANZAS y el VIEWER con la casilla).
     verBloquesReservados
       ? calcularNoAsignadoDelPeriodo(periodo, clasificaciones, unidadesConEmpresa)
       : Promise.resolve({ porUnidad: [] as NoAsignado[], semanas: [] as number[] }),

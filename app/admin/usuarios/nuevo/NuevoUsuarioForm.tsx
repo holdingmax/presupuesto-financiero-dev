@@ -98,6 +98,19 @@ export default function NuevoUsuarioForm({ empresas }: { empresas: Empresa[] }) 
 
         {rol !== "ADMIN" && <EmpresasYPermisos empresas={empresas} soloLectura={rol === "VIEWER"} />}
 
+        {rol === "VIEWER" && (
+          <div>
+            <input type="hidden" name="veBloquesReservadosIncluida" value="1" />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="veBloquesReservados" />
+              Ve los bloques reservados del Reporte (Disponibilidades y Cierre)
+            </label>
+            <p className="mt-1 text-xs text-ink-muted">
+              En pantalla y en el Excel, solo de las empresas que tiene asignadas. Sigue siendo solo lectura. Sin esta casilla no los ve.
+            </p>
+          </div>
+        )}
+
         <div className="flex items-center gap-4 pt-2">
           <button
             type="submit"

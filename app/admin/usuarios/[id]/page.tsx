@@ -35,6 +35,7 @@ export default async function EditarUsuarioPage({ params }: Props) {
         rol: usuario.rol,
         activo: usuario.activo,
         operaEjecucion: usuario.operaEjecucion,
+        veBloquesReservados: usuario.veBloquesReservados,
         empresaIds: usuario.empresas.map((ue) => ue.empresaId),
         permisos: Object.fromEntries(
           usuario.empresas.map((ue) => [

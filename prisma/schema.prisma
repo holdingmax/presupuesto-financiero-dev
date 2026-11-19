@@ -66,6 +66,11 @@ model Usuario {
   // Permiso GLOBAL de operar Ejecución (subir, clasificar, asignar). ADMIN opera
   // siempre. Lo da un ADMIN desde /admin/usuarios; ninguna migración se lo da a nadie.
   operaEjecucion Boolean @default(false)
+  // Casilla SOLO para el rol VIEWER (solo lectura): con true ve en el Reporte, en pantalla y en el Excel, los
+  // bloques reservados (Disponibilidades y Cierre) de las empresas que tiene asignadas, como ADMIN y FINANZAS. En
+  // cualquier otro rol no tiene ningún efecto y /admin/usuarios la fuerza en false (lib/permisosViewer.ts:
+  // bloquesReservadosDelUsuario). La da un ADMIN desde /admin/usuarios; ninguna migración se la da a nadie.
+  veBloquesReservados Boolean @default(false)
   createdAt    DateTime @default(now())
 
   empresas UsuarioEmpresa[]

@@ -58,7 +58,10 @@ export default async function UsuariosPage() {
               <p className="text-xs text-ink-muted">{usuario.email}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-ink-secondary uppercase tracking-wide">{usuario.rol}</p>
+              <p className="text-xs text-ink-secondary uppercase tracking-wide">
+                {usuario.rol}
+                {usuario.veBloquesReservados && usuario.rol === "VIEWER" ? " · ve reservados" : ""}
+              </p>
               <p className="text-xs text-ink-muted">
                 {usuario.rol === "ADMIN"
                   ? "Todas las empresas"

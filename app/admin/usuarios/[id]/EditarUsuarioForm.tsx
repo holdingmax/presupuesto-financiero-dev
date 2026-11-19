@@ -15,6 +15,8 @@ type UsuarioInicial = {
   activo: boolean;
   // Permiso global de operar Ejecución (subir, clasificar, asignar). ADMIN opera siempre.
   operaEjecucion: boolean;
+  // Solo VIEWER: ve los bloques reservados del Reporte (Disponibilidades y Cierre). En otro rol no se muestra y se guarda en false.
+  veBloquesReservados: boolean;
   empresaIds: string[];
   // Permisos por empresa (UsuarioEmpresa) de las empresas que ya tiene.
   permisos: PermisosPorEmpresa;
@@ -145,6 +147,19 @@ export default function EditarUsuarioForm({
             </label>
             <p className="mt-1 text-xs text-ink-muted">
               Puede subir extractos, clasificar y asignar unidades. Cerrar la semana es solo de FINANZAS y ADMIN.
+            </p>
+          </div>
+        )}
+
+        {rol === "VIEWER" && (
+          <div>
+            <input type="hidden" name="veBloquesReservadosIncluida" value="1" />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="veBloquesReservados" defaultChecked={usuario.veBloquesReservados} />
+              Ve los bloques reservados del Reporte (Disponibilidades y Cierre)
+            </label>
+            <p className="mt-1 text-xs text-ink-muted">
+              En pantalla y en el Excel, solo de las empresas que tiene asignadas. Sigue siendo solo lectura. Sin esta casilla no los ve.
             </p>
           </div>
         )}
