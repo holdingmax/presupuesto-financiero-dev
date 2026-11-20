@@ -12,6 +12,7 @@ import { puedeReabrirSemana } from "@/lib/permisosReapertura";
 import { avisosDeReapertura } from "@/lib/reaperturaSemana";
 import { obtenerReaperturasParaAdmin } from "@/lib/reaperturaSemanaDb";
 import { periodoActual } from "@/lib/reporte/bloqueo";
+import { mesesCerrados } from "@/lib/reporte/valoresManuales";
 import { textoTrazabilidad } from "@/lib/fecha";
 import { aQuery, hayFiltros, hayFiltrosAdemasDeSinClasificar, parsearFiltros, type ParametrosUrl } from "@/lib/filtrosEjecucion";
 import { opcionesUnidad } from "@/lib/unidadesNegocio";
@@ -70,6 +71,10 @@ export default async function EjecucionGlobalSemanaPage({ params, searchParams }
   // Reaperturas (solo ADMIN): para cualquier otro rol esto es null, la base ni se consulta y no se renderiza nada de esto.
   const usuario = await requireUsuarioAlDia();
   const reaperturas = await obtenerReaperturasParaAdmin(usuario, periodo, numeroSemana);
+  // ¿El mes ya estaba cerrado (pasó y no tiene semanas abiertas)? Se calcula ANTES de reabrir y solo para el cuadro del ADMIN
+  // sobre una semana cerrada: decide si el cuadro avisa que se destraban los valores manuales.
+  const mesCerrado =
+    datos.estado === "CERRADA" && puedeReabrirSemana(usuario) ? ((await mesesCerrados([periodo])).get(periodo) ?? false) : false;
   const indicadorReaperturas = reaperturas ? <IndicadorReaperturas estado={datos.estado} reaperturas={reaperturas} /> : null;
 
   const selectorDeSemanas =
@@ -172,7 +177,7 @@ export default async function EjecucionGlobalSemanaPage({ params, searchParams }
               <ReabrirSemana
                 periodo={periodo}
                 numeroSemana={datos.numeroSemana}
-                avisos={avisosDeReapertura(periodo, datos.numeroSemana, periodoActual())}
+                avisos={avisosDeReapertura(periodo, datos.numeroSemana, periodoActual(), mesCerrado)}
               />
             )}
           </div>

@@ -86,19 +86,50 @@ test("otra semana abierta: adjuntos, prorrateos o historial de reaperturas tambi
   assert.deepEqual(decidirOtrasAbiertas([vacia(4), vacia(2)], CTX), { tipo: "borrar", numeros: [2, 4] });
 });
 
-test("cuadro de confirmación: avisa las tres cosas, y una cuarta si el mes ya pasó", () => {
-  const actual = avisosDeReapertura("2026-11", 2, "2026-11");
-  assert.equal(actual.length, 3, "mes en curso: solo las tres");
-  assert.match(actual[0], /deja de contar en el Reporte/);
-  assert.match(actual[0], /semana 2/);
-  assert.match(actual[1], /valores manuales/);
-  assert.match(actual[2], /archivo madre o extracto/);
-  assert.match(actual[2], /noviembre 2026/);
-  assert.match(actual[2], /semana 2/);
+test("cuadro de confirmación, mes en curso (mes no cerrado): solo 'deja de contar' y 'cargas del mes'; NO avisa valores manuales", () => {
+  const avisos = avisosDeReapertura("2026-11", 2, "2026-11", false);
+  assert.equal(avisos.length, 2);
+  assert.match(avisos[0], /deja de contar en el Reporte/);
+  assert.match(avisos[0], /semana 2/);
+  assert.match(avisos[1], /archivo madre o extracto/);
+  assert.match(avisos[1], /noviembre 2026/);
+  assert.match(avisos[1], /semana 2/);
+  assert.equal(avisos.some((a) => /valores manuales/.test(a)), false);
+  assert.equal(avisos.some((a) => /ya terminó/.test(a)), false);
+});
 
-  const viejo = avisosDeReapertura("2026-09", 1, "2026-11");
-  assert.equal(viejo.length, 4);
-  assert.match(viejo[3], /septiembre 2026 ya terminó/);
+test("cuadro de confirmación, mes pasado y cerrado: suma 'valores manuales' (en el medio) y 'ya terminó' (al final)", () => {
+  const avisos = avisosDeReapertura("2026-09", 1, "2026-11", true);
+  assert.equal(avisos.length, 4);
+  assert.match(avisos[0], /deja de contar en el Reporte/);
+  assert.match(avisos[1], /Se destraban los valores manuales de septiembre 2026/);
+  assert.match(avisos[2], /archivo madre o extracto/);
+  assert.match(avisos[3], /septiembre 2026 ya terminó/);
+});
+
+test("cuadro de confirmación: 'valores manuales' sale si y solo si el mes estaba cerrado; 'ya terminó' si y solo si el mes pasó", () => {
+  for (const mesCerrado of [false, true]) {
+    for (const [periodo, actual] of [["2026-11", "2026-11"], ["2026-09", "2026-11"], ["2026-12", "2026-11"]] as const) {
+      const avisos = avisosDeReapertura(periodo, 3, actual, mesCerrado);
+      assert.equal(avisos.some((a) => /valores manuales/.test(a)), mesCerrado, `${periodo} mesCerrado=${mesCerrado}`);
+      assert.equal(avisos.some((a) => /ya terminó/.test(a)), periodo < actual, `${periodo} actual=${actual}`);
+      assert.ok(avisos[0].startsWith("Mientras la semana 3 esté reabierta"), "siempre primero");
+      assert.ok(avisos.some((a) => /archivo madre o extracto/.test(a)), "las cargas del mes se avisan siempre");
+    }
+  }
+  // Mes pasado que todavía tenía una semana abierta (mesCerrado=false): solo 'ya terminó', sin 'valores manuales'.
+  const conAbierta = avisosDeReapertura("2026-09", 1, "2026-11", false);
+  assert.equal(conAbierta.length, 3);
+  assert.equal(conAbierta.some((a) => /valores manuales/.test(a)), false);
+  assert.match(conAbierta[2], /ya terminó/);
+});
+
+test("estático: la pantalla calcula mesCerrado ANTES de reabrir (mesesCerrados) solo para el ADMIN sobre una semana cerrada, y se lo pasa al cuadro", () => {
+  const p = sinComentarios(leer("app/ejecucion/[periodo]/[numeroSemana]/page.tsx"));
+  assert.match(p, /const mesCerrado =\s*datos\.estado === "CERRADA" && puedeReabrirSemana\(usuario\) \? \(\(await mesesCerrados\(\[periodo\]\)\)\.get\(periodo\) \?\? false\) : false;/);
+  assert.match(p, /avisosDeReapertura\(periodo, datos\.numeroSemana, periodoActual\(\), mesCerrado\)/);
+  // Mismo criterio que el bloqueo del Reporte: mesesCerrados usa esMesCerrado (mes pasado sin semanas abiertas).
+  assert.match(sinComentarios(leer("lib/reporte/valoresManuales.ts")), /esMesCerrado\(p, actual, semanas\.get\(p\)!\)/);
 });
 
 const R = (id: string, extra: Partial<ReaperturaVista> = {}): ReaperturaVista => ({

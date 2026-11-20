@@ -73,15 +73,25 @@ export function esMesViejo(periodo: string, actual: string): boolean {
   return periodo < actual;
 }
 
-// Las tres cosas que SIEMPRE avisa el cuadro de confirmación (decisión de Kike), más una cuarta si el mes ya pasó
-// (decisión por defecto mientras Kike no confirme si se permiten meses viejos).
-export function avisosDeReapertura(periodo: string, numeroSemana: number, actual: string): string[] {
+// Lo que avisa el cuadro de confirmación (decisión de Kike):
+//  - SIEMPRE: que la semana deja de contar en el Reporte y que las cargas del mes entran en ella;
+//  - solo si el mes ya estaba CERRADO antes de reabrir (`mesCerrado`: mes pasado sin ninguna semana abierta, el mismo
+//    criterio de lib/reporte/bloqueo.ts#esMesCerrado): que se destraban los valores manuales. En el mes en curso (o en un
+//    mes pasado que ya tenía una semana abierta) reabrir no destraba nada, así que no se avisa;
+//  - si el mes ya pasó: que se reabre una semana de un mes cerrado (decisión por defecto mientras Kike no confirme si se
+//    permiten meses viejos).
+// El llamador calcula `mesCerrado` ANTES de reabrir (la reapertura misma deja el mes con una semana abierta).
+export function avisosDeReapertura(periodo: string, numeroSemana: number, actual: string, mesCerrado: boolean): string[] {
   const mes = nombreDePeriodo(periodo);
   const avisos = [
     `Mientras la semana ${numeroSemana} esté reabierta, deja de contar en el Reporte: el Real de ${mes} baja (o queda en "—") hasta que la cierres de nuevo.`,
-    `Se destraban los valores manuales de ${mes}: mientras haya una semana abierta, el mes deja de estar cerrado para el Reporte, y el Real manual de flujo (y Disponibilidades, si esta era la única semana cerrada) vuelven a poder modificarse.`,
-    `Cualquier carga de ${mes} (archivo madre o extracto) va a entrar en la semana ${numeroSemana} hasta que se cierre.`,
   ];
+  if (mesCerrado) {
+    avisos.push(
+      `Se destraban los valores manuales de ${mes}: mientras haya una semana abierta, el mes deja de estar cerrado para el Reporte, y el Real manual de flujo (y Disponibilidades, si esta era la única semana cerrada) vuelven a poder modificarse.`
+    );
+  }
+  avisos.push(`Cualquier carga de ${mes} (archivo madre o extracto) va a entrar en la semana ${numeroSemana} hasta que se cierre.`);
   if (esMesViejo(periodo, actual)) {
     avisos.push(`${mes} ya terminó: estás reabriendo una semana de un mes cerrado.`);
   }
