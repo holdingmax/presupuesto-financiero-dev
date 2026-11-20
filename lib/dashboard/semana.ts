@@ -24,6 +24,15 @@ function aIso(t: number): string {
   return new Date(t).toISOString().slice(0, 10);
 }
 
+// Rango [desde, hasta) del mes "AAAA-MM": desde = primer día, hasta = primer día del mes siguiente.
+export function rangoDeMes(periodo: string): { desde: string; hasta: string } {
+  const m = FORMATO_PERIODO.exec(periodo);
+  const mes = m ? Number(periodo.slice(5, 7)) : 0;
+  if (!m || mes < 1 || mes > 12) throw new Error(`Período inválido (se espera AAAA-MM): "${periodo}"`);
+  const anio = Number(periodo.slice(0, 4));
+  return { desde: `${periodo}-01`, hasta: aIso(Date.UTC(anio, mes, 1)) };
+}
+
 export function esFechaIso(valor: string): boolean {
   try {
     aUtc(valor);

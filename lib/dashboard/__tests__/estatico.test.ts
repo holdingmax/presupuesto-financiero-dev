@@ -144,9 +144,9 @@ test("toda función exportada de lib/dashboard que vive en un archivo con acceso
   assert.deepEqual(problemas, []);
 });
 
-test("solo alcance.ts y consultas.ts importan Prisma: un archivo nuevo con acceso a la base se agrega acá, a la vista", () => {
+test("solo alcance.ts, consultas.ts y consultasMes.ts importan Prisma: un archivo nuevo con acceso a la base se agrega acá, a la vista", () => {
   const conPrisma = FUENTES.filter((f) => importaPrisma(leer(f))).map(rel).sort();
-  assert.deepEqual(conPrisma, ["lib/dashboard/alcance.ts", "lib/dashboard/consultas.ts"]);
+  assert.deepEqual(conPrisma, ["lib/dashboard/alcance.ts", "lib/dashboard/consultas.ts", "lib/dashboard/consultasMes.ts"]);
   for (const f of FUENTES.filter((x) => !importaPrisma(leer(x)))) {
     assert.doesNotMatch(sinComentarios(leer(f)), /\$queryRaw|\$executeRaw|\bprisma\./, `${rel(f)} toca la base sin importarla`);
   }

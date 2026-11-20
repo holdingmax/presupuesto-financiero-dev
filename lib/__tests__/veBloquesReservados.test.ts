@@ -124,6 +124,7 @@ test("veBloquesReservadosDelReporte (la regla por rol) solo se llama desde donde
   assert.deepEqual(llamadores, [
     "app/[empresa]/[periodo]/reporte/excel/route.ts",
     "app/[empresa]/[periodo]/reporte/page.tsx",
+    "lib/dashboard/accesoUsuario.ts", // el avance del dashboard arma el Reporte de cada empresa con el MISMO objeto (accesoDelDashboard)
     "lib/permisosEjecucion.ts", // la definición
   ]);
 });
