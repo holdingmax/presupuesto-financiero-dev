@@ -5,7 +5,13 @@ import Paginacion from "@/app/ejecucion/Paginacion";
 import BarraFiltros from "@/app/ejecucion/BarraFiltros";
 import TotalesPorMoneda from "@/app/ejecucion/TotalesPorMoneda";
 import { obtenerDatosSemana, calcularChequeosSumaCero, listarSemanasDelPeriodo } from "@/app/ejecucion/actions";
-import { AccesoDenegadoError } from "@/lib/auth";
+import ReabrirSemana from "@/app/ejecucion/ReabrirSemana";
+import IndicadorReaperturas from "@/app/ejecucion/IndicadorReaperturas";
+import { AccesoDenegadoError, requireUsuarioAlDia } from "@/lib/auth";
+import { puedeReabrirSemana } from "@/lib/permisosReapertura";
+import { avisosDeReapertura } from "@/lib/reaperturaSemana";
+import { obtenerReaperturasParaAdmin } from "@/lib/reaperturaSemanaDb";
+import { periodoActual } from "@/lib/reporte/bloqueo";
 import { textoTrazabilidad } from "@/lib/fecha";
 import { aQuery, hayFiltros, hayFiltrosAdemasDeSinClasificar, parsearFiltros, type ParametrosUrl } from "@/lib/filtrosEjecucion";
 import { opcionesUnidad } from "@/lib/unidadesNegocio";
@@ -61,6 +67,11 @@ export default async function EjecucionGlobalSemanaPage({ params, searchParams }
     );
   }
 
+  // Reaperturas (solo ADMIN): para cualquier otro rol esto es null, la base ni se consulta y no se renderiza nada de esto.
+  const usuario = await requireUsuarioAlDia();
+  const reaperturas = await obtenerReaperturasParaAdmin(usuario, periodo, numeroSemana);
+  const indicadorReaperturas = reaperturas ? <IndicadorReaperturas estado={datos.estado} reaperturas={reaperturas} /> : null;
+
   const selectorDeSemanas =
     semanas.length > 1 ? (
       <nav className="w-full px-4 pt-6 flex flex-wrap items-center gap-2 text-sm">
@@ -99,6 +110,7 @@ export default async function EjecucionGlobalSemanaPage({ params, searchParams }
     return (
       <>
         {selectorDeSemanas}
+        {indicadorReaperturas}
         {botonExcel}
         <PanelImputacion
           puedeCerrar={datos.puedeCerrar}
@@ -129,6 +141,7 @@ export default async function EjecucionGlobalSemanaPage({ params, searchParams }
   return (
     <>
       {selectorDeSemanas}
+      {indicadorReaperturas}
       {botonExcel}
       <div className="w-full px-4 pb-10 pt-6">
         <div className={`mx-auto w-full ${datos.verSaldo ? "max-w-7xl" : "max-w-5xl"} px-2`}>
@@ -154,6 +167,13 @@ export default async function EjecucionGlobalSemanaPage({ params, searchParams }
               <p className="mt-2 text-xs text-ink-muted">
                 {textoTrazabilidad("Cerrada", datos.cierre.fecha, datos.cierre.por)}
               </p>
+            )}
+            {datos.estado === "CERRADA" && puedeReabrirSemana(usuario) && (
+              <ReabrirSemana
+                periodo={periodo}
+                numeroSemana={datos.numeroSemana}
+                avisos={avisosDeReapertura(periodo, datos.numeroSemana, periodoActual())}
+              />
             )}
           </div>
         </div>

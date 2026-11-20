@@ -33,6 +33,7 @@ const INVENTARIO: Record<string, { cantidad: number; clase: Clase; nota: string 
   "lib/clasificacionesOcultas.ts": { cantidad: 1, clase: "cierra", nota: "CORREGIDA: antes un VIEWER con operaEjecucion=true en la base veía todo; ahora esViewer va primero y ve lo mismo que un gerente" },
   "lib/clasificarPorEmpresa.ts": { cantidad: 1, clase: "cierra", nota: "solo GERENTE con la casilla" },
   "lib/confirmacionFinal.ts": { cantidad: 5, clase: "cierra", nota: "confirmar como gerente = GERENTE; en nombre = ADMIN o FINANZAS revisor (los 'GERENTE' restantes son el modo, no el rol)" },
+  "lib/permisosReapertura.ts": { cantidad: 1, clase: "cierra", nota: "reabrir una semana cerrada y ver sus reaperturas: SOLO ADMIN (el VIEWER no es ADMIN); el servidor exige requireAdmin" },
   "lib/permisosEjecucion.ts": { cantidad: 3, clase: "cierra", nota: "ADMIN/FINANZAS por rol; operar y ver todo: esViewer primero" },
   "lib/permisosReal.ts": { cantidad: 2, clase: "cierra", nota: "ADMIN/FINANZAS o GERENTE con la casilla" },
   "lib/permisosViewer.ts": { cantidad: 1, clase: "cierra", nota: "esViewer: la definición" },
