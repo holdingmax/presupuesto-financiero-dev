@@ -75,9 +75,19 @@ export default async function MisEmpresasPage() {
             </div>
           </div>
 
-          {/* Cada grupo se oculta si ninguno de sus links es visible para este usuario. */}
-          {(veTodoEjecucion(usuario) || esAdminOFinanzas(usuario) || usuario.rol === "ADMIN") && (
+          {/* Cada grupo se oculta si ninguno de sus links es visible para este usuario. «Resumen» lo ven todos los roles
+              (VIEWER incluido): el dashboard se calcula solo con las empresas de cada uno. */}
             <nav aria-label="Secciones del sistema" className="mt-6 flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:gap-x-12">
+              <div>
+                <h2 className={GRUPO}>Resumen</h2>
+                <ul className="flex flex-wrap gap-2">
+                  <li>
+                    <Link href="/dashboard" className={PASTILLA}>
+                      Dashboard semanal
+                    </Link>
+                  </li>
+                </ul>
+              </div>
               {(veTodoEjecucion(usuario) || esAdminOFinanzas(usuario)) && (
                 <div>
                   <h2 className={GRUPO}>Operación</h2>
@@ -147,7 +157,6 @@ export default async function MisEmpresasPage() {
                 </div>
               )}
             </nav>
-          )}
         </div>
       </header>
 
