@@ -230,8 +230,33 @@ model EjecucionSemanal {
   // querría recrear la FK.
   presupuesto PresupuestoMensual? @relation(fields: [presupuestoId], references: [id], onDelete: Restrict)
   movimientos MovimientoBancario[]
+  reaperturas ReaperturaSemana[]
 
   @@unique([periodo, numeroSemana])
+}
+
+// Registro de las reaperturas de una semana cerrada ("Reabrir semana para corregir", solo ADMIN). Una fila por reapertura:
+// quién, cuándo y por qué, más lo que se pisó al reabrir (fechaCierre y cerradoPorId vuelven a null). Solo lo lee ADMIN
+// (lib/reaperturaSemanaDb.ts). usuarioId no es clave foránea (igual que EjecucionSemanal.cerradoPorId): el nombre queda copiado.
+model ReaperturaSemana {
+  id                   String   @id @default(uuid())
+  ejecucionId          String
+  periodo              String
+  numeroSemana         Int
+  motivo               String
+  usuarioId            String
+  usuarioNombre        String
+  // Cierre que se deshizo.
+  fechaCierreAnterior  DateTime?
+  cerradoPorIdAnterior String?
+  movimientosAlReabrir Int
+  // Número de la OTRA semana abierta del período que estaba vacía y se borró en la misma operación (null = no hubo).
+  semanaVaciaEliminada Int?
+  createdAt            DateTime @default(now())
+
+  ejecucion EjecucionSemanal @relation(fields: [ejecucionId], references: [id], onDelete: Restrict)
+
+  @@index([ejecucionId])
 }
 
 // Un movimiento importado desde un extracto bancario, ya imputado
