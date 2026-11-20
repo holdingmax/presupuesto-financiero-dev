@@ -89,6 +89,21 @@ export function claveMovimiento(m: CamposClave): string {
   ]);
 }
 
+// Clave "base": fecha + importe + cuenta + concepto (y moneda si no es pesos), SIN saldo y SIN nro de
+// referencia. Es la de la segunda pasada del cotejo (ver separarNuevasDosPasadas). Ni el saldo ni la
+// referencia son datos firmes de la planilla de Kike: el saldo se recalcula entero si se corrige una
+// fila anterior, y la referencia puede venir vacía en una semana y completa en la siguiente (CHEQUE,
+// 13.11 → 20.11: 101 filas iguales salvo la referencia).
+export function claveMovimientoBase(m: CamposClave): string {
+  return JSON.stringify([
+    m.fecha.toISOString().slice(0, 10),
+    m.importeCentavos,
+    normalizarTexto(m.bancoYCuenta),
+    normalizarTexto(m.concepto),
+    ...monedaParaClave(m.moneda),
+  ]);
+}
+
 export function contarPorClave(claves: string[]): Map<string, number> {
   const conteo = new Map<string, number>();
   for (const c of claves) conteo.set(c, (conteo.get(c) ?? 0) + 1);
@@ -112,6 +127,58 @@ export function separarNuevas<T>(
     const quedan = restantes.get(clave) ?? 0;
     if (quedan > 0) {
       restantes.set(clave, quedan - 1);
+      cantidadYaCargadas++;
+    } else {
+      nuevas.push(fila);
+    }
+  }
+  return { nuevas, cantidadYaCargadas };
+}
+
+export type ClavesCotejo = { conSaldo: string; base: string };
+
+// Cotejo en dos pasadas (2026-11-20). La clave completa (con saldo y referencia) es casi única, pero
+// es frágil: si Kike corrige una fila anterior, la planilla recalcula los saldos de TODAS las filas
+// siguientes de esa cuenta, o completa la referencia de filas ya cargadas, y ninguna matchea con lo
+// cargado (se duplicaban o, peor, la cuenta entera se descartaba como "cargada por otro camino").
+// Entonces:
+//   1ª pasada: clave completa (la más precisa; separa filas idénticas con distinto saldo o referencia).
+//   2ª pasada: lo que quedó sin match, contra lo ya cargado que NO se usó en la 1ª, con la clave base
+//   (fecha + importe + cuenta + concepto). Sigue contando (N − M): las filas idénticas no se pierden.
+// Lo que el archivo trae de más sigue siendo nuevo; lo ya cargado que el archivo no trae no se toca.
+export function separarNuevasDosPasadas<T>(
+  filas: T[],
+  clavesDe: (fila: T) => ClavesCotejo,
+  existentes: ClavesCotejo[]
+): { nuevas: T[]; cantidadYaCargadas: number } {
+  // clave completa → claves base de las filas ya cargadas que todavía no se usaron
+  const disponibles = new Map<string, string[]>();
+  for (const e of existentes) {
+    const lista = disponibles.get(e.conSaldo);
+    if (lista) lista.push(e.base);
+    else disponibles.set(e.conSaldo, [e.base]);
+  }
+  let cantidadYaCargadas = 0;
+  const pendientes: { fila: T; base: string }[] = [];
+  for (const fila of filas) {
+    const k = clavesDe(fila);
+    const lista = disponibles.get(k.conSaldo);
+    if (lista && lista.length > 0) {
+      lista.pop();
+      cantidadYaCargadas++;
+    } else {
+      pendientes.push({ fila, base: k.base });
+    }
+  }
+  const sobrantes = new Map<string, number>();
+  for (const lista of disponibles.values()) {
+    for (const base of lista) sobrantes.set(base, (sobrantes.get(base) ?? 0) + 1);
+  }
+  const nuevas: T[] = [];
+  for (const { fila, base } of pendientes) {
+    const quedan = sobrantes.get(base) ?? 0;
+    if (quedan > 0) {
+      sobrantes.set(base, quedan - 1);
       cantidadYaCargadas++;
     } else {
       nuevas.push(fila);

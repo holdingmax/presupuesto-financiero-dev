@@ -1,5 +1,5 @@
 import { normalizarTexto } from "@/lib/texto";
-import { contarPorClave, separarNuevas } from "@/lib/conteoMovimientos";
+import { separarNuevasDosPasadas } from "@/lib/conteoMovimientos";
 import type { FilaMadre } from "./madre";
 
 // Piezas puras de la carga del archivo madre por la web (subirMadre, app/ejecucion/actions.ts).
@@ -18,7 +18,18 @@ export function esClasificacionExplicita(f: { clasificacion: string; sugeridaPor
   return !f.sugeridaPorSistema && f.clasificacion !== CLASIFICACION_VACIA;
 }
 
-export type FilaParaCotejo = { cuenta: string; clave: string; claveFIC: string };
+// De lo ya cargado en el rango de fechas, solo lo de las cuentas del archivo. Se compara con
+// normalizarCuenta (= normalizarTexto: saca tildes y mayúsculas) de los DOS lados: filtrar en SQL con
+// upper(trim()) dejaba afuera 'DÓLAR' (la base) contra 'DOLAR' (el archivo normalizado) y esa cuenta
+// se recargaba entera.
+export function existentesDeLasCuentas<T extends { bancoYCuenta: string }>(
+  existentes: T[],
+  cuentasNormalizadas: Set<string>
+): T[] {
+  return existentes.filter((m) => cuentasNormalizadas.has(normalizarTexto(m.bancoYCuenta)));
+}
+
+export type FilaParaCotejo = { cuenta: string; clave: string; claveBase: string; claveFIC: string };
 
 // "Una cuenta por un solo camino", por cuenta: una cuenta del archivo parece cargada por el OTRO
 // camino (extracto crudo) cuando ya tiene movimientos en las fechas del archivo, ninguna fila del
@@ -44,10 +55,13 @@ export function cuentasCargadasPorOtroCamino(filas: FilaParaCotejo[], existentes
   for (const [cuenta, delArchivo] of filasPorCuenta) {
     const deLaBase = existentesPorCuenta.get(cuenta);
     if (!deLaBase || deLaBase.length === 0) continue;
-    const { nuevas, cantidadYaCargadas } = separarNuevas(
+    // Dos pasadas (clave completa, después clave base sin saldo ni referencia): si Kike recalculó los
+    // saldos o completó las referencias de una cuenta, sus filas ya cargadas igual se reconocen y la
+    // cuenta no se descarta entera.
+    const { nuevas, cantidadYaCargadas } = separarNuevasDosPasadas(
       delArchivo,
-      (f) => f.clave,
-      contarPorClave(deLaBase.map((e) => e.clave))
+      (f) => ({ conSaldo: f.clave, base: f.claveBase }),
+      deLaBase.map((e) => ({ conSaldo: e.clave, base: e.claveBase }))
     );
     const parecidas = new Set(deLaBase.map((e) => e.claveFIC));
     if (cantidadYaCargadas === 0 && nuevas.some((n) => parecidas.has(n.claveFIC))) omitidas.add(cuenta);

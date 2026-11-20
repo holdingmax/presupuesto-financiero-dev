@@ -68,7 +68,12 @@ test("resumen: dos grafías de la misma clasificación nueva se cuentan juntas",
 
 // --- una cuenta por un solo camino, por cuenta -------------------------------------------------
 
-const fila = (cuenta: string, clave: string, fic = `fic-${clave}`): FilaParaCotejo => ({ cuenta, clave, claveFIC: fic });
+const fila = (cuenta: string, clave: string, fic = `fic-${clave}`, claveBase = clave): FilaParaCotejo => ({
+  cuenta,
+  clave,
+  claveBase,
+  claveFIC: fic,
+});
 
 test("otro camino: cuenta con movimientos en esas fechas, ninguno idéntico y alguno con misma fecha+importe → se omite", () => {
   const archivo = [fila("MACRO 599", "a", "x"), fila("GALICIA 731", "b")];
