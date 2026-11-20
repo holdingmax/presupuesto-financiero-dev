@@ -11,6 +11,7 @@ import {
   FilaDeAvanceVista,
   PieDeTotalesVista,
   PieNoDisponibleVista,
+  SinAsignarVista,
   TituloDeAvance,
 } from "./vistas";
 
@@ -46,13 +47,23 @@ export async function PieCargado({ alcance, cargas }: { alcance: Alcance; cargas
     if (!r || r.estado !== "ok") return <PieNoDisponibleVista />;
     filas.push(r.valor);
   }
-  return <PieDeTotalesVista totales={totalesDeEgresosOperativos(filas, alcance)} />;
+  const contexto = await cargas.contexto;
+  const ritmo = contexto.estado === "ok" ? armarEncabezadoDeAvance(contexto.valor.periodo, contexto.valor.semanas).ritmo : null;
+  return <PieDeTotalesVista totales={totalesDeEgresosOperativos(filas, alcance)} ritmo={ritmo} />;
 }
 
 export async function CalidadCargada({ cargas }: { cargas: CargasDelDashboard }) {
   const r = await cargas.calidad;
   if (r.estado === "error") return <ErrorDeSeccionVista texto="No se pudo cargar la calidad del dato. Probá recargar la página." />;
   return <CalidadVista calidad={r.valor} />;
+}
+
+// «Sin asignar»: solo ADMIN. Se monta únicamente dentro de la zona de administración (que page.tsx genera solo si cargas.control
+// existe); además, para quien no es ADMIN cargarCalidadDelMes devuelve sinAsignar = null y esta vista no pinta nada.
+export async function SinAsignarCargado({ cargas }: { cargas: CargasDelDashboard }) {
+  const r = await cargas.calidad;
+  if (r.estado === "error" || r.valor.sinAsignar === null) return null;
+  return <SinAsignarVista sinAsignar={r.valor.sinAsignar} />;
 }
 
 // Solo se monta si el usuario puede verlo (cargas.control no es null).

@@ -20,7 +20,9 @@ import {
   FilaDeAvanceVista,
   PieDeTotalesVista,
   PieNoDisponibleVista,
+  SinAsignarVista,
   TituloDeAvance,
+  ZonaAdminVista,
   marcasDeFila,
 } from "@/app/dashboard/vistas";
 import { IDS_ACTIVAS, alcanceDe } from "@/lib/dashboard/__tests__/fixturesAlcance";
@@ -32,6 +34,8 @@ const RAIZ = join(__dirname, "..", "..", "..");
 const leer = (rel: string) => readFileSync(join(RAIZ, rel), "utf8").replace(/\r\n/g, "\n");
 const sinComentarios = (f: string) => f.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\s\/\/ .*$/gm, "");
 const html = (el: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(el);
+// Texto visible de un HTML (sin etiquetas): para frases que el diseño reparte en varios elementos.
+const texto = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
 const celda = (p: number | null, r: number | null): CeldaDeAvance => ({
   presupuestado: p,
@@ -82,11 +86,18 @@ async function calidadParaRol(rol: "ADMIN" | "FINANZAS" | "GERENTE" | "VIEWER", 
 
 // ---- Qué se renderiza por rol ----------------------------------------------------------------------------------
 
-test("ADMIN: la calidad del dato trae «Sin asignar» como bloque aparte, con importes", async () => {
-  const salida = html(createElement(CalidadVista, { calidad: await calidadParaRol("ADMIN", []) }));
-  assert.match(salida, /Sin asignar/);
+test("ADMIN: «Sin asignar» va en la zona de administración (aparte de la calidad del dato), con cantidades e importes; la calidad en sí nunca lo trae", async () => {
+  const calidad = await calidadParaRol("ADMIN", []);
+  assert.ok(calidad.sinAsignar);
+  const zona = texto(html(createElement(ZonaAdminVista, null, createElement(SinAsignarVista, { sinAsignar: calidad.sinAsignar }))));
+  assert.match(zona, /Solo administración/);
+  assert.match(zona, /Sin asignar/);
+  assert.match(zona, /\$: 60 movimientos \(60 en lotes abiertos\)/, "cantidad de movimientos y los que están en lotes abiertos");
+  assert.match(zona, /ingresos \$429 ·/, "importe de ingresos, en pesos enteros como el Reporte");
+  assert.match(zona, /egresos -\$429$/, "importe de egresos, con signo");
+  const salida = html(createElement(CalidadVista, { calidad }));
   assert.match(salida, /Movimientos sin saldo/);
-  assert.match(salida, /429/);
+  assert.doesNotMatch(salida, /Sin asignar|429/, "ni siquiera con el dato en la mano: la vista de calidad no lo pinta");
 });
 
 test("FINANZAS, GERENTE y VIEWER: el HTML de la calidad NO trae «Sin asignar» (ni oculto con CSS: el texto no existe), aunque tengan las 12 empresas", async () => {
@@ -175,18 +186,33 @@ test("marcas de estado: presupuesto sin validar, sin presupuesto, partes manuale
 
 test("Expensas y los datos que faltan se muestran «—», nunca 0", () => {
   const e = filaSinReporte({ id: "expensas", nombre: "Expensas", slug: "expensas" });
-  const salida = html(createElement("table", null, createElement("tbody", null, createElement(FilaDeAvanceVista, { fila: e, hrefReporte: "/expensas/2026-11/reporte" }))));
-  assert.equal((salida.match(/>—</g) ?? []).length, 7, "las 7 celdas numéricas");
+  const salida = html(createElement(FilaDeAvanceVista, { fila: e, hrefReporte: "/expensas/2026-11/reporte" }));
+  assert.match(texto(salida), /Expensas/);
   assert.match(salida, /sin Reporte por plantilla/);
-  assert.doesNotMatch(salida, /\$0\b/);
+  assert.match(texto(salida), /no tiene Reporte por plantilla: no hay presupuesto ni avance para mostrar/);
+  assert.doesNotMatch(salida, /progressbar/, "sin Reporte no hay barras");
+  assert.doesNotMatch(texto(salida), /\$0\b|0%/, "nunca 0");
+  // Con el Reporte pero sin datos: cada monto y cada porcentaje faltante es «—» (nunca $0 ni 0%), y la barra no dice cuánto avanzó.
+  const sinDatos = html(createElement(FilaDeAvanceVista, { fila: fila({ egresosOperativos: celda(null, null), ingresos: celda(null, null) }), hrefReporte: "/b" }));
+  assert.equal((sinDatos.match(/>—</g) ?? []).length, 6, "avance, Real y Presupuestado de egresos operativos e ingresos: 6 «—»");
+  assert.match(texto(sinDatos), /Real — de — presupuestado/);
+  assert.doesNotMatch(texto(sinDatos), /\$0\b|(^|\D)0%/, "ni $0 ni 0% donde falta el dato");
+  assert.doesNotMatch(sinDatos, /aria-valuenow/);
 });
 
 test("monedas separadas: Bradenton en dólares y Havanna Perú en soles llevan su símbolo, no el peso", () => {
-  const usd = html(createElement("table", null, createElement("tbody", null, createElement(FilaDeAvanceVista, { fila: fila({ nombre: "Bradenton", slug: "bradenton", moneda: "USD", egresosOperativos: celda(100_000_00, 50_000_00) }), hrefReporte: "/b" }))));
-  assert.match(usd, /US\$ 100\.000/);
-  assert.match(usd, /\(US\$\)/);
-  const pen = html(createElement("table", null, createElement("tbody", null, createElement(FilaDeAvanceVista, { fila: fila({ nombre: "Havanna Perú", slug: "havanna-peru", moneda: "PEN" }), hrefReporte: "/h" }))));
-  assert.match(pen, /S\/ /);
+  const usd = html(createElement(FilaDeAvanceVista, { fila: fila({ nombre: "Bradenton", slug: "bradenton", moneda: "USD", egresosOperativos: celda(100_000_00, 50_000_00) }), hrefReporte: "/b" }));
+  assert.match(texto(usd), /Real US\$ 50\.000 de US\$ 100\.000 presupuestado/, "egresos en dólares: símbolo delante de Real y de Presupuestado");
+  assert.match(usd, /title="US\$ 50\.000"/, "el exacto en dólares");
+  assert.match(texto(usd), /US\$ · dólares/, "etiqueta de la moneda");
+  assert.doesNotMatch(texto(usd), /Real \$/, "ningún monto de Bradenton va con el signo del peso");
+  const pen = html(createElement(FilaDeAvanceVista, { fila: fila({ nombre: "Havanna Perú", slug: "havanna-peru", moneda: "PEN" }), hrefReporte: "/h" }));
+  assert.match(texto(pen), /S\/ 39\.429\.000|S\/ 39,4 M/, "montos en soles con su símbolo");
+  assert.match(texto(pen), /S\/ · soles/);
+  assert.doesNotMatch(texto(pen), /Real \$/);
+  const pesos = texto(html(createElement(FilaDeAvanceVista, { fila: fila(), hrefReporte: "/b" })));
+  assert.match(pesos, /Real \$39,4 M de \$67,5 M presupuestado/, "en pesos, sin etiqueta de moneda");
+  assert.doesNotMatch(pesos, /dólares|soles|US\$|S\//);
 });
 
 test("el pie: total por moneda, rotulado «Total del holding» solo para ADMIN y «Total de tus empresas» para el resto; los ingresos no se suman", async () => {
@@ -227,13 +253,15 @@ test("título: «Avance de <mes> · datos al dd/mm · N % del mes» y el aviso d
     { lunes: "2026-10-26", periodo: "2026-10", estado: "ABIERTA", movimientos: 45, ultimaFecha: "2026-10-31" },
   ];
   const e = armarEncabezadoDeAvance("2026-10", semanas);
-  const salida = html(createElement(TituloDeAvance, { encabezado: e }));
-  assert.match(salida, /Avance de Octubre 2026 · datos al 30\/10 · 97 % del mes/);
-  assert.match(salida, /Hay 1 semana con movimientos todavía en lotes abiertos: 45 movimientos quedan afuera/);
-  const limpio = html(createElement(TituloDeAvance, { encabezado: armarEncabezadoDeAvance("2026-11", SEMANAS) }));
-  assert.match(limpio, /Avance de Noviembre 2026 · datos al 13\/11 · 43 % del mes/);
+  // El título completo, en orden, tal como lo lee quien mira la pantalla (el diseño reparte las partes en elementos distintos).
+  const salida = texto(html(createElement(TituloDeAvance, { encabezado: e })));
+  assert.match(salida, /^Avance de Octubre 2026 datos al 30\/10 97 % del mes /);
+  assert.match(salida, /Hay 1 semana con movimientos todavía en lotes abiertos: 45 movimientos quedan afuera de estos números\.$/);
+  const limpio = texto(html(createElement(TituloDeAvance, { encabezado: armarEncabezadoDeAvance("2026-11", SEMANAS) })));
+  assert.equal(limpio, "Avance de Noviembre 2026 datos al 13/11 43 % del mes");
   assert.doesNotMatch(limpio, /lotes abiertos/);
-  assert.equal(html(createElement(TituloDeAvance, { encabezado: armarEncabezadoDeAvance("2026-11", []) })).includes("datos al"), false);
+  const sinDatos = texto(html(createElement(TituloDeAvance, { encabezado: armarEncabezadoDeAvance("2026-11", []) })));
+  assert.equal(sinDatos, "Avance de Noviembre 2026", "sin datos del mes no hay «datos al» ni «% del mes»");
 });
 
 test("el selector de mes solo ofrece los períodos habilitados y cualquier otro valor cae en el último", () => {

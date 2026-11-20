@@ -30,15 +30,20 @@ export function Listo({ id }: { id: string }) {
   return null;
 }
 
+// Texto y una barra fina quieta (sin animación): se va llenando a medida que llegan las empresas y desaparece al terminar.
 export function IndicadorDeProgreso() {
   const estado = useContext(ContextoDeProgreso);
   if (!estado) return null;
   const { total, listos } = estado;
   if (total === 0 || listos.size >= total) return null;
   return (
-    <p role="status" aria-live="polite" className="mt-2 flex items-center gap-2 text-sm text-ink-secondary">
-      <span aria-hidden="true" className="h-3 w-3 animate-spin rounded-full border-2 border-line-strong border-t-marino" />
-      Cargando {listos.size} de {total} {total === 1 ? "empresa" : "empresas"}…
-    </p>
+    <div role="status" aria-live="polite" className="dash-noprint mt-4 max-w-xs">
+      <p className="text-sm text-ink-secondary">
+        Cargando {listos.size} de {total} {total === 1 ? "empresa" : "empresas"}…
+      </p>
+      <div className="mt-1.5 h-1 rounded-sm bg-marino-tint">
+        <div className="h-1 rounded-sm bg-marino" style={{ width: `${(listos.size / total) * 100}%` }} />
+      </div>
+    </div>
   );
 }

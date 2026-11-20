@@ -155,3 +155,233 @@ body {
       );
   }
 }
+
+/* ==========================================================================
+   Dashboard (/dashboard). Todo con prefijo .dash-: no toca ninguna otra pantalla.
+   Colores: marino (egresos), acero (ingresos), dorado (marca del ritmo del mes: es una
+   REFERENCIA, no un semáforo) sobre la paleta de siempre. El color nunca es el único
+   portador de información: cada barra lleva su porcentaje en texto y la marca, su leyenda.
+   ========================================================================== */
+.dash-pagina {
+  --dash-acero: #4a76a8; /* barra de ingresos */
+  --dash-dorado: #b8862b; /* marca del ritmo del mes */
+}
+
+.dash-num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.dash-pagina a:focus-visible,
+.dash-pagina summary:focus-visible {
+  outline: 2px solid var(--marino);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Resumen del mes: una sola pieza grande, sin sombra. */
+.dash-hero {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+@media (min-width: 40rem) {
+  .dash-hero {
+    padding: 1.75rem 2rem 2rem;
+  }
+}
+
+/* Selector de mes segmentado */
+.dash-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--marino-tint);
+  border-radius: 999px;
+}
+.dash-seg a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  text-decoration: none;
+}
+.dash-seg a:hover {
+  color: var(--marino-dark);
+}
+.dash-seg a[aria-current="page"] {
+  background: var(--marino-dark);
+  color: #fff;
+}
+
+/* Barra de avance con la marca del ritmo del mes */
+.dash-bar {
+  position: relative;
+  height: 0.5rem;
+  border-radius: 2px;
+  background: var(--marino-tint);
+  box-shadow: inset 0 0 0 1px var(--marino-mist);
+}
+.dash-bar--grande {
+  height: 0.875rem;
+  border-radius: 3px;
+}
+.dash-bar__relleno {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px 0 0 2px;
+  background: var(--marino);
+  transform-origin: left center;
+}
+.dash-bar--ingresos .dash-bar__relleno {
+  background: var(--dash-acero);
+}
+.dash-bar--excede .dash-bar__relleno {
+  border-radius: 2px;
+}
+.dash-bar__marca {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--dash-dorado);
+  box-shadow: 0 0 0 1px var(--paper-raised);
+}
+.dash-bar__marca::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -4px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--marino-dark);
+}
+
+/* Único movimiento de la pantalla: las barras se llenan al cargar. */
+@media (prefers-reduced-motion: no-preference) {
+  .dash-bar__relleno {
+    animation: dash-llenar 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+@keyframes dash-llenar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Leyenda de la marca (misma forma que la marca) */
+.dash-leyenda-marca {
+  display: inline-block;
+  width: 2px;
+  height: 0.9em;
+  margin-right: 0.4rem;
+  vertical-align: -0.1em;
+  background: var(--dash-dorado);
+  box-shadow: 0 0 0 1px var(--paper-raised), 0 0 0 2px var(--marino-mist);
+}
+
+/* Tarjeta de empresa: borde fino y radio chico, sin sombra */
+.dash-grilla {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+}
+.dash-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem 1.125rem 1.125rem;
+  break-inside: avoid;
+}
+.dash-card--error {
+  border-color: var(--negative);
+}
+
+/* Esqueleto de una empresa que todavía no llegó (sin animación) */
+.dash-esqueleto {
+  display: block;
+  border-radius: 3px;
+  background: var(--paper-cool);
+}
+
+/* Etiquetas suaves de estado */
+.dash-etiqueta {
+  display: inline-block;
+  padding: 0.125rem 0.625rem;
+  border-radius: 999px;
+  background: var(--paper-cool);
+  color: var(--ink-secondary);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+}
+
+/* Zona de administración: aparte del resto (fondo tenue y filo marino a la izquierda) */
+.dash-admin {
+  background: var(--marino-tint);
+  border-left: 4px solid var(--marino-dark);
+  border-radius: 3px;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+.dash-admin__item {
+  background: var(--paper-raised);
+  border-radius: 6px;
+  padding: 0.875rem 1rem;
+}
+
+/* Calidad del dato: colapsable */
+.dash-calidad > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.dash-calidad > summary::-webkit-details-marker {
+  display: none;
+}
+.dash-calidad[open] .dash-calidad__flecha {
+  transform: rotate(90deg);
+}
+
+/* Impresión (base para un futuro PDF): sin navegación ni controles, tarjetas enteras, colores de las barras conservados */
+@media print {
+  .dash-noprint {
+    display: none !important;
+  }
+  .dash-pagina {
+    max-width: none;
+    padding: 0;
+  }
+  .dash-pagina a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .dash-hero,
+  .dash-card,
+  .dash-admin {
+    border-color: #999;
+    break-inside: avoid;
+  }
+  .dash-grilla {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  .dash-bar,
+  .dash-bar__relleno,
+  .dash-bar__marca,
+  .dash-bar__marca::before,
+  .dash-leyenda-marca,
+  .dash-etiqueta,
+  .dash-admin {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .dash-bar__relleno {
+    animation: none !important;
+  }
+}

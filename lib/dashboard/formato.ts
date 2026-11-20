@@ -31,3 +31,17 @@ export function cantidad(n: number): string {
 export function ddMm(fecha: string): string {
   return `${fecha.slice(8, 10)}/${fecha.slice(5, 7)}`;
 }
+
+// Monto en millones para las tarjetas («$2.189 M», «$67,5 M», «US$ 0,4 M»): desde un millón se abrevia (sin decimales desde 100 M,
+// con uno por debajo); por debajo de un millón se muestra entero. El número exacto va aparte (importeDeAvance, en el title).
+// Siempre con separador de miles, también en 4 cifras. null = falta el dato: «—», nunca 0.
+export function importeEnMillones(centavos: number | null, moneda: string): string {
+  if (centavos === null) return NO_HAY;
+  const unidades = Math.abs(centavos) / 100;
+  const texto =
+    unidades >= 1_000_000
+      ? `${(unidades / 1_000_000).toLocaleString("es-AR", { maximumFractionDigits: unidades >= 100_000_000 ? 0 : 1, useGrouping: "always" })} M`
+      : unidades.toLocaleString("es-AR", { maximumFractionDigits: 0, useGrouping: "always" });
+  const completo = `${prefijoMoneda(moneda)}${texto}`;
+  return centavos < 0 ? `-${completo}` : completo;
+}
