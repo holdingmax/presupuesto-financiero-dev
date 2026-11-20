@@ -1,3 +1,4 @@
+import type { FilaDeAvance, RitmoDelMes } from "@/lib/dashboard/avance";
 import type { Indicador } from "@/lib/dashboard/calidad";
 
 // Reglas PURAS de presentación del dashboard (rediseño visual). Sin Prisma ni next/*. No calculan datos del negocio: solo
@@ -29,4 +30,32 @@ export function geometriaDeBarra(avance: number | null, ritmo: number | null): G
 // Indicadores de calidad con algún movimiento (los únicos que se destacan; el resto queda sobrio).
 export function indicadoresConValor(indicadores: readonly Indicador[]): Indicador[] {
   return indicadores.filter((i) => i.total > 0);
+}
+
+// ---- Etiquetas de estado de una empresa ------------------------------------------------------------------------------
+
+// Categoría de color de una etiqueta: es una CLASIFICACIÓN del tipo de estado, no un veredicto (nada de bien/mal):
+//  - ambar: falta un dato o una validación (presupuesto sin validar / sin presupuesto / sin líneas, Real manual pendiente);
+//  - celeste: el número incluye partes manuales o parciales;
+//  - gris: la empresa no tiene Reporte por plantilla.
+// El texto de la etiqueta siempre dice el estado: el color es un apoyo, no el portador.
+export type CategoriaDeEtiqueta = "ambar" | "celeste" | "gris";
+export type EtiquetaDeEstado = Readonly<{ texto: string; categoria: CategoriaDeEtiqueta }>;
+
+export function etiquetasDeFila(fila: FilaDeAvance): EtiquetaDeEstado[] {
+  const etiquetas: EtiquetaDeEstado[] = [];
+  if (fila.sinReporte) etiquetas.push({ texto: "sin Reporte por plantilla", categoria: "gris" });
+  if (fila.cartelPresupuesto) etiquetas.push({ texto: fila.cartelPresupuesto, categoria: "ambar" });
+  if (fila.incluyePartesManualesOParciales) etiquetas.push({ texto: "incluye partes manuales o parciales", categoria: "celeste" });
+  if (fila.realManualPendiente) etiquetas.push({ texto: "Real manual pendiente", categoria: "ambar" });
+  return etiquetas;
+}
+
+// La leyenda de la marca del ritmo se muestra UNA vez, en el resumen. En la tarjeta de una empresa solo si el ritmo de esa
+// empresa difiere del general (por ejemplo, una empresa con datos hasta el 12 cuando el resto llega al 13). Sin ritmo general
+// conocido, se muestra (no se puede afirmar que sea igual).
+export function mostrarRitmoPropio(ritmoDeLaEmpresa: RitmoDelMes | null, ritmoGeneral: RitmoDelMes | null | undefined): boolean {
+  if (ritmoDeLaEmpresa === null) return false;
+  if (ritmoGeneral === null || ritmoGeneral === undefined) return true;
+  return ritmoDeLaEmpresa.diasConDatos !== ritmoGeneral.diasConDatos || ritmoDeLaEmpresa.diasDelMes !== ritmoGeneral.diasDelMes;
 }

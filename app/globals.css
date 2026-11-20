@@ -158,13 +158,28 @@ body {
 
 /* ==========================================================================
    Dashboard (/dashboard). Todo con prefijo .dash-: no toca ninguna otra pantalla.
-   Colores: marino (egresos), acero (ingresos), dorado (marca del ritmo del mes: es una
-   REFERENCIA, no un semáforo) sobre la paleta de siempre. El color nunca es el único
-   portador de información: cada barra lleva su porcentaje en texto y la marca, su leyenda.
+   El color es IDENTIDAD y orden, nunca un veredicto: azul vivo = egresos operativos, teal = ingresos, dorado = marca del
+   ritmo del mes (una referencia, no una meta). No hay rojo/verde de semáforo ni umbrales. El color nunca es el único portador
+   de información: cada barra lleva su porcentaje en texto y cada etiqueta, su estado escrito.
+   Contrastes medidos (WCAG 2.x): texto >= 4,5:1 (blanco sobre marino 15,8; % egresos 5,7; % ingresos 5,2; etiquetas 6,6 a 7,2);
+   gráficos >= 3:1 (relleno egresos/pista 4,6; relleno ingresos/pista 3,45; barra del hero 3,4; marca clara/pista 3,6;
+   marca vivo/marino 7,4).
    ========================================================================== */
 .dash-pagina {
-  --dash-acero: #4a76a8; /* barra de ingresos */
-  --dash-dorado: #b8862b; /* marca del ritmo del mes */
+  --dash-marino: #14233a;
+  --dash-azul: #2563c9; /* egresos operativos */
+  --dash-azul-claro: #5b9bff; /* egresos sobre fondo oscuro */
+  --dash-azul-pista: #dce8fa;
+  --dash-teal: #0e8c7f; /* ingresos */
+  --dash-teal-texto: #0b7a6e;
+  --dash-teal-pista: #d5f0ec;
+  --dash-dorado: #a86b00; /* marca del ritmo sobre fondo claro (con anillo blanco) */
+  --dash-dorado-vivo: #e0a82e; /* marca del ritmo sobre fondo oscuro */
+}
+
+/* Fondo de la pantalla: un tinte azulado muy leve, no blanco puro */
+.dash-fondo {
+  background: #eef2f7;
 }
 
 .dash-num {
@@ -173,93 +188,126 @@ body {
 
 .dash-pagina a:focus-visible,
 .dash-pagina summary:focus-visible {
-  outline: 2px solid var(--marino);
+  outline: 2px solid var(--dash-azul);
   outline-offset: 3px;
   border-radius: 4px;
 }
 
-/* Resumen del mes: una sola pieza grande, sin sombra. */
+/* Resumen del mes: azul marino profundo con un degradé sobrio, el único de la pantalla */
 .dash-hero {
-  background: var(--paper-raised);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 1.25rem 1.25rem 1.5rem;
+  color: #fff;
+  background: linear-gradient(135deg, #0f1d33 0%, #14233a 55%, #1f3a63 100%);
+  border-radius: 18px;
+  padding: 1.5rem 1.25rem 1.75rem;
 }
 @media (min-width: 40rem) {
   .dash-hero {
-    padding: 1.75rem 2rem 2rem;
+    padding: 2.25rem 2.5rem 2.5rem;
   }
 }
+.dash-pagina .dash-hero a:focus-visible,
+.dash-pagina .dash-hero summary:focus-visible {
+  outline-color: #fff;
+}
+.dash-hero__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.875rem;
+}
 
-/* Selector de mes segmentado */
+/* Selector de mes segmentado, legible sobre el fondo oscuro */
 .dash-seg {
   display: inline-flex;
   gap: 2px;
   padding: 3px;
-  background: var(--marino-tint);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
 }
 .dash-seg a {
   display: inline-flex;
   align-items: center;
   min-height: 2.25rem;
-  padding: 0 1rem;
+  padding: 0 1.1rem;
   border-radius: 999px;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--ink-secondary);
+  color: rgba(255, 255, 255, 0.88);
   text-decoration: none;
 }
 .dash-seg a:hover {
-  color: var(--marino-dark);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 .dash-seg a[aria-current="page"] {
-  background: var(--marino-dark);
-  color: #fff;
+  background: #fff;
+  color: var(--dash-marino);
 }
 
-/* Barra de avance con la marca del ritmo del mes */
+/* Barra de avance con la marca del ritmo del mes: gruesa, con pista teñida del mismo tono y puntas redondeadas */
 .dash-bar {
   position: relative;
-  height: 0.5rem;
-  border-radius: 2px;
-  background: var(--marino-tint);
-  box-shadow: inset 0 0 0 1px var(--marino-mist);
+  height: 0.75rem;
+  border-radius: 999px;
+  background: var(--dash-azul-pista);
+}
+.dash-bar--ingresos {
+  background: var(--dash-teal-pista);
 }
 .dash-bar--grande {
-  height: 0.875rem;
-  border-radius: 3px;
+  height: 1.25rem;
 }
 .dash-bar__relleno {
   position: absolute;
   inset: 0 auto 0 0;
-  border-radius: 2px 0 0 2px;
-  background: var(--marino);
+  border-radius: 999px;
+  background: var(--dash-azul);
   transform-origin: left center;
 }
 .dash-bar--ingresos .dash-bar__relleno {
-  background: var(--dash-acero);
+  background: var(--dash-teal);
 }
 .dash-bar--excede .dash-bar__relleno {
-  border-radius: 2px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
 }
 .dash-bar__marca {
   position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 2px;
-  margin-left: -1px;
+  top: -5px;
+  bottom: -5px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
   background: var(--dash-dorado);
-  box-shadow: 0 0 0 1px var(--paper-raised);
+  box-shadow: 0 0 0 2px #fff;
 }
 .dash-bar__marca::before {
   content: "";
   position: absolute;
-  top: -5px;
+  top: -7px;
   left: -4px;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 6px solid var(--marino-dark);
+  border-left: 5.5px solid transparent;
+  border-right: 5.5px solid transparent;
+  border-top: 6px solid var(--dash-marino);
+  margin-left: -1px;
+}
+/* Sobre el hero: pista translúcida, relleno luminoso y marca dorada con anillo oscuro */
+.dash-hero .dash-bar {
+  background: rgba(255, 255, 255, 0.16);
+}
+.dash-hero .dash-bar__relleno {
+  background: var(--dash-azul-claro);
+  box-shadow: 0 0 14px 1px rgba(91, 155, 255, 0.55);
+}
+.dash-hero .dash-bar__marca {
+  background: var(--dash-dorado-vivo);
+  box-shadow: 0 0 0 2px var(--dash-marino);
+}
+.dash-hero .dash-bar__marca::before {
+  border-top-color: #fff;
 }
 
 /* Único movimiento de la pantalla: las barras se llenan al cargar. */
@@ -277,66 +325,141 @@ body {
   }
 }
 
-/* Leyenda de la marca (misma forma que la marca) */
+/* Leyenda de la marca (misma forma y color que la marca) */
 .dash-leyenda-marca {
   display: inline-block;
-  width: 2px;
-  height: 0.9em;
-  margin-right: 0.4rem;
-  vertical-align: -0.1em;
+  width: 3px;
+  height: 0.95em;
+  margin-right: 0.45rem;
+  vertical-align: -0.12em;
+  border-radius: 2px;
   background: var(--dash-dorado);
-  box-shadow: 0 0 0 1px var(--paper-raised), 0 0 0 2px var(--marino-mist);
+  box-shadow: 0 0 0 1px #fff, 0 0 0 2px #b8c2d3;
+}
+.dash-hero .dash-leyenda-marca {
+  background: var(--dash-dorado-vivo);
+  box-shadow: 0 0 0 2px var(--dash-marino);
 }
 
-/* Tarjeta de empresa: borde fino y radio chico, sin sombra */
+/* Tarjeta de empresa: monograma, filo de dos colores arriba (egresos | ingresos) y toda la tarjeta lleva al Reporte */
 .dash-grilla {
   display: grid;
-  gap: 1rem;
+  gap: 1.125rem;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
 }
 .dash-card {
-  background: var(--paper-raised);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 1rem 1.125rem 1.125rem;
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #d3dbe6;
+  border-radius: 12px;
+  padding: 1.5rem 1.25rem 1.25rem;
   break-inside: avoid;
+}
+.dash-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--dash-azul) 0 50%, var(--dash-teal) 50% 100%);
+}
+.dash-card--enlace:hover {
+  border-color: var(--dash-azul);
 }
 .dash-card--error {
   border-color: var(--negative);
+}
+.dash-card--error::before {
+  background: var(--negative);
+}
+.dash-card__enlace::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.dash-card__enlace:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.dash-pagina .dash-card__enlace:focus-visible {
+  outline: none;
+}
+.dash-card__enlace:focus-visible::after {
+  outline: 2px solid var(--dash-azul);
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+.dash-monograma {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: var(--dash-marino);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.dash-pct--egresos {
+  color: var(--dash-azul);
+}
+.dash-pct--ingresos {
+  color: var(--dash-teal-texto);
+}
+.dash-muestra {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: 0.4rem;
+  border-radius: 3px;
+  background: var(--dash-azul);
+}
+.dash-muestra--ingresos {
+  background: var(--dash-teal);
 }
 
 /* Esqueleto de una empresa que todavía no llegó (sin animación) */
 .dash-esqueleto {
   display: block;
-  border-radius: 3px;
-  background: var(--paper-cool);
+  border-radius: 6px;
+  background: #e4eaf3;
+}
+.dash-hero .dash-esqueleto {
+  background: rgba(255, 255, 255, 0.14);
 }
 
-/* Etiquetas suaves de estado */
+/* Etiquetas de estado: color suave por CATEGORÍA (no por veredicto); el texto siempre dice el estado */
 .dash-etiqueta {
   display: inline-block;
   padding: 0.125rem 0.625rem;
   border-radius: 999px;
-  background: var(--paper-cool);
-  color: var(--ink-secondary);
+  background: #e6e9ee;
+  color: #454b53;
   font-size: 0.75rem;
   line-height: 1.25rem;
 }
-
-/* Zona de administración: aparte del resto (fondo tenue y filo marino a la izquierda) */
-.dash-admin {
-  background: var(--marino-tint);
-  border-left: 4px solid var(--marino-dark);
-  border-radius: 3px;
-  padding: 1.25rem 1.25rem 1.5rem;
+.dash-etiqueta[data-categoria="ambar"] {
+  background: #fdf0d3;
+  color: #7a4b00;
 }
-.dash-admin__item {
-  background: var(--paper-raised);
-  border-radius: 6px;
-  padding: 0.875rem 1rem;
+.dash-etiqueta[data-categoria="celeste"] {
+  background: #ddebfb;
+  color: #124b8f;
+}
+.dash-etiqueta[data-categoria="gris"] {
+  background: #e6e9ee;
+  color: #454b53;
 }
 
-/* Calidad del dato: colapsable */
+/* Calidad del dato: mismo lenguaje (tarjeta blanca, datos en azulado suave, lo distinto de cero resaltado) */
+.dash-calidad {
+  background: #fff;
+  border: 1px solid #d3dbe6;
+  border-radius: 12px;
+}
 .dash-calidad > summary {
   cursor: pointer;
   list-style: none;
@@ -347,11 +470,53 @@ body {
 .dash-calidad[open] .dash-calidad__flecha {
   transform: rotate(90deg);
 }
+.dash-calidad__resumen {
+  display: inline-block;
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  background: #ddebfb;
+  color: #124b8f;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.dash-dato {
+  min-width: 9rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: #f1f5fb;
+}
+.dash-calidad li:not([data-con-valor]) {
+  color: #596270; /* indicadores en cero: tenues pero legibles (6,3:1 sobre blanco) */
+}
+.dash-calidad li[data-con-valor] {
+  margin-inline: -0.5rem;
+  padding-inline: 0.5rem;
+  border-radius: 6px;
+  background: #eaf1fb;
+  box-shadow: inset 3px 0 0 var(--dash-azul);
+}
+
+/* Zona de administración: claramente aparte (borde punteado, fondo propio e ícono de candado) */
+.dash-admin {
+  background: #e3e8f1;
+  border: 2px dashed var(--dash-marino);
+  border-radius: 6px;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+.dash-admin__item {
+  background: #fff;
+  border: 1px solid #c3cddd;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+}
 
 /* Impresión (base para un futuro PDF): sin navegación ni controles, tarjetas enteras, colores de las barras conservados */
 @media print {
   .dash-noprint {
     display: none !important;
+  }
+  .dash-fondo {
+    background: #fff;
   }
   .dash-pagina {
     max-width: none;
@@ -363,6 +528,7 @@ body {
   }
   .dash-hero,
   .dash-card,
+  .dash-calidad,
   .dash-admin {
     border-color: #999;
     break-inside: avoid;
@@ -371,13 +537,17 @@ body {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
   }
+  .dash-hero,
+  .dash-card::before,
+  .dash-monograma,
   .dash-bar,
   .dash-bar__relleno,
   .dash-bar__marca,
   .dash-bar__marca::before,
   .dash-leyenda-marca,
   .dash-etiqueta,
-  .dash-admin {
+  .dash-admin,
+  .dash-dato {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

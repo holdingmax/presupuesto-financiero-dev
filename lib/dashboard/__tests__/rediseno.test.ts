@@ -202,10 +202,51 @@ const CSS = leer("app/globals.css");
 const DASH_CSS = CSS.slice(CSS.lastIndexOf("/*", CSS.indexOf("Dashboard (/dashboard)")));
 const TSX = readdirSync(join(RAIZ, "app", "dashboard")).filter((a) => a.endsWith(".tsx")).map((a) => [a, sinComentarios(leer(`app/dashboard/${a}`))] as const);
 
-test("estilo: sin degradados decorativos, sin sombras difusas y sin mayúsculas con espaciado en los títulos", () => {
+// Reglas del CSS del dashboard como [selector, cuerpo] (también las anidadas en @media; los pasos de @keyframes no cuentan).
+function reglasDeCss(css: string): [string, string][] {
+  const limpio = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const reglas: [string, string][] = [];
+  const pila: string[] = [];
+  let preludio = "";
+  let cuerpo = "";
+  for (const c of limpio) {
+    if (c === "{") {
+      const p = preludio.trim();
+      pila.push(p);
+      cuerpo = "";
+      preludio = "";
+    } else if (c === "}") {
+      const p = pila.pop() ?? "";
+      if (!p.startsWith("@") && !pila.some((x) => x.startsWith("@keyframes"))) reglas.push([p, cuerpo]);
+      cuerpo = "";
+      preludio = "";
+    } else {
+      if (pila.length > 0) cuerpo += c;
+      preludio += c;
+    }
+  }
+  return reglas;
+}
+// Radio de desenfoque (el 3.er largo) de cada capa de un box-shadow.
+const desenfoques = (valor: string) =>
+  valor.split(/,(?![^(]*\))/).map((capa) => {
+    const largos = capa.replace(/rgba?\([^)]*\)|#[0-9a-fA-F]+|inset/g, " ").trim().split(/\s+/).filter(Boolean);
+    return largos.length >= 3 ? parseFloat(largos[2]) : 0;
+  });
+
+test("estilo: exactamente 2 degradés (el del hero y el filo de la tarjeta), sin sombras difusas salvo el brillo del hero, y sin mayúsculas con espaciado en los títulos", () => {
   assert.ok(DASH_CSS.length > 1000);
-  assert.doesNotMatch(DASH_CSS, /gradient\(/);
-  for (const m of DASH_CSS.matchAll(/box-shadow:([^;]+);/g)) assert.doesNotMatch(m[1], /\d+px \d+px \d+px/, "solo anillos de 1px, sin sombra difusa");
+  // Degradés: exactamente dos, ambos lineales, y en las dos reglas permitidas.
+  assert.equal((DASH_CSS.match(/-gradient\(/g) ?? []).length, 2);
+  assert.doesNotMatch(DASH_CSS, /radial-gradient|conic-gradient|repeating-/);
+  const conDegrade = reglasDeCss(DASH_CSS).filter(([, c]) => /linear-gradient\(/.test(c)).map(([s]) => s).sort();
+  assert.deepEqual(conDegrade, [".dash-card::before", ".dash-hero"]);
+  // Sombras: solo anillos y contornos (ninguna capa con desenfoque), con UNA excepción: el brillo del relleno de la barra del hero.
+  const conDesenfoque: string[] = [];
+  for (const [selector, cuerpo] of reglasDeCss(DASH_CSS)) {
+    for (const m of cuerpo.matchAll(/box-shadow:([^;]+);/g)) if (desenfoques(m[1]).some((d) => d > 0)) conDesenfoque.push(selector);
+  }
+  assert.deepEqual(conDesenfoque, [".dash-hero .dash-bar__relleno"], "el único brillo es el de la barra del resumen (hero)");
   for (const [archivo, f] of TSX) {
     assert.doesNotMatch(f, /\buppercase\b|tracking-\[|tracking-(wide|wider|widest)\b/, archivo);
     assert.doesNotMatch(f, /\bshadow(-[a-z0-9/]+)?\b/, `${archivo}: sin sombras de utilidades`);
@@ -292,8 +333,10 @@ test("el estilo vive solo en globals.css con prefijo .dash-: TODOS los selectore
   // el analizador ve también lo anidado: la sección de impresión aporta sus selectores
   assert.ok(selectores.includes(".dash-noprint") && selectores.includes(".dash-pagina a"));
   // las variables propias llevan el mismo prefijo
-  assert.deepEqual([...DASH_CSS.matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1]).sort(), ["--dash-acero", "--dash-dorado"]);
-  assert.doesNotMatch(DASH_CSS, /var\(--(acero|dorado)\)/);
+  const variables = [...DASH_CSS.matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1]).sort();
+  assert.deepEqual(variables, ["--dash-azul", "--dash-azul-claro", "--dash-azul-pista", "--dash-dorado", "--dash-dorado-vivo", "--dash-marino", "--dash-teal", "--dash-teal-pista", "--dash-teal-texto"]);
+  for (const v of variables) assert.match(v, /^--dash-/);
+  assert.doesNotMatch(DASH_CSS, /var\(--(acero|dorado|azul|teal|marino)\)/, "ninguna variable sin el prefijo");
   // el analizador no se queda mudo: detecta un selector sin prefijo escondido en un @media
   assert.deepEqual(selectoresDe("@media print { body { color: red; } .dash-x { color: blue; } } @keyframes k { from { a: b } to { a: c } }"), ["body", ".dash-x"]);
 });

@@ -38,11 +38,11 @@ export function IndicadorDeProgreso() {
   if (total === 0 || listos.size >= total) return null;
   return (
     <div role="status" aria-live="polite" className="dash-noprint mt-4 max-w-xs">
-      <p className="text-sm text-ink-secondary">
+      <p className="text-sm text-white/85">
         Cargando {listos.size} de {total} {total === 1 ? "empresa" : "empresas"}…
       </p>
-      <div className="mt-1.5 h-1 rounded-sm bg-marino-tint">
-        <div className="h-1 rounded-sm bg-marino" style={{ width: `${(listos.size / total) * 100}%` }} />
+      <div className="mt-1.5 h-1.5 rounded-full bg-white/15">
+        <div className="h-1.5 rounded-full bg-[#5b9bff]" style={{ width: `${(listos.size / total) * 100}%` }} />
       </div>
     </div>
   );

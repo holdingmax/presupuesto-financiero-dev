@@ -57,7 +57,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         <section aria-labelledby="resumen" className="dash-hero">
           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
             <div className="min-w-0">
-              <Suspense fallback={<h1 id="resumen" className="font-serif text-[1.75rem] leading-tight font-semibold tracking-tight text-marino-dark sm:text-4xl">Avance del mes</h1>}>
+              <Suspense fallback={<h1 id="resumen" className="font-serif text-[1.75rem] leading-tight font-semibold tracking-tight text-white sm:text-4xl">Avance del mes</h1>}>
                 <EncabezadoCargado cargas={cargas} />
               </Suspense>
             </div>
@@ -110,7 +110,7 @@ export default async function DashboardPage({ searchParams }: Props) {
 
 function Marco({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="dash-fondo flex flex-1 flex-col">
       <header className="dash-noprint bg-marino-dark text-white">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div>

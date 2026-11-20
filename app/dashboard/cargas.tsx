@@ -27,10 +27,13 @@ export async function EncabezadoCargado({ cargas }: { cargas: CargasDelDashboard
 export async function FilaDeEmpresaCargada({ empresa, cargas }: { empresa: EmpresaDelAlcance; cargas: CargasDelDashboard }) {
   const promesa = cargas.empresas.get(empresa.id);
   const resultado = promesa ? await promesa : ({ estado: "error" } as const);
+  // Ritmo general del mes (el del resumen): la tarjeta repite la leyenda de la marca solo si el de la empresa difiere.
+  const contexto = await cargas.contexto;
+  const ritmoGeneral = contexto.estado === "ok" ? armarEncabezadoDeAvance(contexto.valor.periodo, contexto.valor.semanas).ritmo : null;
   return (
     <>
       {resultado.estado === "ok" ? (
-        <FilaDeAvanceVista fila={resultado.valor} hrefReporte={`/${empresa.slug}/${cargas.periodo}/reporte`} />
+        <FilaDeAvanceVista fila={resultado.valor} hrefReporte={`/${empresa.slug}/${cargas.periodo}/reporte`} ritmoGeneral={ritmoGeneral} />
       ) : (
         <FilaConErrorVista nombre={empresa.nombre} />
       )}
