@@ -72,7 +72,6 @@ export default async function EjecucionMesPage({ params, searchParams }: Props) 
           )}
         </div>
         <div className="text-right">
-          {!datos.esViewer && (
           <a
             href={hrefConFiltro(`${base}/excel`, clasificacion)}
             className="rounded-md px-2.5 py-1 text-sm text-marino border border-marino hover:bg-marino-tint transition"
@@ -84,7 +83,6 @@ export default async function EjecucionMesPage({ params, searchParams }: Props) 
           >
             {clasificacion ? "Descargar Excel (filtrado)" : "Descargar Excel"}
           </a>
-          )}
         </div>
       </div>
 

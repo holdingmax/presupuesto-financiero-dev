@@ -234,16 +234,19 @@ test("pantallas: Presupuesto, carga, extracto, Ejecución global y /admin muestr
   assert.match(leer("components/AvisoSinAccesoPantalla.tsx"), /MENSAJE_SIN_ACCESO_A_PANTALLA/);
 });
 
-test("Excel de Ejecución: 403 al VIEWER en las rutas de la empresa y ocultar el botón; la global ya lo rechaza por veTodoEjecucion", () => {
+// CAMBIO (pedido de Kike): el VIEWER SÍ descarga el Excel del Historial de ejecución de su empresa (semana y todo el mes),
+// igual que un gerente (ver lib/__tests__/excelEjecucionViewer.test.ts). El de Ejecución GLOBAL (todas las empresas, con saldo) sigue cerrado.
+test("Excel de Ejecución: las rutas de la empresa ya no excluyen al VIEWER (acceso por empresa asignada); la global lo sigue rechazando", () => {
   for (const rel of [
     "app/[empresa]/[periodo]/ejecucion/[numeroSemana]/excel/route.ts",
     "app/[empresa]/[periodo]/ejecucion/mes/excel/route.ts",
   ]) {
-    assert.match(leer(rel), /if \(esViewer\(usuario\)\) return new Response\("Sin acceso\.", \{ status: 403 \}\)/, rel);
+    assert.doesNotMatch(leer(rel), /esViewer/, rel);
+    assert.match(leer(rel), /requireAccesoEmpresa\(empresa\.id\)/, rel);
   }
   assert.match(leer("app/ejecucion/[periodo]/[numeroSemana]/excel/route.ts"), /requireVerEjecucionGlobal\(\)/);
-  assert.match(leer("app/[empresa]/[periodo]/ejecucion/[numeroSemana]/page.tsx"), /!datos\.esViewer && \(/);
-  assert.match(leer("app/[empresa]/[periodo]/ejecucion/mes/page.tsx"), /!datos\.esViewer && \(/);
+  assert.doesNotMatch(leer("app/[empresa]/[periodo]/ejecucion/[numeroSemana]/page.tsx"), /datos\.esViewer/);
+  assert.doesNotMatch(leer("app/[empresa]/[periodo]/ejecucion/mes/page.tsx"), /datos\.esViewer/);
 });
 
 test("obtenerNumeroSemanaAbierta: no crea semanas si quien llama es VIEWER", () => {

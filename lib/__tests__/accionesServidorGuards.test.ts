@@ -233,10 +233,14 @@ const GUARDS_DE_SESION_EN_RUTAS = [
   "requireAccesoEmpresa",
   "obtenerUsuarioActual",
 ];
-// "archivo:MÉTODO" -> motivo. Hoy solo el Excel del Reporte: el VIEWER lo descarga, pero SIN los bloques reservados
-// (sinBloquesReservados + verBloquesReservadosSiNoEsViewer, verificado por permisosViewer.test.ts).
+// "archivo:MÉTODO" -> motivo. El VIEWER descarga: (1) el Excel del Reporte, pero SIN los bloques reservados
+// (sinBloquesReservados + verBloquesReservadosSiNoEsViewer, verificado por permisosViewer.test.ts); (2) los dos Excel del
+// Historial de ejecución de su empresa (semana y todo el mes), idénticos a los de un gerente de esa empresa: solo sus
+// unidades, sin saldo, sin reservados ni ocultas del gerente (verificado por excelEjecucionViewer.test.ts).
 const RUTAS_ABIERTAS_AL_VIEWER: Record<string, string> = {
   "app/[empresa]/[periodo]/reporte/excel/route.ts:GET": "el Reporte es de solo lectura para el VIEWER; el Excel sale sin Disponibilidades ni Cierre",
+  "app/[empresa]/[periodo]/ejecucion/[numeroSemana]/excel/route.ts:GET": "el Historial de ejecución de su empresa es de solo lectura para el VIEWER; el Excel sale igual que el del gerente",
+  "app/[empresa]/[periodo]/ejecucion/mes/excel/route.ts:GET": "el Historial de ejecución de su empresa es de solo lectura para el VIEWER; el Excel sale igual que el del gerente",
 };
 
 const archivosRoute = todosLosArchivos.filter((f) => /[\\/]route\.(ts|tsx)$/.test(f));
