@@ -67,6 +67,7 @@ import { type FilaMadre } from "@/lib/extractos/madre";
 import {
   OPCION_ARCHIVO_MADRE,
   cuentasCargadasPorOtroCamino,
+  existentesDeLasCuentas,
   esClasificacionExplicita,
   resumirMadre,
   type ResumenMadre,
@@ -95,8 +96,10 @@ import {
   MONEDA_PREDETERMINADA,
   decimalTextoDeCentavos,
   claveMovimiento,
+  claveMovimientoBase,
   contarPorClave,
   separarNuevas,
+  separarNuevasDosPasadas,
 } from "@/lib/conteoMovimientos";
 
 const FORMATO_PERIODO = /^\d{4}-\d{2}$/;
@@ -620,8 +623,8 @@ type FilaClaveDb = {
   moneda: string;
 };
 
-function claveDeFilaDb(m: FilaClaveDb) {
-  return claveMovimiento({
+function camposClaveDeFilaDb(m: FilaClaveDb) {
+  return {
     fecha: m.fecha,
     importeCentavos: centavosDeDecimalTexto(m.importe),
     bancoYCuenta: m.bancoYCuenta,
@@ -629,7 +632,15 @@ function claveDeFilaDb(m: FilaClaveDb) {
     nroReferencia: m.nroReferencia,
     saldoCentavos: m.saldo === null ? null : centavosDeDecimalTexto(m.saldo),
     moneda: m.moneda,
-  });
+  };
+}
+
+function claveDeFilaDb(m: FilaClaveDb) {
+  return claveMovimiento(camposClaveDeFilaDb(m));
+}
+
+function claveBaseDeFilaDb(m: FilaClaveDb) {
+  return claveMovimientoBase(camposClaveDeFilaDb(m));
 }
 
 function claveFechaImporteCuenta(fecha: Date, importeCentavos: number, bancoYCuenta: string, moneda?: string | null) {
@@ -1100,6 +1111,7 @@ type FilaConClaveMadre = {
   importeCentavos: number;
   saldoCentavos: number | null;
   clave: string;
+  claveBase: string;
   cuenta: string;
   claveFIC: string;
 };
@@ -1129,18 +1141,20 @@ function armarFilasConClaveMadre(filas: FilaMadre[]): FilaConClaveMadre[] {
   return filas.map((fila) => {
     const importeCentavos = centavosDeNumero(fila.importe);
     const saldoCentavos = fila.saldo === null ? null : centavosDeNumero(fila.saldo);
+    const campos = {
+      fecha: fila.fecha,
+      importeCentavos,
+      bancoYCuenta: fila.bancoYCuenta,
+      concepto: fila.concepto,
+      nroReferencia: fila.nroReferencia,
+      saldoCentavos,
+    };
     return {
       fila,
       importeCentavos,
       saldoCentavos,
-      clave: claveMovimiento({
-        fecha: fila.fecha,
-        importeCentavos,
-        bancoYCuenta: fila.bancoYCuenta,
-        concepto: fila.concepto,
-        nroReferencia: fila.nroReferencia,
-        saldoCentavos,
-      }),
+      clave: claveMovimiento(campos),
+      claveBase: claveMovimientoBase(campos),
       cuenta: normalizarCuenta(fila.bancoYCuenta),
       claveFIC: claveFechaImporteCuenta(fila.fecha, importeCentavos, fila.bancoYCuenta),
     };
@@ -1163,17 +1177,22 @@ async function calcularCargaMadre(db: DbLectura, filasConClave: FilaConClaveMadr
   const hasta = new Date(maximo);
   const cuentasDelArchivo = Array.from(new Set(filasConClave.map((f) => f.cuenta)));
 
-  const existentes = await db.$queryRaw<FilaClaveDb[]>`
+  // La cuenta NO se filtra en SQL: el SQL no saca tildes y normalizarCuenta sí ('DÓLAR' ≠ 'DOLAR'), así
+  // que una cuenta con tilde nunca encontraba lo ya cargado y se recargaba entera en cada subida
+  // (2026-11-20). Se trae por fecha y se filtra acá, con la misma normalización que usa el archivo.
+  const cuentasSet = new Set(cuentasDelArchivo);
+  const existentesDelRango = await db.$queryRaw<FilaClaveDb[]>`
     SELECT mb.fecha, mb.importe::text AS importe, mb."bancoYCuenta", mb.concepto,
            mb."nroReferencia", mb.saldo::text AS saldo, mb.moneda
     FROM "MovimientoBancario" mb
     WHERE mb.fecha >= ${desde.toISOString().slice(0, 10)}::date
       AND mb.fecha < (${hasta.toISOString().slice(0, 10)}::date + 1)
-      AND regexp_replace(upper(trim(mb."bancoYCuenta")), '[[:space:]]+', ' ', 'g') = ANY(${cuentasDelArchivo}::text[])
   `;
+  const existentes = existentesDeLasCuentas(existentesDelRango, cuentasSet);
   const existentesCotejo = existentes.map((m) => ({
     cuenta: normalizarCuenta(m.bancoYCuenta),
     clave: claveDeFilaDb(m),
+    claveBase: claveBaseDeFilaDb(m),
     claveFIC: claveFechaImporteCuenta(m.fecha, centavosDeDecimalTexto(m.importe), m.bancoYCuenta, m.moneda),
   }));
 
@@ -1184,10 +1203,10 @@ async function calcularCargaMadre(db: DbLectura, filasConClave: FilaConClaveMadr
     return { cuenta: delArchivo[0].fila.bancoYCuenta, filas: delArchivo.length };
   });
 
-  const { nuevas, cantidadYaCargadas } = separarNuevas(
+  const { nuevas, cantidadYaCargadas } = separarNuevasDosPasadas(
     aCargar,
-    (f) => f.clave,
-    contarPorClave(existentesCotejo.map((e) => e.clave))
+    (f) => ({ conSaldo: f.clave, base: f.claveBase }),
+    existentesCotejo.map((e) => ({ conSaldo: e.clave, base: e.claveBase }))
   );
   const yaVistos = new Set(existentesCotejo.map((e) => e.claveFIC));
   const casiDuplicados: PosibleDuplicado[] = nuevas
