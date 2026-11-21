@@ -55,6 +55,11 @@ function tienePresupuestoPisable(f: Plantilla["filas"][number]): boolean {
   );
 }
 
+// Fila cuyo Real calculado se reemplaza con un valor tipeado (FuenteReal.pisableConManual).
+function realPisable(f: Plantilla["filas"][number]): boolean {
+  return f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.pisableConManual === true;
+}
+
 // Campos que se pueden tipear en el Reporte de esta empresa. Sin interruptor, ninguno.
 // - Filas de la plantilla: el Real manual (los de Disponibilidades, solo si la empresa también ve ese bloque) y el
 //   Presupuestado de las que lo tienen pisable (pisableConManual: Mantenor «Prestamos», Havanna «Acreditación Tarjetas»).
@@ -122,6 +127,8 @@ export type CeldaTipeo = {
   // mes no tiene ejecución) que se tomó de base. La casilla muestra el TOTAL (calculado + manual guardado); `centavos` e
   // `importeInicial` son ese total, y al guardar se manda este calculado para persistir solo la diferencia.
   calculado?: number;
+  // Fila cuyo Real calculado lo reemplaza un valor manual (motor: pisableConManual): con valor guardado la casilla es «manual».
+  pisaCalculado?: boolean;
 };
 
 export type VistaTipeo = {
@@ -175,6 +182,7 @@ export function armarVistaTipeo(e: EntradaVistaTipeo): VistaTipeo | null {
   const soloReal = !e.esAdminOFinanzas;
   const celdas: CeldaTipeo[] = [];
   const tipeables = camposTipeables(e.plantilla, e.empresaSlug, e.interruptores);
+  const pisablesReal = new Set(e.plantilla.filas.filter(realPisable).map((f) => f.clave));
   const disponibilidades = tipeables.some((c) => c.bloque === "DISPONIBILIDADES" && c.columna === "REAL");
   for (const c of tipeables) {
     // El gerente con permiso recibe solo Real y nunca Cierre (el Capital de trabajo es de ADMIN y FINANZAS).
@@ -209,6 +217,7 @@ export function armarVistaTipeo(e: EntradaVistaTipeo): VistaTipeo | null {
       avisoUnaVez: bloqueo !== null,
       aviso: bloqueo === null ? null : c.columna === "REAL" ? AVISO_UNA_VEZ : AVISO_PRESUPUESTO_VALIDADO,
       ...(conCalculado ? { calculado: calculado ?? 0 } : {}),
+      ...(c.columna === "REAL" && pisablesReal.has(c.clave) ? { pisaCalculado: true } : {}),
     });
   }
   if (celdas.length === 0) return null;

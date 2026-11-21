@@ -15,6 +15,8 @@ export type CampoVista = {
   cargado: boolean;
   // Solo en las filas con parte calculada + tipeo: el calculado (centavos) que se muestra; `valor` es el TOTAL y se guarda solo la diferencia.
   calculado?: number;
+  // Fila cuyo Real calculado lo reemplaza un valor manual (motor: pisableConManual).
+  pisaCalculado?: boolean;
   nota: string | null;
   cargadoPor: string | null;
   bloqueo: string | null;
@@ -148,6 +150,11 @@ export default function CargaValoresManuales({
                       {c.calculado !== undefined && (
                         <p className="text-[11px] text-ink-muted">
                           Total del Real (incluye {formatearCentavos(c.calculado)} calculado). Se guarda solo la diferencia.
+                        </p>
+                      )}
+                      {c.pisaCalculado && (
+                        <p className="text-[11px] text-ink-muted">
+                          {c.cargado ? "Valor manual: reemplaza al calculado." : "Lo que cargues reemplaza al calculado; vacío = rige el cálculo."}
                         </p>
                       )}
                       {c.cargadoPor && (

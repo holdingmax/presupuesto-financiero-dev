@@ -98,6 +98,9 @@ export type FuenteReal =
       // automático + lo tipeado. Antes de `desde`, el cálculo no cambia. Si el mes no tiene semanas cerradas pero hay
       // valor manual, se muestra el manual (en vez de null); sin manual sigue null. Abre la celda de Real del tipeo.
       sumarManual?: { desde: string };
+      // Un Real MANUAL de esta fila en el mes REEMPLAZA al calculado (a diferencia de sumarManual, que se suma). Sin valor
+      // manual rige el cálculo de las clasificaciones. Abre la celda de Real del tipeo y de la carga, en todos los meses.
+      pisableConManual?: boolean;
       // Espejo de otra unidad (Conexión ↔ Avianor): desde `desde` ("AAAA-MM") el Real de esta fila NO sale de las
       // clasificaciones de arriba sino del NETO (créditos + débitos) de los movimientos de `unidades` con alguna de
       // `clasificaciones` — el MISMO conjunto que usan las filas de esa otra empresa (se arma desde su plantilla, no a mano).
@@ -497,6 +500,10 @@ export function armarReporte(
           }
           return { v: aplicarSigno(fila.signo, neto), inc };
         }
+        if (r.pisableConManual) {
+          const pisado = meses[i].manuales?.real.get(fila.clave);
+          if (pisado !== undefined) return { v: pisado, inc };
+        }
         const sumaManual = r.sumarManual && meses[i].periodo >= r.sumarManual.desde;
         const manualPropio = sumaManual ? meses[i].manuales?.real.get(fila.clave) : undefined;
         if (sinEjecucion[i]) return { v: manualPropio ?? null, inc };
@@ -694,7 +701,7 @@ export function camposManuales(plantilla: Plantilla): CampoManual[] {
   const campos: CampoManual[] = [];
   for (const f of plantilla.filas) {
     if (f.tipo === "linea") {
-      if (f.real.tipo === "manual" || f.real.tipo === "manualDesde" || (f.real.tipo === "clasificaciones" && f.real.sumarManual)) {
+      if (f.real.tipo === "manual" || f.real.tipo === "manualDesde" || (f.real.tipo === "clasificaciones" && (f.real.sumarManual || f.real.pisableConManual))) {
         campos.push({ clave: f.clave, texto: f.texto, bloque: f.bloque, columna: "REAL" });
       }
       if (

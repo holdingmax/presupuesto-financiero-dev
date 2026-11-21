@@ -5,6 +5,7 @@ import {
   cat,
   clasif,
   clasifMasManual,
+  clasifPisable,
   clasifNeteando,
   clasifSentido,
   disp,
@@ -120,7 +121,7 @@ const egresos = [
   }),
   egreso("br.gastosBancarios", "Gastos Bancarios", clasif("COM Y GTOS BRIOS"), cat("Gastos bancarios")),
   egreso("br.proveedores", "Proveedores", clasif("PROV Y SERV"), cat("PROV Y SERV")),
-  egreso("br.compraIva", "Compra IVA", clasif("IVA"), cat("IVA")),
+  egreso("br.compraIva", "Compra IVA", clasifPisable("IVA"), cat("IVA")),
   egreso(
     "br.liquidacionesJuicios",
     "Liquidaciones finales y juicios",

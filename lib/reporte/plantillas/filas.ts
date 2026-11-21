@@ -28,6 +28,12 @@ export const clasifNeteando = (desde: string, filas: string[], ...clasificacione
   clasificaciones,
   restarManuales: { desde, filas },
 });
+// Real calculado de las clasificaciones, que un valor tipeado del mes REEMPLAZA (sin valor manual rige el cálculo).
+export const clasifPisable = (...clasificaciones: string[]): FuenteReal => ({
+  tipo: "clasificaciones",
+  clasificaciones,
+  pisableConManual: true,
+});
 // Como clasif, pero desde `desde` ("AAAA-MM") suma además el Real tipeado de la misma fila (SAC de Brillante y Conexión).
 export const clasifMasManual = (desde: string, ...clasificaciones: string[]): FuenteReal => ({
   tipo: "clasificaciones",

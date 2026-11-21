@@ -77,7 +77,7 @@ const ESPERADO: Record<
   // Mantenor: 7 Real manual de Ingresos + 2 de Egresos (SAC, Expensas) + 5 de Disponibilidades (el resto sale de Ejecución o es «Sin Real»).
   mantenor: {
     ingresos: ["mn.otrosClientesJujuy", "mn.otrosClientesTucuman", "mn.msmColumnas", "mn.msmPinturaVial", "mn.traspasoSaldoInicial", "mn.traspasoPrestamoMs", "mn.resultadoFci"],
-    egresos: ["mn.sac", "mn.expensas"],
+    egresos: ["mn.sac", "mn.expensas", "mn.compraIva"],
     abajo: [],
     disponibilidades: ["mn.dBancoFci", "mn.dEfectivo", "mn.dDolares", "mn.dChequesNegociados", "mn.dReservaSac"],
     presupuestoPisable: ["mn.prestamos"],
@@ -102,7 +102,7 @@ const ESPERADO: Record<
   // Brillante: 4 Real manual de Ingresos (con Gold Salta) + 2 de Egresos (SAC, Expensas) + 2 de abajo + 11 de Disponibilidades.
   brillante: {
     ingresos: ["br.otrasOperacionesJujuy", "br.goldSalta", "br.resultadoFci", "br.otroMsnt"],
-    egresos: ["br.sac", "br.expensas"],
+    egresos: ["br.sac", "br.expensas", "br.compraIva"],
     abajo: ["br.traspasoSaldoInicial", "br.recuperoGastos"],
     disponibilidades: [
       "br.dBancoFci",
@@ -123,7 +123,7 @@ const ESPERADO: Record<
   // (Tarjetas y Comisiones, Expensas) + 7 de Disponibilidades (incluye Cheques en cartera).
   havanna: {
     ingresos: ["hv.cobranzasLocales", "hv.acreditacionTarjetas", "hv.resultadoFci", "hv.tarjetaNoIngresada"],
-    egresos: ["hv.tarjetasComisiones", "hv.expensas"],
+    egresos: ["hv.tarjetasComisiones", "hv.expensas", "hv.compraIva"],
     abajo: [],
     disponibilidades: ["hv.dBancoFci", "hv.dEfectivo", "hv.dDolares", "hv.dChequesEnCartera", "hv.dReservaAguinaldo", "hv.dChequesNegociados", "hv.dIngresoBancoMacro"],
     presupuestoPisable: ["hv.acreditacionTarjetas", "hv.devolucionPrestamoMs"],
@@ -153,6 +153,8 @@ const ESPERADO: Record<
 };
 
 // Filas con `sumarManual` (Real = clasificaciones + valor tipeado): exactamente estas, y ninguna más en ninguna plantilla.
+// Filas de clasificaciones cuyo Real tipeado REEMPLAZA al calculado (pisableConManual): «Compra IVA» de Brillante y Mantenor.
+const REAL_PISABLE: Record<string, string[]> = { brillante: ["br.compraIva"], mantenor: ["mn.compraIva"] };
 const SUMAR_MANUAL: Record<string, string[]> = { brillante: ["br.sac"], "conexion-logistica": ["cx.sac"], "conexion-logistica-spp": ["cx.sac"], mantenor: ["mn.sac"], avianor: ["av.cobranzaClientes", "av.sueldos", "av.tarjetas", "av.expensas", "av.proveedores"] };
 
 test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac, cx.sac, mn.sac y cinco de Avianor (conexion-logistica-spp comparte plantilla)", () => {
@@ -166,15 +168,15 @@ test("sumarManual: el conjunto de filas con ese mecanismo es exactamente br.sac,
 });
 
 // Flujo + Disponibilidades (+ Presupuestado pisable + Capital de trabajo): Fredy 3 + 9 + 1, HWC 5 + 8 + 1, Avianor 18 + 1,
-// Mantenor 9 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 8 + 11 + 1, Havanna 6 + 7 + 2 de P + 1, Conexión 6 + 11 + 1.
+// Mantenor 10 + 5 + 1 de P + 1, Radio 3 + 7 + 1, Brillante 9 + 11 + 1, Havanna 7 + 7 + 2 de P + 1, Conexión 6 + 11 + 1.
 const CANTIDAD: Record<string, number> = {
   "fredy-publicidad": 13,
   hwc: 14,
   avianor: 19,
-  mantenor: 16,
+  mantenor: 17,
   radio: 11,
-  brillante: 20,
-  havanna: 16,
+  brillante: 21,
+  havanna: 17,
   "conexion-logistica": 18,
 };
 
@@ -210,6 +212,10 @@ for (const slug of Object.keys(ESPERADO)) {
       .filter((f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined)
       .map((f) => f.clave);
     assert.deepEqual(conSumarManual, SUMAR_MANUAL[slug] ?? [], `${slug}: filas con sumarManual`);
+    const conRealPisable = plantilla.filas
+      .filter((f) => f.tipo === "linea" && f.real.tipo === "clasificaciones" && f.real.pisableConManual === true)
+      .map((f) => f.clave);
+    assert.deepEqual(conRealPisable, REAL_PISABLE[slug] ?? [], `${slug}: filas con Real pisable`);
     const tipeables = new Set(camposTipeables(plantilla, slug).map((c) => `${c.clave}|${c.columna}`));
     for (const f of plantilla.filas) {
       if (f.tipo !== "linea") continue;
@@ -221,7 +227,9 @@ for (const slug of Object.keys(ESPERADO)) {
       // El SAC de Brillante y Conexión suma su Real tipeado (sumarManual): es la ÚNICA excepción, y el conjunto exacto de las
       // filas con ese mecanismo se verifica más abajo, así que otra fila con sumarManual hace fallar este test.
       const tieneSumarManual = f.real.tipo === "clasificaciones" && f.real.sumarManual !== undefined;
-      if (f.real.tipo !== "manual" && f.real.tipo !== "manualDesde" && !tieneSumarManual) {
+      // Compra IVA de Brillante y Mantenor (pisableConManual): la otra excepción; su conjunto exacto se verifica arriba.
+      const tienePisable = f.real.tipo === "clasificaciones" && f.real.pisableConManual === true;
+      if (f.real.tipo !== "manual" && f.real.tipo !== "manualDesde" && !tieneSumarManual && !tienePisable) {
         assert.equal(tipeables.has(`${f.clave}|REAL`), false, `${f.clave} Real`);
       }
     }
