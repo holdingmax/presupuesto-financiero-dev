@@ -19,6 +19,10 @@ export const CENTINELA = 7_000_000_000_000;
 const CELDAS_SIN_NUMERAR_AVIANOR = ["av.cobranzaClientes|REAL", "av.sueldos|REAL", "av.expensas|REAL", "av.proveedores|REAL"];
 
 // SAC de Brillante, Conexión y Mantenor (desde 2026-10 suma su Real tipeado, sumarManual) y «Cheques en cartera despues del 10» de Conexión (Real tipeado desde 2026-10). Sin numerar esas celdas, el resto conserva los valores de las fotos JSON.
+// «Compra IVA» de Brillante, Mantenor y Havanna (Real manual que reemplaza al calculado): sin numerar queda vacía y rige el cálculo,
+// como en las fotos JSON, y el resto conserva sus valores.
+const CELDAS_SIN_NUMERAR_IVA = ["br.compraIva|REAL", "mn.compraIva|REAL", "hv.compraIva|REAL"];
+
 const CELDAS_SIN_NUMERAR_SAC = ["br.sac|REAL", "cx.sac|REAL", "mn.sac|REAL", "cx.chequesDespuesDel10|REAL", ...CELDAS_SIN_NUMERAR_AVIANOR];
 
 // «Cheques en cartera» (nov-2026) también queda sin numerar: es una fila nueva de Disponibilidades y no debe correr los valores de las demás.
@@ -109,6 +113,7 @@ export function mesesDePrueba(plantilla: Plantilla): DatosMes[] {
     // sin numerarlas, el resto conserva los valores de las fotos JSON.
     if (CELDAS_SIN_NUMERAR_HAVANNA.includes(`${c.clave}|${c.columna}`)) continue;
     if (CELDAS_SIN_NUMERAR_SAC.includes(`${c.clave}|${c.columna}`)) continue;
+    if (CELDAS_SIN_NUMERAR_IVA.includes(`${c.clave}|${c.columna}`)) continue;
     // Y con las ocho de Mantenor (cobranza neteada): quedan vacías, como las filas que agrega esperado() a la foto.
     if (CELDAS_SIN_NUMERAR_MANTENOR.includes(`${c.clave}|${c.columna}`)) continue;
     const valor = esBloqueReservado(c.bloque) ? CENTINELA + n++ : 1000 + n++;

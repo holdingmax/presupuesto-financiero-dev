@@ -157,6 +157,11 @@ export function CeldaTipeoEditable({
       celda.valorExacto !== null ? `Valor exacto: ${celda.valorExacto}` : null,
       celda.aviso === null && celda.calculado === undefined && placeholder !== "0" ? "Calculado por la regla; tipeá para reemplazarlo" : null,
       // Fila con parte calculada: la casilla trae el total; lo guardado es solo lo que se agrega a lo calculado.
+      celda.pisaCalculado === true
+        ? celda.centavos !== null
+          ? "Valor manual: reemplaza al calculado"
+          : "Sin valor manual rige el cálculo; tipeá para reemplazarlo"
+        : null,
       celda.calculado !== undefined ? `Total (incluye ${formatearPesos(celda.calculado)} calculado). Al guardar se persiste solo la diferencia` : null,
     ]
       .filter((x) => x !== null)

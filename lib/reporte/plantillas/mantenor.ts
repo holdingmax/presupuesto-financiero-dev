@@ -5,6 +5,7 @@ import {
   cat,
   clasif,
   clasifMasManual,
+  clasifPisable,
   clasifNeteando,
   clasifSentido,
   disp,
@@ -102,7 +103,7 @@ const egresos = [
     nota: "Planilla: reparto de la unidad EXPENSAS.",
   }),
   egreso("mn.gastosBancarios", "Gastos Bancarios", clasif("COM Y GTOS BRIOS"), cat("Gastos bancarios")),
-  egreso("mn.compraIva", "Compra IVA", clasif("IVA"), cat("IVA")),
+  egreso("mn.compraIva", "Compra IVA", clasifPisable("IVA"), cat("IVA")),
   egreso("mn.proveedores", "Proveedores", clasif("PROV Y SERV"), cat("PROV Y SERV")),
   egreso(
     "mn.liquidacionesJuicios",

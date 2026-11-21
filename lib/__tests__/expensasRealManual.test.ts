@@ -86,13 +86,13 @@ for (const [slug, e] of Object.entries(EMPRESAS)) {
   }
 }
 
-test("Havanna: Compra IVA y Otros Ingresos no cambian (Kike no trae valor para esas)", () => {
+test("Havanna: Compra IVA pasó a Real manual (Kike la tipea); Otros Ingresos no cambia", () => {
   const p = PLANTILLAS_POR_SLUG["havanna"];
   const real = (clave: string) => {
     const f = p.filas.find((x) => x.clave === clave)!;
     return f.tipo === "linea" ? f.real.tipo : null;
   };
-  assert.equal(real("hv.compraIva"), "ninguna");
+  assert.equal(real("hv.compraIva"), "manual");
   assert.equal(real("hv.otrosIngresos"), "clasificaciones");
 });
 

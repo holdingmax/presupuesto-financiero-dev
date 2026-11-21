@@ -99,7 +99,7 @@ const egresos = [
     nota: "Planilla: reparto de la unidad EXPENSAS.",
   }),
   egreso("hv.impuestoAlCheque", "Impuesto al cheque", clasif("COM Y GTOS BRIOS"), cat("Gastos bancarios")),
-  egreso("hv.compraIva", "Compra IVA", SIN_REAL, cat("IVA")),
+  egreso("hv.compraIva", "Compra IVA", REAL_MANUAL, cat("IVA")),
   egreso("hv.proveedores", "Proveedores", clasif("PROV Y SERV"), cat("PROV Y SERV"), {
     parcial: true,
     nota: "Planilla: PROV Y SERV + GASTOS TARJETAS + GASTOS VS BARES (tipeado).",

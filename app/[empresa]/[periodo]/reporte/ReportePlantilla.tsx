@@ -600,7 +600,12 @@ export function FilaTabla({
       /> : undefined;
   const editorReal =
     fila.tipo === "linea" && idsTipeables.has(`${fila.clave}|REAL`) ? (
-      <CeldaTipeoEditable clave={fila.clave} columna="REAL" nombre={fila.texto.trim()} />
+      <CeldaTipeoEditable
+        clave={fila.clave}
+        columna="REAL"
+        nombre={fila.texto.trim()}
+        derivado={fila.real.tipo === "clasificaciones" && fila.real.pisableConManual ? celdas[celdas.length - 1].real : undefined}
+      />
     ) : undefined;
   // Presupuestado tipeado en el Reporte (solo ADMIN y FINANZAS): las filas extra, las de Presupuestado pisable
   // (pisableConManual) y el Capital de trabajo; las demás lo cargan el gerente o /reporte/carga.

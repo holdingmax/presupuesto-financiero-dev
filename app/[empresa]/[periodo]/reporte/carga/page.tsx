@@ -105,6 +105,9 @@ export default async function CargaPage({ params }: Props) {
       valor: total === null ? "" : formatearCentavos(total),
       cargado: v !== undefined,
       ...(calculado === undefined ? {} : { calculado }),
+      ...(c.columna === "REAL" && fila.tipo === "linea" && fila.real.tipo === "clasificaciones" && fila.real.pisableConManual
+        ? { pisaCalculado: true }
+        : {}),
       nota: v?.nota ?? null,
       cargadoPor: v
         ? `${v.cargadoPor.nombre} · ${v.updatedAt.toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`
